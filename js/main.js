@@ -241,6 +241,32 @@ document.addEventListener('DOMContentLoaded', () => {
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
+  // Időszakos — szekció beállítások
+  const RIPORT_SETTINGS_MAP = [
+    { id: 'setNapiB',    key: 'napiB',    def: true  },
+    { id: 'setDolgozoi', key: 'dolgozoi', def: true  },
+    { id: 'setAnyag',    key: 'anyag',    def: true  },
+    { id: 'setLegek',    key: 'legek',    def: true  },
+    { id: 'setMuszak',   key: 'muszak',   def: false },
+    { id: 'setElozo',    key: 'elozo',    def: false },
+  ];
+  function saveRiportSettings() {
+    const s = {};
+    RIPORT_SETTINGS_MAP.forEach(({ id, key }) => { s[key] = E(id).checked; });
+    localStorage.setItem('napiJelentesRiportSet', JSON.stringify(s));
+  }
+  function initRiportSettings() {
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem('napiJelentesRiportSet') || '{}'); } catch {}
+    RIPORT_SETTINGS_MAP.forEach(({ id, key, def }) => { E(id).checked = key in stored ? stored[key] : def; });
+  }
+  initRiportSettings();
+  RIPORT_SETTINGS_MAP.forEach(({ id }) => E(id).addEventListener('change', saveRiportSettings));
+  E('riportSettingsBtn').addEventListener('click', () => {
+    const p = E('riportSettings');
+    p.style.display = p.style.display === 'none' ? '' : 'none';
+  });
+
   // Elemzés
   E('elemzesBtn').addEventListener('click', elemzesRiport);
 

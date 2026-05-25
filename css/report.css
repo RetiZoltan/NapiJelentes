@@ -38,3 +38,5 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 .stbl .tot td{font-weight:700;color:var(--text);border-top:2px solid var(--border2);background:var(--surf3);font-size:12.5px;}
 .dlink{color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer;background:none;border:none;font-family:'Source Sans 3',sans-serif;font-size:13px;}
 .dlink:hover{color:var(--text);}
+.rs-lbl{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--text2);cursor:pointer;user-select:none;}
+.rs-lbl input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0;}

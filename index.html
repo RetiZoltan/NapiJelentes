@@ -209,6 +209,18 @@
           <div class="field"><label class="lbl">Év</label><select id="evesEv" style="min-width:85px;"></select></div>
           <button class="btn btn-primary btn-sm" id="evesBtn">Mutat</button>
         </div>
+        <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">
+          <p style="font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:0 0 9px;">Megjelenített szekciók</p>
+          <div style="display:flex;flex-wrap:wrap;gap:7px 20px;">
+            <label class="rs-lbl"><input type="checkbox" id="setNapiB"> Időszaki bontás</label>
+            <label class="rs-lbl"><input type="checkbox" id="setDolgozoi"> Dolgozói összesítő</label>
+            <label class="rs-lbl"><input type="checkbox" id="setAnyag"> Anyag összesítő</label>
+            <label class="rs-lbl"><input type="checkbox" id="setLegek"> Legek</label>
+            <label class="rs-lbl"><input type="checkbox" id="setMuszak"> Műszakok összehasonlítása</label>
+            <label class="rs-lbl"><input type="checkbox" id="setElozo"> Előző időszakkal</label>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="riportSettingsBtn" style="margin-top:10px;font-size:11px;">⚙ Szekciók</button>
       </div>
       <div id="idoszakosRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
