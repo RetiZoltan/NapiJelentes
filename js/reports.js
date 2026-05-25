@@ -12,14 +12,13 @@ export function cleanupNapiListener() {
 }
 
 export function switchView(v, btn) {
-  if (v !== 'napi') cleanupNapiListener();
   aktView = v;
   document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.vc').forEach(c => c.classList.remove('active'));
   E('vc' + v.charAt(0).toUpperCase() + v.slice(1)).classList.add('active');
-  E('riportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📋</div>Kattints a <strong>Mutat</strong> gombra</div>`;
-  E('kepMentBtn').disabled = true;
+  E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📋</div>Kattints a <strong>Mutat</strong> gombra</div>`;
+  E('idoszakosKepMentBtn').disabled = true;
 }
 
 /* ── Napi riport with onSnapshot ── */
@@ -28,7 +27,7 @@ export function napiRiport() {
   if (!rd) { msg('Válassz dátumot!', 'error'); return; }
   const szuro = canSeeAllReports() ? E('dolgSzuro').value : '';
 
-  E('riportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('napiRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   cleanupNapiListener();
 
   const constraints = [where('datum', '==', rd)];
@@ -53,8 +52,8 @@ export function napiRiport() {
 
 function renderNapi(rd, lista, altM, szuro) {
   if (!lista.length && !altM) {
-    E('riportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
-    E('kepMentBtn').disabled = true;
+    E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
+    E('napiKepMentBtn').disabled = true;
     return;
   }
   const shifts = [...new Set(lista.map(a => a.ido))].sort();
@@ -62,8 +61,8 @@ function renderNapi(rd, lista, altM, szuro) {
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
   if (lista.length) h += workerHtml(grpWorkers(lista));
   if (altM) h += `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(altM).replace(/\n/g, '<br>')}</p>${isMainAdmin() ? `<button class="del-btn" data-type="megj" data-datum="${rd}" style="position:absolute;top:11px;right:11px;">✕</button>` : ''}</div>`;
-  E('riportDiv').innerHTML = h;
-  E('kepMentBtn').disabled = false;
+  E('napiRiportDiv').innerHTML = h;
+  E('napiKepMentBtn').disabled = false;
 }
 
 /* ── Heti riport ── */
@@ -72,9 +71,9 @@ export async function hetiRiport() {
   if (!kezdo) { msg('Válassz hetet!', 'error'); return; }
   const h     = monday(kezdo);
   const napok = Array.from({ length: 7 }, (_, i) => addD(h, i));
-  E('riportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   const hA = await fetchEntries({ datumFrom: napok[0], datumTo: napok[6] });
-  if (!hA.length) { E('riportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre</div>`; E('kepMentBtn').disabled = true; return; }
+  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
 
   const d1  = new Date(h + 'T12:00:00');
   const d2  = new Date(napok[6] + 'T12:00:00');
@@ -107,7 +106,7 @@ export async function hetiRiport() {
   });
   html += `</tbody></table></div>`;
   html += legekHtml(hA);
-  E('riportDiv').innerHTML = html; E('kepMentBtn').disabled = false;
+  E('idoszakosRiportDiv').innerHTML = html; E('idoszakosKepMentBtn').disabled = false;
 }
 
 /* ── Havi riport ── */
@@ -118,9 +117,9 @@ export async function haviRiport() {
   const lastDay = new Date(ev, honap + 1, 0).getDate();
   const from   = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
   const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
-  E('riportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   const hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (!hA.length) { E('riportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`; E('kepMentBtn').disabled = true; return; }
+  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
 
   let html = `<div class="r-head">${ev}. ${honNev[honap]}</div>`;
   const nm = {};
@@ -152,16 +151,104 @@ export async function haviRiport() {
   });
   html += `</tbody></table></div>`;
   html += legekHtml(hA);
-  E('riportDiv').innerHTML = html; E('kepMentBtn').disabled = false;
+  E('idoszakosRiportDiv').innerHTML = html; E('idoszakosKepMentBtn').disabled = false;
+}
+
+/* ── Éves riport ── */
+export async function evesRiport() {
+  const ev   = parseInt(E('evesEv').value);
+  const from = `${ev}-01-01`, to = `${ev}-12-31`;
+  const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+
+  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
+
+  let html = `<div class="r-head">${ev}. év</div>`;
+
+  /* Havi bontás */
+  const byMonth = {};
+  for (let m = 0; m < 12; m++) byMonth[`${ev}-${String(m + 1).padStart(2, '0')}`] = { s: 0, z: 0, n: new Set() };
+  hA.forEach(a => {
+    const mk = a.datum.substring(0, 7);
+    if (!byMonth[mk]) byMonth[mk] = { s: 0, z: 0, n: new Set() };
+    byMonth[mk].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
+    byMonth[mk].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
+    byMonth[mk].n.add(a.nev);
+  });
+  let totalS = 0, totalZ = 0;
+  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Havi bontás</div><table class="stbl"><thead><tr><th>Hónap</th><th>Darált súly</th><th>Zsákok</th><th>Dolgozók</th></tr></thead><tbody>`;
+  Object.keys(byMonth).sort().forEach(mk => {
+    const m = byMonth[mk]; if (m.s === 0 && m.z === 0) return;
+    totalS += m.s; totalZ += m.z;
+    const hi = parseInt(mk.split('-')[1]) - 1;
+    html += `<tr><td><button class="dlink" data-goto-havi="${mk}">${honNev[hi]}</button></td><td class="v-bold">${fmtKg(m.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(m.z)}</td><td style="color:var(--text3);font-size:12.5px;">${esc([...m.n].join(', '))}</td></tr>`;
+  });
+  html += `</tbody><tfoot><tr class="tot"><td>Éves összesen</td><td>${fmtKg(totalS)}</td><td style="color:var(--green);font-weight:600;">${fmtKg(totalZ)}</td><td></td></tr></tfoot></table></div>`;
+
+  /* Dolgozói összesítő */
+  const dw = {};
+  hA.forEach(a => {
+    if (!dw[a.nev]) dw[a.nev] = { s: 0, z: 0, np: new Set() };
+    dw[a.nev].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
+    dw[a.nev].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
+    dw[a.nev].np.add(a.datum);
+  });
+  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👥</span>Dolgozói összesítő</div><table class="stbl"><thead><tr><th>Dolgozó</th><th>Darált súly</th><th>Zsákok</th><th>Aktív napok</th></tr></thead><tbody>`;
+  Object.keys(dw).sort((a, b) => dw[b].s - dw[a].s).forEach(n => {
+    const w = dw[n];
+    html += `<tr><td style="font-weight:600;color:var(--text);">${esc(n)}</td><td class="v-bold">${fmtKg(w.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(w.z)}</td><td style="color:var(--text3);">${w.np.size}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  /* Anyag összesítő */
+  const anyagok = {};
+  hA.forEach(a => {
+    const ak = (a.anyag || '').trim(); if (!ak) return;
+    if (!anyagok[ak]) anyagok[ak] = 0;
+    anyagok[ak] += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
+  });
+  const anyagRank = Object.entries(anyagok).sort((a, b) => b[1] - a[1]);
+  if (anyagRank.length) {
+    const totalA = anyagRank.reduce((s, [, v]) => s + v, 0);
+    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📦</span>Anyag összesítő</div><table class="stbl"><thead><tr><th>#</th><th>Anyag</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
+    anyagRank.forEach(([anyag, kg], i) => {
+      const pct  = totalA > 0 ? (kg / totalA * 100).toFixed(1) : 0;
+      const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
+      html += `<tr><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;">${esc(anyag)}</td><td class="v-bold">${fmtKg(kg)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:var(--accent);border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  /* Legek (legjobb hónap + legtöbb anyag) */
+  const bestMonth = Object.entries(byMonth).filter(([, m]) => m.s > 0).sort((a, b) => b[1].s - a[1].s)[0];
+  const bestAnyag = anyagRank[0];
+  if (bestMonth || bestAnyag) {
+    html += `<div class="card"><div class="card-title"><span class="card-title-icon">🏆</span>Legek</div><table class="stbl"><thead><tr><th>Rekord</th><th>Érték</th><th>Adat</th></tr></thead><tbody>`;
+    if (bestMonth) html += `<tr><td>🥇 Legjobb hónap</td><td class="v-bold">${fmtKg(bestMonth[1].s)}</td><td style="color:var(--text3);font-size:12.5px;">${honNev[parseInt(bestMonth[0].split('-')[1]) - 1]}</td></tr>`;
+    if (bestAnyag) html += `<tr><td>📦 Legtöbb anyag</td><td class="v-bold">${fmtKg(bestAnyag[1])}</td><td style="color:var(--text3);font-size:12.5px;">${esc(bestAnyag[0])}</td></tr>`;
+    html += `</tbody></table></div>`;
+  }
+
+  E('idoszakosRiportDiv').innerHTML = html;
+  E('idoszakosKepMentBtn').disabled = false;
 }
 
 /* ── Klikk handler (törlés + nap-link) ── */
 export async function riportKlikk(e) {
-  const goto = e.target.dataset?.goto;
-  if (goto) {
-    E('riportD').value = goto;
-    switchView('napi', E('vbNapi'));
-    napiRiport();
+  const gotoNapi = e.target.dataset?.goto;
+  if (gotoNapi) {
+    E('riportD').value = gotoNapi;
+    document.dispatchEvent(new CustomEvent('napi-goto'));
+    return;
+  }
+  const gotoHavi = e.target.dataset?.gotoHavi;
+  if (gotoHavi) {
+    const [y, m] = gotoHavi.split('-');
+    E('haviEv').value    = y;
+    E('haviHonap').value = parseInt(m) - 1;
+    switchView('havi', E('vbHavi'));
+    haviRiport();
     return;
   }
   const btn = e.target.closest('.del-btn'); if (!btn) return;
@@ -198,14 +285,17 @@ export async function napTorol() {
 }
 
 /* ── Mentés képként ── */
-export function kepMent() {
+export function napiKepMent()      { kepMentDiv('napiRiportDiv',      E('riportD').value || tod()); }
+export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', tod()); }
+
+function kepMentDiv(divId, suffix) {
   const cs   = getComputedStyle(document.documentElement);
   const g    = v => cs.getPropertyValue(v).trim();
   const bg   = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
   const b    = g('--border'), b2 = g('--border2');
   const t1   = g('--text'), t2 = g('--text2'), t3 = g('--text3');
   const acc  = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
-  const clone = E('riportDiv').cloneNode(true);
+  const clone = E(divId).cloneNode(true);
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   const wrap  = document.createElement('div');
   wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
@@ -217,7 +307,7 @@ export function kepMent() {
   html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
     document.body.removeChild(wrap);
     const a = document.createElement('a');
-    a.download = `jelentes_${E('riportD').value || tod()}.jpg`;
+    a.download = `jelentes_${suffix}.jpg`;
     a.href = canvas.toDataURL('image/jpeg', .93);
     a.click();
     msg('Kép mentve!');

@@ -91,7 +91,8 @@
   <div class="outer">
     <div class="tabs" id="mainTabs">
       <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
-      <button class="tab-btn" data-tab="jelentes" id="tabBtnJelentes">📊 Jelentés</button>
+      <button class="tab-btn" data-tab="napi" id="tabBtnNapi" style="display:none">📋 Napi</button>
+      <button class="tab-btn" data-tab="idoszakos" id="tabBtnIdoszakos" style="display:none">📊 Időszakos</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
     </div>
@@ -157,15 +158,10 @@
       </div>
     </div>
 
-    <!-- ══ JELENTÉS ══ -->
-    <div id="tab-jelentes" class="tab-panel">
+    <!-- ══ NAPI JELENTÉS ══ -->
+    <div id="tab-napi" class="tab-panel">
       <div class="card">
-        <div class="vsw">
-          <button class="vbtn active" id="vbNapi" data-view="napi">Napi</button>
-          <button class="vbtn" id="vbHeti" data-view="heti">Heti</button>
-          <button class="vbtn" id="vbHavi" data-view="havi">Havi</button>
-        </div>
-        <div class="vc active" id="vcNapi">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field" style="min-width:150px;"><label class="lbl">Dátum</label><input type="date" id="riportD"></div>
           <div class="field" style="min-width:150px;" id="dolgSzuroWrap">
             <label class="lbl">Dolgozó</label>
@@ -175,7 +171,22 @@
           <button class="btn btn-primary btn-sm" id="mutatBtn">Mutat</button>
           <button class="btn btn-danger btn-sm" id="napTorBtn" title="Nap törlése">🗑</button>
         </div>
-        <div class="vc" id="vcHeti">
+      </div>
+      <div id="napiRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz dátumot és kattints a <strong>Mutat</strong> gombra</div></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-ghost btn-full" id="napiKepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
+      </div>
+    </div>
+
+    <!-- ══ IDŐSZAKOS JELENTÉS ══ -->
+    <div id="tab-idoszakos" class="tab-panel">
+      <div class="card">
+        <div class="vsw">
+          <button class="vbtn active" id="vbHeti" data-view="heti">Heti</button>
+          <button class="vbtn" id="vbHavi" data-view="havi">Havi</button>
+          <button class="vbtn" id="vbEves" data-view="eves">Éves</button>
+        </div>
+        <div class="vc active" id="vcHeti">
           <div class="field" style="min-width:175px;"><label class="lbl">Hét kezdete (hétfő)</label><input type="date" id="hetiKezdo"></div>
           <button class="btn btn-ghost btn-sm" id="aktHetBtn">Aktuális hét</button>
           <button class="btn btn-primary btn-sm" id="hetiBtn">Mutat</button>
@@ -194,10 +205,14 @@
           </div>
           <button class="btn btn-primary btn-sm" id="haviBtn">Mutat</button>
         </div>
+        <div class="vc" id="vcEves">
+          <div class="field"><label class="lbl">Év</label><select id="evesEv" style="min-width:85px;"></select></div>
+          <button class="btn btn-primary btn-sm" id="evesBtn">Mutat</button>
+        </div>
       </div>
-      <div id="riportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
+      <div id="idoszakosRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost btn-full" id="kepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
+        <button class="btn btn-ghost btn-full" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
       </div>
     </div>
 

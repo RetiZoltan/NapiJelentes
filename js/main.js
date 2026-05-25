@@ -8,7 +8,8 @@ import { E, msg, ag, tod, monday, initTheme, toggleTheme, showScreen } from './u
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF } from './data-entry.js';
-import { napiRiport, hetiRiport, haviRiport, kepMent,
+import { napiRiport, hetiRiport, haviRiport, evesRiport,
+         napiKepMent, idoszakosKepMent,
          switchView, riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
@@ -68,7 +69,8 @@ function buildAppUI() {
   E('userAvatar').textContent   = (name[0] || '?').toUpperCase();
 
   E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
-  E('tabBtnJelentes').style.display    = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
+  E('tabBtnNapi').style.display        = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
+  E('tabBtnIdoszakos').style.display   = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('sajatJelentes') || canSeeAllReports())            ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
@@ -84,19 +86,20 @@ function buildAppUI() {
   E('hetiKezdo').value  = monday(state.prevDatum);
 
   const yr = new Date().getFullYear();
-  E('haviEv').innerHTML = ''; E('elemzesEv').innerHTML = '';
+  E('haviEv').innerHTML = ''; E('elemzesEv').innerHTML = ''; E('evesEv').innerHTML = '';
   for (let y = yr; y >= yr - 5; y--) {
-    const o  = document.createElement('option'); o.value  = y; o.textContent  = y; E('haviEv').appendChild(o);
-    const o2 = document.createElement('option'); o2.value = y; o2.textContent = y; E('elemzesEv').appendChild(o2);
+    [E('haviEv'), E('elemzesEv'), E('evesEv')].forEach(sel => {
+      const o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o);
+    });
   }
-  E('haviHonap').value   = new Date().getMonth();
+  E('haviHonap').value    = new Date().getMonth();
   E('elemzesHonap').value = new Date().getMonth();
 
   loadLists();
   addSuly(); addZsak();
 
   if (!hasPerm('adatbevitel') && (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))) {
-    switchTab('jelentes', E('tabBtnJelentes'));
+    switchTab('napi', E('tabBtnNapi'));
   } else if (!hasPerm('adatbevitel') && canManageUsers()) {
     switchTab('admin', E('tabBtnAdmin'));
   }
@@ -109,7 +112,7 @@ function switchTab(name, btn) {
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'admin') loadAdminUsers();
-  if (name !== 'jelentes') cleanupNapiListener();
+  if (name !== 'napi') cleanupNapiListener();
 }
 
 function switchAdminSubtab(name) {
@@ -221,17 +224,25 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (e.target.classList.contains('dZsak') && E('zsakC').querySelectorAll('.wrow').length > 1) e.target.closest('.wrow').remove();
   });
 
-  // Jelentés
+  // Napi jelentés
+  E('maBtn').addEventListener('click',         () => { E('riportD').value = tod(); });
+  E('mutatBtn').addEventListener('click',      napiRiport);
+  E('napTorBtn').addEventListener('click',     napTorol);
+  E('napiKepMentBtn').addEventListener('click', napiKepMent);
+  E('napiRiportDiv').addEventListener('click', riportKlikk);
+  document.addEventListener('napi-goto', () => { switchTab('napi', E('tabBtnNapi')); napiRiport(); });
+
+  // Időszakos jelentés
   document.querySelectorAll('.vbtn').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view, b)));
-  E('maBtn').addEventListener('click',      () => { E('riportD').value = tod(); });
-  E('mutatBtn').addEventListener('click',   napiRiport);
-  E('napTorBtn').addEventListener('click',  napTorol);
-  E('aktHetBtn').addEventListener('click',  () => { E('hetiKezdo').value = monday(tod()); });
-  E('hetiBtn').addEventListener('click',    hetiRiport);
-  E('haviBtn').addEventListener('click',    haviRiport);
-  E('kepMentBtn').addEventListener('click', kepMent);
+  E('aktHetBtn').addEventListener('click',          () => { E('hetiKezdo').value = monday(tod()); });
+  E('hetiBtn').addEventListener('click',            hetiRiport);
+  E('haviBtn').addEventListener('click',            haviRiport);
+  E('evesBtn').addEventListener('click',            evesRiport);
+  E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
+  E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
+
+  // Elemzés
   E('elemzesBtn').addEventListener('click', elemzesRiport);
-  E('riportDiv').addEventListener('click',  riportKlikk);
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {
