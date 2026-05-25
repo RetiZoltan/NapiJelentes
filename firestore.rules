@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isMainAdmin() {
+      return isAuth() && getUser().isMainAdmin == true;
+    }
+
+    function getRole() {
+      let u = getUser();
+      return get(/databases/$(database)/documents/roles/$(u.roleId)).data;
+    }
+
+    function hasPerm(p) {
+      return isMainAdmin() || getRole().permissions[p] == true;
+    }
+
+    // ── users ──────────────────────────────────────────────────
+    match /users/{uid} {
+      // Mindenki olvashatja a saját profilját; főadmin + felh.kezelő mindenkit
+      allow read: if isAuth() && (
+        request.auth.uid == uid ||
+        isMainAdmin() ||
+        hasPerm('felhasznalokKezelese')
+      );
+      // Saját user-dokumentum létrehozása (regisztrációkor)
+      allow create: if isAuth() && request.auth.uid == uid
+        && request.resource.data.isMainAdmin == false;
+      // Főadmin frissíthet bármit; user a saját profilját (de isMainAdmin-t nem)
+      allow update: if isAuth() && (
+        isMainAdmin() ||
+        (request.auth.uid == uid
+          && !request.resource.data.diff(resource.data)
+              .affectedKeys().hasAny(['isMainAdmin','roleId']))
+      );
+      allow delete: if isAuth() && isMainAdmin();
+    }
+
+    // ── roles ──────────────────────────────────────────────────
+    match /roles/{roleId} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && isMainAdmin();
+    }
+
+    // ── entries ────────────────────────────────────────────────
+    match /entries/{entryId} {
+      allow read: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('mindenJelentes') ||
+        (hasPerm('sajatJelentes') && resource.data.createdBy == request.auth.uid)
+      );
+      allow create: if isAuth() && hasPerm('adatbevitel');
+      allow update: if isAuth() && (
+        isMainAdmin() ||
+        resource.data.createdBy == request.auth.uid
+      );
+      allow delete: if isAuth() && (
+        isMainAdmin() ||
+        resource.data.createdBy == request.auth.uid
+      );
+    }
+
+    // ── dailyNotes ─────────────────────────────────────────────
+    match /dailyNotes/{date} {
+      allow read: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('mindenJelentes') ||
+        hasPerm('sajatJelentes')
+      );
+      allow write: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('adatbevitel')
+      );
+    }
+
+    // ── config (nevek/anyagok listák) ──────────────────────────
+    match /config/{doc} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('adatbevitel')
+      );
+    }
+  }
+}
