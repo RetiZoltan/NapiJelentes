@@ -12,6 +12,7 @@ import { napiRiport, hetiRiport, haviRiport, kepMent,
          switchView, riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
+import { elemzesRiport } from './worker-analysis.js';
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -68,6 +69,7 @@ function buildAppUI() {
 
   E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
   E('tabBtnJelentes').style.display    = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
+  E('tabBtnElemzes').style.display     = (hasPerm('sajatJelentes') || canSeeAllReports())            ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
   E('stab-roles-btn').style.display = isMainAdmin() ? '' : 'none';
@@ -82,11 +84,13 @@ function buildAppUI() {
   E('hetiKezdo').value  = monday(state.prevDatum);
 
   const yr = new Date().getFullYear();
-  E('haviEv').innerHTML = '';
+  E('haviEv').innerHTML = ''; E('elemzesEv').innerHTML = '';
   for (let y = yr; y >= yr - 5; y--) {
-    const o = document.createElement('option'); o.value = y; o.textContent = y; E('haviEv').appendChild(o);
+    const o  = document.createElement('option'); o.value  = y; o.textContent  = y; E('haviEv').appendChild(o);
+    const o2 = document.createElement('option'); o2.value = y; o2.textContent = y; E('elemzesEv').appendChild(o2);
   }
-  E('haviHonap').value = new Date().getMonth();
+  E('haviHonap').value   = new Date().getMonth();
+  E('elemzesHonap').value = new Date().getMonth();
 
   loadLists();
   addSuly(); addZsak();
@@ -188,6 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Adatbevitel
+  E('pinNevBtn').addEventListener('click', () => {
+    state.isNamePinned = !state.isNamePinned;
+    const btn = E('pinNevBtn');
+    btn.style.background = state.isNamePinned ? 'var(--accent)' : '';
+    btn.style.color      = state.isNamePinned ? '#fff' : '';
+    btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
+  });
   E('addNevBtn').addEventListener('click',   () => addToList(E('nev'), state.nevek));
   E('addAnyagBtn').addEventListener('click', () => addToList(E('anyag'), state.anyagok));
   E('rogzitBtn').addEventListener('click',   rogzit);
@@ -219,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('hetiBtn').addEventListener('click',    hetiRiport);
   E('haviBtn').addEventListener('click',    haviRiport);
   E('kepMentBtn').addEventListener('click', kepMent);
+  E('elemzesBtn').addEventListener('click', elemzesRiport);
   E('riportDiv').addEventListener('click',  riportKlikk);
 
   // Admin — felhasználók
@@ -263,9 +275,10 @@ onAuthStateChanged(auth, async user => {
     state.appUser = user;
     await loadUserContext(user);
   } else {
-    state.appUser = null;
-    state.userData = null;
-    state.userRole = null;
+    state.appUser      = null;
+    state.userData     = null;
+    state.userRole     = null;
+    state.isNamePinned = false;
     cleanupNapiListener();
     showScreen('login');
   }

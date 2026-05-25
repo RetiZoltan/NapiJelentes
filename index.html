@@ -92,6 +92,7 @@
     <div class="tabs" id="mainTabs">
       <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
       <button class="tab-btn" data-tab="jelentes" id="tabBtnJelentes">📊 Jelentés</button>
+      <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
     </div>
 
@@ -117,6 +118,7 @@
               <input list="nevDL" id="nev" autocomplete="off" placeholder="Válassz vagy írj be…">
               <datalist id="nevDL"></datalist>
             </div>
+            <button class="btn btn-ghost btn-sq" id="pinNevBtn" title="Név rögzítése">📌</button>
             <button class="btn btn-ghost btn-sq" id="addNevBtn" title="Hozzáad a listához">＋</button>
           </div>
           <div class="irow">
@@ -197,6 +199,27 @@
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-ghost btn-full" id="kepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
       </div>
+    </div>
+
+    <!-- ══ ELEMZÉS ══ -->
+    <div id="tab-elemzes" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div class="field"><label class="lbl">Év</label><select id="elemzesEv" style="min-width:85px;"></select></div>
+          <div class="field"><label class="lbl">Hónap</label>
+            <select id="elemzesHonap" style="min-width:120px;">
+              <option value="0">Január</option><option value="1">Február</option>
+              <option value="2">Március</option><option value="3">Április</option>
+              <option value="4">Május</option><option value="5">Június</option>
+              <option value="6">Július</option><option value="7">Augusztus</option>
+              <option value="8">Szeptember</option><option value="9">Október</option>
+              <option value="10">November</option><option value="11">December</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" id="elemzesBtn">Mutat</button>
+        </div>
+      </div>
+      <div id="elemzesDiv"><div class="empty-st"><div class="empty-ic">📈</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
     </div>
 
     <!-- ══ ADMIN ══ -->

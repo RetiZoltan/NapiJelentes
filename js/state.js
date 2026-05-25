@@ -1,10 +1,11 @@
 export const state = {
-  appUser:  null,
-  userData: null,
-  userRole: null,
-  nevek:    [],
-  anyagok:  [],
-  prevDatum: null,
+  appUser:      null,
+  userData:     null,
+  userRole:     null,
+  nevek:        [],
+  anyagok:      [],
+  prevDatum:    null,
+  isNamePinned: false,
 };
 
 export function isMainAdmin()        { return state.userData?.isMainAdmin === true; }

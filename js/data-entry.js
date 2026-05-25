@@ -99,11 +99,11 @@ export async function rogzit() {
 }
 
 export function clearF(sh = true) {
-  E('nev').value   = state.userData?.displayName || '';
+  if (!state.isNamePinned) E('nev').value = state.userData?.displayName || '';
   E('anyag').value = '';
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
   E('zsakC').innerHTML = ''; addZsak();
-  E('nev').focus();
+  if (state.isNamePinned) E('anyag').focus(); else E('nev').focus();
   if (sh) msg('Űrlap törölve.', 'info', 2000);
 }

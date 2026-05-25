@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>Icon generátor — Napi Jelentés</title>
+<style>
+  body { font-family: sans-serif; background: #1a1208; color: #f0e6d4; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24px; margin: 0; }
+  h1 { font-size: 16px; opacity: .6; margin: 0; }
+  .previews { display: flex; gap: 32px; align-items: flex-end; }
+  .prev { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; opacity: .5; }
+  button { background: #8b4513; color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #6d350f; }
+</style>
+</head>
+<body>
+<h1>Napi Jelentés — PWA ikon generátor</h1>
+<div class="previews" id="prev"></div>
+<button onclick="downloadAll()">⬇ Letöltés (192 + 512 px)</button>
+
+<script>
+function drawIcon(size) {
+  const c   = document.createElement('canvas');
+  c.width   = c.height = size;
+  const ctx = c.getContext('2d');
+  const s   = size;
+
+  /* ── háttér: lekerekített négyzet ── */
+  const bgR = s * 0.20;
+  ctx.fillStyle = '#8b4513';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, bgR);
+  ctx.fill();
+
+  /* ── vágólap (clipboard) törzs ── */
+  const bx = s * 0.19, by = s * 0.20;
+  const bw = s * 0.62, bh = s * 0.68;
+  const br = s * 0.06;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.96)';
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, br);
+  ctx.fill();
+
+  /* ── csipesz (clip) tetején ── */
+  const cpW = bw * 0.38, cpH = s * 0.075;
+  const cpX = bx + (bw - cpW) / 2, cpY = by - cpH * 0.45;
+
+  ctx.fillStyle = '#d4874a';
+  ctx.beginPath();
+  ctx.roundRect(cpX, cpY, cpW, cpH, cpH * 0.45);
+  ctx.fill();
+
+  /* csipesz belső lyuk */
+  const hR = cpH * 0.28;
+  ctx.fillStyle = '#8b4513';
+  ctx.beginPath();
+  ctx.arc(cpX + cpW / 2, cpY + cpH / 2, hR, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* ── sorok (adatbejegyzések illúziója) ── */
+  const lx   = bx + bw * 0.12;
+  const lH   = s * 0.028;
+  const lGap = s * 0.072;
+  const ly0  = by + bh * 0.22;
+
+  const lines = [1, 1, 0.9, 0.7, 0.45];   // relatív szélesség
+  lines.forEach((ratio, i) => {
+    const lw = bw * 0.76 * ratio;
+    ctx.fillStyle = i < 2 ? 'rgba(139,69,19,0.22)' : 'rgba(139,69,19,0.13)';
+    ctx.beginPath();
+    ctx.roundRect(lx, ly0 + i * lGap, lw, lH, lH / 2);
+    ctx.fill();
+  });
+
+  /* ── kis "kg" felirat a clipboard aljára ── */
+  const fs = s * 0.115;
+  ctx.fillStyle = '#8b4513';
+  ctx.globalAlpha = 0.55;
+  ctx.font = `700 ${fs}px 'Segoe UI', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('kg', bx + bw / 2, by + bh * 0.80);
+  ctx.globalAlpha = 1;
+
+  return c;
+}
+
+function downloadCanvas(canvas, name) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function downloadAll() {
+  downloadCanvas(drawIcon(192), 'icon-192.png');
+  setTimeout(() => downloadCanvas(drawIcon(512), 'icon-512.png'), 400);
+}
+
+/* ── előnézet betöltéskor ── */
+window.addEventListener('load', () => {
+  const prev = document.getElementById('prev');
+  [192, 512].forEach(sz => {
+    const canvas = drawIcon(sz);
+    canvas.style.width  = Math.min(sz, 160) + 'px';
+    canvas.style.height = Math.min(sz, 160) + 'px';
+    canvas.style.borderRadius = '14px';
+    const wrap = document.createElement('div');
+    wrap.className = 'prev';
+    wrap.appendChild(canvas);
+    wrap.appendChild(document.createTextNode(sz + ' × ' + sz + ' px'));
+    prev.appendChild(wrap);
+  });
+  downloadAll();
+});
+</script>
+</body>
+</html>

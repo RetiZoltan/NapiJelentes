@@ -39,6 +39,14 @@ export function initTheme() {
   E('themeBtn').textContent = t === 'dark' ? '☀️ Világos' : '🌙 Sötét';
 }
 
+export function fmtKg(kg) {
+  if (!kg || isNaN(+kg) || +kg <= 0) return '—';
+  const v = +kg, t = v / 1000;
+  return t >= 0.1
+    ? `${v.toFixed(0)} kg <span style="font-size:.82em;opacity:.55;font-weight:400;">(${t.toFixed(2)} t)</span>`
+    : `${v.toFixed(0)} kg`;
+}
+
 export function showScreen(name) {
   ['loading','login','pending','app'].forEach(s => {
     const el = E('screen-' + s);
