@@ -106,6 +106,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 
 /* Hidden in print */
   .del-btn{display:none!important;}
+  .edit-btn{display:none!important;}
   .dbox{display:none!important;}
   .empty-st{display:none!important;}
+  .dtoggle{text-decoration:none;cursor:default;}
 }
