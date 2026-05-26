@@ -167,9 +167,14 @@
             <label class="lbl">Dolgozó</label>
             <select id="dolgSzuro"><option value="">— Mindenki —</option></select>
           </div>
-          <button class="btn btn-ghost btn-sm" id="maBtn">Ma</button>
-          <button class="btn btn-primary btn-sm" id="mutatBtn">Mutat</button>
-          <button class="btn btn-danger btn-sm" id="napTorBtn" title="Nap törlése">🗑</button>
+          <div class="field">
+            <label class="lbl" style="visibility:hidden;">–</label>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" id="maBtn">Ma</button>
+              <button class="btn btn-primary btn-sm" id="mutatBtn">Mutat</button>
+              <button class="btn btn-danger btn-sm" id="napTorBtn" title="Nap törlése">🗑</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="napiRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz dátumot és kattints a <strong>Mutat</strong> gombra</div></div>
@@ -202,7 +207,10 @@
             <label class="lbl">Év</label>
             <input type="number" id="evesEvInput" min="2000" max="2099" style="min-width:90px;">
           </div>
-          <button class="btn btn-primary btn-sm" id="idoszakosBtn">Mutat</button>
+          <div class="field">
+            <label class="lbl" style="visibility:hidden;">–</label>
+            <button class="btn btn-primary btn-sm" id="idoszakosBtn">Mutat</button>
+          </div>
         </div>
         <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
           <p class="sec-hd"><span>2.</span> Riport tartalma</p>
@@ -256,7 +264,10 @@
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
             <div class="field"><label class="lbl">Dolgozó</label><select id="egyeniDolgozo" style="min-width:150px;"></select></div>
             <div class="field"><label class="lbl">Anyag</label><select id="egyeniAnyag" style="min-width:150px;"></select></div>
-            <button class="btn btn-primary btn-sm" id="egyeniBtn">Mutat</button>
+            <div class="field">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="egyeniBtn">Mutat</button>
+            </div>
           </div>
         </div>
         <div id="egyeniDiv"><div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot</div></div>
@@ -267,7 +278,10 @@
         <div class="card">
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
             <div class="field"><label class="lbl">Anyag</label><select id="anyagRangsorSel" style="min-width:150px;"></select></div>
-            <button class="btn btn-primary btn-sm" id="anyagRangsorBtn">Mutat</button>
+            <div class="field">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="anyagRangsorBtn">Mutat</button>
+            </div>
           </div>
         </div>
         <div id="anyagRangsorDiv"><div class="empty-st"><div class="empty-ic">📦</div>Válassz anyagot és kattints a Mutat gombra</div></div>
