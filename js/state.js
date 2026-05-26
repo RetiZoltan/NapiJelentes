@@ -4,6 +4,7 @@ export const state = {
   userRole:     null,
   nevek:        [],
   anyagok:      [],
+  gepek:        [],
   prevDatum:    null,
   isNamePinned: false,
 };

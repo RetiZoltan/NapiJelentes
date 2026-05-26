@@ -93,6 +93,7 @@
       <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
       <button class="tab-btn" data-tab="napi" id="tabBtnNapi" style="display:none">📋 Napi</button>
       <button class="tab-btn" data-tab="idoszakos" id="tabBtnIdoszakos" style="display:none">📊 Időszakos</button>
+      <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
     </div>
@@ -150,6 +151,32 @@
         <div class="field">
           <label class="lbl">Általános megjegyzés</label>
           <textarea id="napiMegj" placeholder="Gépprobléma, anyagszükséglet, egyéb info…"></textarea>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-title-icon">⚠️</span>Gépállás rögzítése</div>
+        <div class="g2">
+          <div class="irow">
+            <div class="field"><label class="lbl">Gép neve</label>
+              <input list="gepDL" id="allasGep" autocomplete="off" placeholder="Válassz vagy írj be…">
+              <datalist id="gepDL"></datalist>
+            </div>
+            <button class="btn btn-ghost btn-sq" id="addGepBtn" title="Hozzáad a listához">＋</button>
+          </div>
+          <div class="field"><label class="lbl">Leállás oka</label>
+            <input type="text" id="allasOk" placeholder="Hiba, karbantartás, anyaghiány…">
+          </div>
+        </div>
+        <div class="g2" style="margin-top:8px;">
+          <div class="field"><label class="lbl">Kezdés (opcionális)</label>
+            <input type="time" id="allasKezdet">
+          </div>
+          <div class="field"><label class="lbl">Vége (opcionális)</label>
+            <input type="time" id="allasVeg">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-primary" id="allasMentBtn">⚠ Gépállás rögzítése</button>
         </div>
       </div>
       <div class="btn-row">
@@ -247,6 +274,18 @@
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként</button>
         <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtatás</button>
+      </div>
+    </div>
+
+    <!-- ══ NAPTÁR ══ -->
+    <div id="tab-naptar" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <button class="btn btn-ghost btn-sm" id="naptarPrevBtn">‹ Előző</button>
+          <span id="naptarHonap" style="font-family:'Lora',serif;font-size:17px;font-weight:600;color:var(--text);"></span>
+          <button class="btn btn-ghost btn-sm" id="naptarNextBtn">Következő ›</button>
+        </div>
+        <div id="naptarGrid"></div>
       </div>
     </div>
 
@@ -348,6 +387,14 @@
               <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
               <select id="anyagLista" multiple size="5" style="width:100%;"></select>
               <button class="btn btn-danger btn-sm btn-full" id="anyagTorBtn">Kijelöltek törlése</button>
+            </div>
+          </div>
+          <div class="lmgrid" style="margin-top:12px;">
+            <div class="lbox">
+              <div class="lbox-t">Gépek listája</div>
+              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
+              <select id="gepLista" multiple size="5" style="width:100%;"></select>
+              <button class="btn btn-danger btn-sm btn-full" id="gepTorBtn">Kijelöltek törlése</button>
             </div>
           </div>
         </div>

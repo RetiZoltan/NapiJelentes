@@ -24,6 +24,9 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 .day-note{margin-top:11px;padding:13px 15px;background:var(--amberl);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);border-radius:var(--r);font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}
 .day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--amber);margin-bottom:5px;}
 
+.stoppage-block{background:var(--surf);border:1px solid color-mix(in srgb,var(--amber) 35%,var(--border));border-radius:var(--r);overflow:hidden;margin-bottom:10px;box-shadow:var(--sh);}
+.stoppage-hd{background:color-mix(in srgb,var(--amber) 10%,var(--surf2));border-bottom:1px solid color-mix(in srgb,var(--amber) 25%,var(--border));padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:color-mix(in srgb,var(--amber) 80%,var(--text));}
+
 .del-btn{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 5px;border-radius:3px;transition:color var(--tr),background var(--tr);}
 .del-btn:hover{color:var(--red);background:var(--redl);}
 .empty-st{text-align:center;padding:42px 20px;color:var(--text3);font-size:13.5px;}
@@ -103,6 +106,10 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
   .wnote{padding:6px 12px;border-top:1px solid #E2E8F0;background:#F8FAFC;font-size:11.5px;color:#475569;white-space:pre-wrap;}
   .day-note{margin-top:10px;padding:10px 13px;background:#FFF3E0;border:1px solid #FFCC80;border-radius:5px;font-size:11.5px;color:#475569;white-space:pre-wrap;position:relative;}
   .day-note-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#E65100;margin-bottom:4px;}
+
+  /* Stoppages */
+  .stoppage-block{border:1px solid #FED7AA;border-radius:5px;overflow:hidden;margin-bottom:8px;break-inside:avoid;}
+  .stoppage-hd{background:#FFF7ED;border-bottom:1px solid #FED7AA;padding:5px 12px;font-size:11.5px;font-weight:700;color:#C2410C;display:flex;gap:6px;align-items:center;}
 
   /* Hidden in print */
   .del-btn{display:none!important;}
