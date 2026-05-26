@@ -181,43 +181,51 @@
     <!-- ══ IDŐSZAKOS JELENTÉS ══ -->
     <div id="tab-idoszakos" class="tab-panel">
       <div class="card">
-        <div class="vsw">
-          <button class="vbtn active" id="vbHeti" data-view="heti">Heti</button>
-          <button class="vbtn" id="vbHavi" data-view="havi">Havi</button>
-          <button class="vbtn" id="vbEves" data-view="eves">Éves</button>
-        </div>
-        <div class="vc active" id="vcHeti">
-          <div class="field" style="min-width:175px;"><label class="lbl">Hét kezdete (hétfő)</label><input type="date" id="hetiKezdo"></div>
-          <button class="btn btn-ghost btn-sm" id="aktHetBtn">Aktuális hét</button>
-          <button class="btn btn-primary btn-sm" id="hetiBtn">Mutat</button>
-        </div>
-        <div class="vc" id="vcHavi">
-          <div class="field"><label class="lbl">Év</label><select id="haviEv" style="min-width:85px;"></select></div>
-          <div class="field"><label class="lbl">Hónap</label>
-            <select id="haviHonap" style="min-width:120px;">
-              <option value="0">Január</option><option value="1">Február</option>
-              <option value="2">Március</option><option value="3">Április</option>
-              <option value="4">Május</option><option value="5">Június</option>
-              <option value="6">Július</option><option value="7">Augusztus</option>
-              <option value="8">Szeptember</option><option value="9">Október</option>
-              <option value="10">November</option><option value="11">December</option>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div class="field">
+            <label class="lbl">Jelentés típusa</label>
+            <select id="idoszakTipus" style="min-width:150px;">
+              <option value="havi">Havi jelentés</option>
+              <option value="eves">Éves jelentés</option>
             </select>
           </div>
-          <button class="btn btn-primary btn-sm" id="haviBtn">Mutat</button>
+          <div class="field" id="haviInputWrap">
+            <label class="lbl">Hónap</label>
+            <input type="month" id="haviHonapInput">
+          </div>
+          <div class="field" id="evesInputWrap" style="display:none;">
+            <label class="lbl">Év</label>
+            <input type="number" id="evesEvInput" min="2000" max="2099" style="min-width:90px;">
+          </div>
+          <button class="btn btn-primary btn-sm" id="idoszakosBtn">Mutat</button>
         </div>
-        <div class="vc" id="vcEves">
-          <div class="field"><label class="lbl">Év</label><select id="evesEv" style="min-width:85px;"></select></div>
-          <button class="btn btn-primary btn-sm" id="evesBtn">Mutat</button>
-        </div>
-        <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">
-          <p style="font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:0 0 9px;">Megjelenített szekciók</p>
-          <div style="display:flex;flex-wrap:wrap;gap:7px 20px;">
-            <label class="rs-lbl"><input type="checkbox" id="setNapiB"> Időszaki bontás</label>
-            <label class="rs-lbl"><input type="checkbox" id="setDolgozoi"> Dolgozói összesítő</label>
-            <label class="rs-lbl"><input type="checkbox" id="setAnyag"> Anyag összesítő</label>
-            <label class="rs-lbl"><input type="checkbox" id="setLegek"> Legek</label>
-            <label class="rs-lbl"><input type="checkbox" id="setMuszak"> Műszakok összehasonlítása</label>
-            <label class="rs-lbl"><input type="checkbox" id="setElozo"> Előző időszakkal</label>
+        <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+          <div style="display:flex;flex-wrap:wrap;gap:16px 36px;">
+            <div>
+              <p class="rs-group-lbl">Fő összesítések</p>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <label class="rs-lbl"><input type="checkbox" id="setTeljes"> Teljes termelés</label>
+                <label class="rs-lbl"><input type="checkbox" id="setDolgRangsor"> Dolgozói rangsor</label>
+                <label class="rs-lbl"><input type="checkbox" id="setAnyagOssz"> Anyagtípusok összesítése</label>
+              </div>
+            </div>
+            <div>
+              <p class="rs-group-lbl">Átlagok és statisztikák</p>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <label class="rs-lbl"><input type="checkbox" id="setNapiAtlag"> Napi átlagteljesítmény</label>
+                <label class="rs-lbl"><input type="checkbox" id="setDolgNapiAtlag"> Dolgozónkénti napi átlag</label>
+                <label class="rs-lbl" id="setHaviAtlagWrap" style="display:none;"><input type="checkbox" id="setHaviAtlag"> Havi átlagteljesítmény</label>
+                <label class="rs-lbl"><input type="checkbox" id="setMuszak"> Műszakok összehasonlítása</label>
+              </div>
+            </div>
+            <div>
+              <p class="rs-group-lbl">Részletező táblázatok</p>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <label class="rs-lbl"><input type="checkbox" id="setDolgReszlet"> Dolgozónkénti részletezés</label>
+                <label class="rs-lbl"><input type="checkbox" id="setAnyagReszlet"> Anyagonkénti részletezés</label>
+                <label class="rs-lbl"><input type="checkbox" id="setNapiBontas"> Napi bontás</label>
+              </div>
+            </div>
           </div>
         </div>
         <button class="btn btn-ghost btn-sm" id="riportSettingsBtn" style="margin-top:10px;font-size:11px;">⚙ Szekciók</button>

@@ -1,13 +1,16 @@
 import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
 import { state, canSeeAllReports, isMainAdmin } from './state.js';
-import { E, esc, msg, tod, monday, addD, fmtL, fmtS, fmtKg } from './utils.js';
+import { E, esc, msg, tod, fmtL, fmtS, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
 
-let aktView   = 'napi';
 let unsubNapi = null;
 
-const RIPORT_DEF = { napiB: true, dolgozoi: true, anyag: true, legek: true, muszak: false, elozo: false };
+const RIPORT_DEF = {
+  teljes: true, dolgRangsor: true, anyagOssz: true,
+  napiAtlag: true, dolgNapiAtlag: false, haviAtlag: false, muszak: false,
+  dolgReszlet: false, anyagReszlet: false, napiBontas: true
+};
 function getRiportSet(key) {
   try { const s = JSON.parse(localStorage.getItem('napiJelentesRiportSet') || '{}'); return key in s ? s[key] : (RIPORT_DEF[key] ?? true); }
   catch { return RIPORT_DEF[key] ?? true; }
@@ -15,16 +18,6 @@ function getRiportSet(key) {
 
 export function cleanupNapiListener() {
   if (unsubNapi) { unsubNapi(); unsubNapi = null; }
-}
-
-export function switchView(v, btn) {
-  aktView = v;
-  document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.vc').forEach(c => c.classList.remove('active'));
-  E('vc' + v.charAt(0).toUpperCase() + v.slice(1)).classList.add('active');
-  E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📋</div>Kattints a <strong>Mutat</strong> gombra</div>`;
-  E('idoszakosKepMentBtn').disabled = true;
 }
 
 /* ── Napi riport with onSnapshot ── */
@@ -71,204 +64,62 @@ function renderNapi(rd, lista, altM, szuro) {
   E('napiKepMentBtn').disabled = false;
 }
 
-/* ── Heti riport ── */
-export async function hetiRiport() {
-  const kezdo = E('hetiKezdo').value;
-  if (!kezdo) { msg('Válassz hetet!', 'error'); return; }
-  const h     = monday(kezdo);
-  const napok = Array.from({ length: 7 }, (_, i) => addD(h, i));
-  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  const needElozo = getRiportSet('elozo');
-  const [hA, prevA] = await Promise.all([
-    fetchEntries({ datumFrom: napok[0], datumTo: napok[6] }),
-    needElozo ? fetchEntries({ datumFrom: addD(napok[0], -7), datumTo: addD(napok[6], -7) }) : Promise.resolve([])
-  ]);
-  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
-
-  const d1  = new Date(h + 'T12:00:00');
-  const d2  = new Date(napok[6] + 'T12:00:00');
-  const cim = `${d1.toLocaleDateString('hu-HU',{month:'long',day:'numeric'})} – ${d2.toLocaleDateString('hu-HU',{month:'long',day:'numeric',year:'numeric'})}`;
-  let html  = `<div class="r-head">Heti összesítő <span class="r-shift">· ${esc(cim)}</span></div>`;
-
-  if (getRiportSet('napiB')) {
-    let hs = 0, hz = 0;
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Napi bontás</div><table class="stbl"><thead><tr><th>Nap</th><th>Darált súly</th><th>Zsákok</th><th>Dolgozók</th></tr></thead><tbody>`;
-    napok.forEach(d => {
-      const na = hA.filter(a => a.datum === d); if (!na.length) return;
-      const s  = na.reduce((ac, a) => ac + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
-      const z  = na.reduce((ac, a) => ac + (a.zsakSulyok || []).reduce((x, y) => x + y, 0), 0);
-      hs += s; hz += z;
-      const nn = [...new Set(na.map(a => a.nev))];
-      html += `<tr><td><button class="dlink" data-goto="${d}">${esc(fmtS(d))}</button></td><td class="v-bold">${fmtKg(s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(z)}</td><td style="color:var(--text3);font-size:12.5px;">${esc(nn.join(', '))}</td></tr>`;
-    });
-    html += `</tbody><tfoot><tr class="tot"><td>Heti összesen</td><td>${fmtKg(hs)}</td><td style="color:var(--green);font-weight:600;">${fmtKg(hz)}</td><td></td></tr></tfoot></table></div>`;
-  }
-
-  if (getRiportSet('dolgozoi')) {
-    const do_ = {};
-    hA.forEach(a => {
-      if (!do_[a.nev]) do_[a.nev] = { s: 0, z: 0, np: new Set() };
-      do_[a.nev].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-      do_[a.nev].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-      do_[a.nev].np.add(a.datum);
-    });
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👥</span>Dolgozói összesítő</div><table class="stbl"><thead><tr><th>Dolgozó</th><th>Darált súly</th><th>Zsákok</th><th>Aktív napok</th></tr></thead><tbody>`;
-    Object.keys(do_).sort((a, b) => a.localeCompare(b, 'hu')).forEach(n => {
-      const d = do_[n];
-      html += `<tr><td style="font-weight:600;color:var(--text);">${esc(n)}</td><td class="v-bold">${fmtKg(d.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(d.z)}</td><td style="color:var(--text3);">${d.np.size} nap</td></tr>`;
-    });
-    html += `</tbody></table></div>`;
-  }
-
-  if (getRiportSet('anyag'))  html += anyagOsszesitoHtml(hA);
-  if (getRiportSet('muszak')) html += muszakHtml(hA);
-  if (needElozo)              html += elozoHtml(hA, prevA, 'előző hét');
-  if (getRiportSet('legek'))  html += legekHtml(hA);
-  E('idoszakosRiportDiv').innerHTML = html; E('idoszakosKepMentBtn').disabled = false;
-}
-
 /* ── Havi riport ── */
 export async function haviRiport() {
-  const ev     = parseInt(E('haviEv').value);
-  const honap  = parseInt(E('haviHonap').value);
-  const prefix = `${ev}-${String(honap + 1).padStart(2, '0')}`;
+  const raw = E('haviHonapInput').value;
+  if (!raw) { msg('Válassz hónapot!', 'error'); return; }
+  const [ev, honap1] = raw.split('-').map(Number);
+  const honap  = honap1 - 1;
+  const prefix = `${ev}-${String(honap1).padStart(2, '0')}`;
   const lastDay = new Date(ev, honap + 1, 0).getDate();
-  const from   = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
+  const from = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
   const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+
   E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  const needElozo = getRiportSet('elozo');
-  const prevD  = new Date(ev, honap, 0);
-  const pEv = prevD.getFullYear(), pHonap = prevD.getMonth();
-  const pPfx = `${pEv}-${String(pHonap + 1).padStart(2, '0')}`;
-  const pLast = new Date(pEv, pHonap + 1, 0).getDate();
-  const [hA, prevA] = await Promise.all([
-    fetchEntries({ datumFrom: from, datumTo: to }),
-    needElozo ? fetchEntries({ datumFrom: `${pPfx}-01`, datumTo: `${pPfx}-${String(pLast).padStart(2, '0')}` }) : Promise.resolve([])
-  ]);
-  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
+  const hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (!hA.length) {
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
+    E('idoszakosKepMentBtn').disabled = true; return;
+  }
 
   let html = `<div class="r-head">${ev}. ${honNev[honap]}</div>`;
-
-  if (getRiportSet('napiB')) {
-    const nm = {};
-    hA.forEach(a => {
-      if (!nm[a.datum]) nm[a.datum] = { s: 0, z: 0, n: new Set() };
-      nm[a.datum].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-      nm[a.datum].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-      nm[a.datum].n.add(a.nev);
-    });
-    let hs = 0, hz = 0;
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Napi bontás</div><table class="stbl"><thead><tr><th>Nap</th><th>Darált súly</th><th>Zsákok</th><th>Dolgozók</th></tr></thead><tbody>`;
-    Object.keys(nm).sort().forEach(d => {
-      const n = nm[d]; hs += n.s; hz += n.z;
-      html += `<tr><td><button class="dlink" data-goto="${d}">${esc(fmtS(d))}</button></td><td class="v-bold">${fmtKg(n.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(n.z)}</td><td style="color:var(--text3);font-size:12.5px;">${esc([...n.n].join(', '))}</td></tr>`;
-    });
-    html += `</tbody><tfoot><tr class="tot"><td>Havi összesen</td><td>${fmtKg(hs)}</td><td style="color:var(--green);font-weight:600;">${fmtKg(hz)}</td><td></td></tr></tfoot></table></div>`;
-  }
-
-  if (getRiportSet('dolgozoi')) {
-    const do2 = {};
-    hA.forEach(a => {
-      if (!do2[a.nev]) do2[a.nev] = { s: 0, z: 0, np: new Set() };
-      do2[a.nev].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-      do2[a.nev].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-      do2[a.nev].np.add(a.datum);
-    });
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👥</span>Dolgozói összesítő</div><table class="stbl"><thead><tr><th>Dolgozó</th><th>Darált súly</th><th>Zsákok</th><th>Aktív napok</th></tr></thead><tbody>`;
-    Object.keys(do2).sort((a, b) => a.localeCompare(b, 'hu')).forEach(n => {
-      const d = do2[n];
-      html += `<tr><td style="font-weight:600;color:var(--text);">${esc(n)}</td><td class="v-bold">${fmtKg(d.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(d.z)}</td><td style="color:var(--text3);">${d.np.size} nap</td></tr>`;
-    });
-    html += `</tbody></table></div>`;
-  }
-
-  if (getRiportSet('anyag'))  html += anyagOsszesitoHtml(hA);
-  if (getRiportSet('muszak')) html += muszakHtml(hA);
-  if (needElozo)              html += elozoHtml(hA, prevA, 'előző hónap');
-  if (getRiportSet('legek'))  html += legekHtml(hA);
-  E('idoszakosRiportDiv').innerHTML = html; E('idoszakosKepMentBtn').disabled = false;
+  if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
+  if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
+  if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
+  if (getRiportSet('muszak'))        html += muszakHtml(hA);
+  if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
+  if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
+  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
+  E('idoszakosRiportDiv').innerHTML = html;
+  E('idoszakosKepMentBtn').disabled = false;
 }
 
 /* ── Éves riport ── */
 export async function evesRiport() {
-  const ev   = parseInt(E('evesEv').value);
+  const ev = parseInt(E('evesEvInput').value);
+  if (!ev) { msg('Válassz évet!', 'error'); return; }
   const from = `${ev}-01-01`, to = `${ev}-12-31`;
-  const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
 
   E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   const hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (!hA.length) { E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`; E('idoszakosKepMentBtn').disabled = true; return; }
+  if (!hA.length) {
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`;
+    E('idoszakosKepMentBtn').disabled = true; return;
+  }
 
   let html = `<div class="r-head">${ev}. év</div>`;
-
-  /* Havi bontás */
-  const byMonth = {};
-  for (let m = 0; m < 12; m++) byMonth[`${ev}-${String(m + 1).padStart(2, '0')}`] = { s: 0, z: 0, n: new Set() };
-  hA.forEach(a => {
-    const mk = a.datum.substring(0, 7);
-    if (!byMonth[mk]) byMonth[mk] = { s: 0, z: 0, n: new Set() };
-    byMonth[mk].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-    byMonth[mk].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-    byMonth[mk].n.add(a.nev);
-  });
-  let totalS = 0, totalZ = 0;
-  if (getRiportSet('napiB')) {
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Havi bontás</div><table class="stbl"><thead><tr><th>Hónap</th><th>Darált súly</th><th>Zsákok</th><th>Dolgozók</th></tr></thead><tbody>`;
-    Object.keys(byMonth).sort().forEach(mk => {
-      const m = byMonth[mk]; if (m.s === 0 && m.z === 0) return;
-      totalS += m.s; totalZ += m.z;
-      const hi = parseInt(mk.split('-')[1]) - 1;
-      html += `<tr><td><button class="dlink" data-goto-havi="${mk}">${honNev[hi]}</button></td><td class="v-bold">${fmtKg(m.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(m.z)}</td><td style="color:var(--text3);font-size:12.5px;">${esc([...m.n].join(', '))}</td></tr>`;
-    });
-    html += `</tbody><tfoot><tr class="tot"><td>Éves összesen</td><td>${fmtKg(totalS)}</td><td style="color:var(--green);font-weight:600;">${fmtKg(totalZ)}</td><td></td></tr></tfoot></table></div>`;
-  }
-
-  /* Dolgozói összesítő */
-  if (getRiportSet('dolgozoi')) {
-    const dw = {};
-    hA.forEach(a => {
-      if (!dw[a.nev]) dw[a.nev] = { s: 0, z: 0, np: new Set() };
-      dw[a.nev].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-      dw[a.nev].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-      dw[a.nev].np.add(a.datum);
-    });
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👥</span>Dolgozói összesítő</div><table class="stbl"><thead><tr><th>Dolgozó</th><th>Darált súly</th><th>Zsákok</th><th>Aktív napok</th></tr></thead><tbody>`;
-    Object.keys(dw).sort((a, b) => dw[b].s - dw[a].s).forEach(n => {
-      const w = dw[n];
-      html += `<tr><td style="font-weight:600;color:var(--text);">${esc(n)}</td><td class="v-bold">${fmtKg(w.s)}</td><td class="v-green" style="font-weight:600;">${fmtKg(w.z)}</td><td style="color:var(--text3);">${w.np.size}</td></tr>`;
-    });
-    html += `</tbody></table></div>`;
-  }
-
-  /* Anyag összesítő (mindig számítjuk, Legekhez kell) */
-  const anyagok = {};
-  hA.forEach(a => {
-    const ak = (a.anyag || '').trim(); if (!ak) return;
-    if (!anyagok[ak]) anyagok[ak] = 0;
-    anyagok[ak] += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-  });
-  const anyagRank = Object.entries(anyagok).sort((a, b) => b[1] - a[1]);
-  if (getRiportSet('anyag')) html += anyagOsszesitoHtml(hA);
-  if (getRiportSet('muszak')) html += muszakHtml(hA);
-
-  /* Előző év összehasonlítás */
-  if (getRiportSet('elozo')) {
-    const prevA = await fetchEntries({ datumFrom: `${ev - 1}-01-01`, datumTo: `${ev - 1}-12-31` });
-    html += elozoHtml(hA, prevA, `${ev - 1}. év`);
-  }
-
-  /* Legek (legjobb hónap + legtöbb anyag) */
-  if (getRiportSet('legek')) {
-    const bestMonth = Object.entries(byMonth).filter(([, m]) => m.s > 0).sort((a, b) => b[1].s - a[1].s)[0];
-    const bestAnyag = anyagRank[0];
-    if (bestMonth || bestAnyag) {
-      html += `<div class="card"><div class="card-title"><span class="card-title-icon">🏆</span>Legek</div><table class="stbl"><thead><tr><th>Rekord</th><th>Érték</th><th>Adat</th></tr></thead><tbody>`;
-      if (bestMonth) html += `<tr><td>🥇 Legjobb hónap</td><td class="v-bold">${fmtKg(bestMonth[1].s)}</td><td style="color:var(--text3);font-size:12.5px;">${honNev[parseInt(bestMonth[0].split('-')[1]) - 1]}</td></tr>`;
-      if (bestAnyag) html += `<tr><td>📦 Legtöbb anyag</td><td class="v-bold">${fmtKg(bestAnyag[1])}</td><td style="color:var(--text3);font-size:12.5px;">${esc(bestAnyag[0])}</td></tr>`;
-      html += `</tbody></table></div>`;
-    }
-  }
-
+  if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
+  if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
+  if (getRiportSet('haviAtlag'))     html += haviAtlagHtml(hA);
+  if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
+  if (getRiportSet('muszak'))        html += muszakHtml(hA);
+  if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
+  if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
+  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
   E('idoszakosKepMentBtn').disabled = false;
 }
@@ -283,10 +134,11 @@ export async function riportKlikk(e) {
   }
   const gotoHavi = e.target.dataset?.gotoHavi;
   if (gotoHavi) {
-    const [y, m] = gotoHavi.split('-');
-    E('haviEv').value    = y;
-    E('haviHonap').value = parseInt(m) - 1;
-    switchView('havi', E('vbHavi'));
+    E('haviHonapInput').value  = gotoHavi;
+    E('idoszakTipus').value    = 'havi';
+    E('haviInputWrap').style.display = '';
+    E('evesInputWrap').style.display = 'none';
+    E('setHaviAtlagWrap').style.display = 'none';
     haviRiport();
     return;
   }
@@ -328,15 +180,15 @@ export function napiKepMent()      { kepMentDiv('napiRiportDiv',      E('riportD
 export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', tod()); }
 
 function kepMentDiv(divId, suffix) {
-  const cs   = getComputedStyle(document.documentElement);
-  const g    = v => cs.getPropertyValue(v).trim();
-  const bg   = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
-  const b    = g('--border'), b2 = g('--border2');
-  const t1   = g('--text'), t2 = g('--text2'), t3 = g('--text3');
-  const acc  = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
+  const cs  = getComputedStyle(document.documentElement);
+  const g   = v => cs.getPropertyValue(v).trim();
+  const bg  = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
+  const b   = g('--border'), b2 = g('--border2');
+  const t1  = g('--text'), t2 = g('--text2'), t3 = g('--text3');
+  const acc = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
   const clone = E(divId).cloneNode(true);
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
-  const wrap  = document.createElement('div');
+  const wrap = document.createElement('div');
   wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
   const inner = document.createElement('div');
   inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
@@ -353,7 +205,7 @@ function kepMentDiv(divId, suffix) {
   }).catch(() => { document.body.removeChild(wrap); msg('Mentési hiba.', 'error'); });
 }
 
-/* ── Internal helpers ── */
+/* ── Napi riport belső segédfüggvények ── */
 function grpWorkers(list) {
   const c = {};
   list.forEach(a => {
@@ -402,17 +254,40 @@ function workerHtml(c) {
   return h;
 }
 
+/* ── Időszakos szekció-generátorok ── */
+function teljesHtml(entries) {
+  const totalS = entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
+  const totalZ = entries.reduce((s, a) => s + (a.zsakSulyok || []).reduce((x, y) => x + y, 0), 0);
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Teljes termelés</div><table class="stbl"><thead><tr><th>Megnevezés</th><th>Érték</th></tr></thead><tbody>`;
+  h += `<tr><td>Darált súly</td><td class="v-bold">${fmtKg(totalS)}</td></tr>`;
+  if (totalZ > 0) h += `<tr><td>Zsákok összesen</td><td class="v-green" style="font-weight:600;">${fmtKg(totalZ)}</td></tr>`;
+  return h + `</tbody></table></div>`;
+}
+
+function dolgRangsorHtml(entries) {
+  const by = {};
+  entries.forEach(a => {
+    by[a.nev] = (by[a.nev] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+  });
+  const rank = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  if (!rank.length) return '';
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🏅</span>Dolgozói rangsor</div><table class="stbl"><thead><tr><th>#</th><th>Dolgozó</th><th>Összes súly</th></tr></thead><tbody>`;
+  rank.forEach(([nev, kg], i) => {
+    h += `<tr><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;color:var(--text);">${esc(nev)}</td><td class="v-bold">${fmtKg(kg)}</td></tr>`;
+  });
+  return h + `</tbody></table></div>`;
+}
+
 function anyagOsszesitoHtml(entries) {
-  const byAnyag = {};
+  const by = {};
   entries.forEach(a => {
     const ak = (a.anyag || '').trim(); if (!ak) return;
-    if (!byAnyag[ak]) byAnyag[ak] = 0;
-    byAnyag[ak] += (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    by[ak] = (by[ak] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
   });
-  const rank = Object.entries(byAnyag).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const rank = Object.entries(by).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   if (!rank.length) return '';
   const total = rank.reduce((s, [, v]) => s + v, 0);
-  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📦</span>Anyag összesítő</div><table class="stbl"><thead><tr><th>#</th><th>Anyag</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📦</span>Anyagtípusok összesítése</div><table class="stbl"><thead><tr><th>#</th><th>Anyag</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
   rank.forEach(([anyag, kg], i) => {
     const pct  = total > 0 ? (kg / total * 100).toFixed(1) : 0;
     const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
@@ -421,68 +296,142 @@ function anyagOsszesitoHtml(entries) {
   return h + `</tbody></table></div>`;
 }
 
+function napiAtlagHtml(entries) {
+  const totalS = entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
+  const napok  = new Set(entries.map(a => a.datum)).size;
+  if (!napok) return '';
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📈</span>Napi átlagteljesítmény</div><table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>`;
+  h += `<tr><td>Aktív munkanapok</td><td style="font-weight:600;color:var(--text);">${napok}</td></tr>`;
+  h += `<tr><td>Napi átlag (darált)</td><td class="v-bold">${fmtKg(totalS / napok)}</td></tr>`;
+  return h + `</tbody></table></div>`;
+}
+
+function haviAtlagHtml(entries) {
+  const totalS  = entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
+  const honapok = new Set(entries.map(a => a.datum.substring(0, 7))).size;
+  if (!honapok) return '';
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Havi átlagteljesítmény</div><table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>`;
+  h += `<tr><td>Aktív hónapok</td><td style="font-weight:600;color:var(--text);">${honapok}</td></tr>`;
+  h += `<tr><td>Havi átlag (darált)</td><td class="v-bold">${fmtKg(totalS / honapok)}</td></tr>`;
+  return h + `</tbody></table></div>`;
+}
+
+function dolgNapiAtlagHtml(entries) {
+  const by = {};
+  entries.forEach(a => {
+    if (!by[a.nev]) by[a.nev] = { s: 0, napok: new Set() };
+    by[a.nev].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
+    by[a.nev].napok.add(a.datum);
+  });
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👤</span>Dolgozónkénti napi átlag</div><table class="stbl"><thead><tr><th>Dolgozó</th><th>Összes</th><th>Aktív napok</th><th>Napi átlag</th></tr></thead><tbody>`;
+  Object.entries(by).sort((a, b) => b[1].s - a[1].s).forEach(([nev, d]) => {
+    h += `<tr><td style="font-weight:600;color:var(--text);">${esc(nev)}</td><td class="v-bold">${fmtKg(d.s)}</td><td style="color:var(--text3);">${d.napok.size}</td><td>${fmtKg(d.napok.size > 0 ? d.s / d.napok.size : 0)}</td></tr>`;
+  });
+  return h + `</tbody></table></div>`;
+}
+
 function muszakHtml(entries) {
-  const byShift = {};
-  entries.forEach(a => {
-    const s = (a.ido || '').trim() || 'Ismeretlen';
-    if (!byShift[s]) byShift[s] = { s: 0, z: 0, napok: new Set() };
-    byShift[s].s += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-    byShift[s].z += (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-    byShift[s].napok.add(a.datum);
-  });
-  const shifts = Object.entries(byShift);
-  if (shifts.length < 2) return '';
-  const totalS = shifts.reduce((s, [, v]) => s + v.s, 0);
-  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🕐</span>Műszakok összehasonlítása</div><table class="stbl"><thead><tr><th>Műszak</th><th>Darált súly</th><th>Zsákok</th><th>Aktív napok</th></tr></thead><tbody>`;
-  shifts.sort((a, b) => a[0].localeCompare(b[0], 'hu')).forEach(([shift, d]) => {
-    const pct = totalS > 0 ? (d.s / totalS * 100).toFixed(1) : 0;
-    h += `<tr><td style="font-weight:600;color:var(--text);">${esc(shift)}</td><td class="v-bold">${fmtKg(d.s)} <span style="color:var(--text3);font-size:11px;">(${pct}%)</span></td><td class="v-green" style="font-weight:600;">${d.z > 0 ? fmtKg(d.z) : '—'}</td><td style="color:var(--text3);">${d.napok.size}</td></tr>`;
-  });
-  return h + `</tbody></table></div>`;
-}
-
-function elozoHtml(currA, prevA, prevLabel) {
-  if (!prevA.length) return '';
-  const sumS  = arr => arr.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
-  const sumZ  = arr => arr.reduce((s, a) => s + (a.zsakSulyok || []).reduce((x, y) => x + y, 0), 0);
-  const napok = arr => new Set(arr.map(a => a.datum)).size;
-  const cS = sumS(currA), pS = sumS(prevA);
-  const cZ = sumZ(currA), pZ = sumZ(prevA);
-  const cN = napok(currA), pN = napok(prevA);
-  const diff = (c, p) => {
-    if (!p) return `<span style="color:var(--text3);">—</span>`;
-    const d = c - p, pct = (d / p * 100).toFixed(1);
-    const col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--text3)';
-    return `<span style="color:${col};font-weight:600;">${d > 0 ? '+' : ''}${pct}%</span>`;
+  const sh = {
+    'Délelőtt': { s: 0, napok: new Set(), anyagok: {} },
+    'Délután':  { s: 0, napok: new Set(), anyagok: {} }
   };
-  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Összehasonlítás — ${esc(prevLabel)}</div><table class="stbl"><thead><tr><th>Mutató</th><th>Jelenlegi</th><th>${esc(prevLabel)}</th><th>Változás</th></tr></thead><tbody>`;
-  h += `<tr><td>Darált súly</td><td class="v-bold">${fmtKg(cS)}</td><td style="color:var(--text3);">${fmtKg(pS)}</td><td>${diff(cS, pS)}</td></tr>`;
-  if (cZ > 0 || pZ > 0) h += `<tr><td>Zsákok</td><td class="v-green" style="font-weight:600;">${cZ > 0 ? fmtKg(cZ) : '—'}</td><td style="color:var(--text3);">${pZ > 0 ? fmtKg(pZ) : '—'}</td><td>${diff(cZ, pZ)}</td></tr>`;
-  h += `<tr><td>Aktív napok</td><td style="font-weight:600;color:var(--text);">${cN}</td><td style="color:var(--text3);">${pN}</td><td>${diff(cN, pN)}</td></tr>`;
+  entries.forEach(a => {
+    const key = (a.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt';
+    const kg  = (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
+    sh[key].s += kg; sh[key].napok.add(a.datum);
+    const ak = (a.anyag || '').trim();
+    if (ak && kg > 0) sh[key].anyagok[ak] = (sh[key].anyagok[ak] || 0) + kg;
+  });
+  if (!Object.values(sh).some(s => s.s > 0)) return '';
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🕐</span>Műszakok összehasonlítása</div><table class="stbl"><thead><tr><th>Műszak</th><th>Összes</th><th>Aktív napok</th><th>Napi átlag</th><th>Legtöbb anyag</th></tr></thead><tbody>`;
+  ['Délelőtt', 'Délután'].forEach(shift => {
+    const d  = sh[shift];
+    const ba = Object.entries(d.anyagok).sort((a, b) => b[1] - a[1])[0];
+    h += `<tr><td style="font-weight:600;color:var(--text);">${shift}</td>`;
+    if (d.s > 0) {
+      h += `<td class="v-bold">${fmtKg(d.s)}</td><td style="color:var(--text3);">${d.napok.size}</td><td>${fmtKg(d.s / d.napok.size)}</td><td style="color:var(--text3);font-size:12px;">${ba ? esc(ba[0]) + ' (' + ba[1].toFixed(0) + ' kg)' : '—'}</td>`;
+    } else {
+      h += `<td colspan="4" style="color:var(--text3);">Nincs adat</td>`;
+    }
+    h += `</tr>`;
+  });
   return h + `</tbody></table></div>`;
 }
 
-function legekHtml(entries) {
-  const byDay = {};
+function dolgReszletHtml(entries) {
+  const by = {};
   entries.forEach(a => {
-    if (!byDay[a.datum]) byDay[a.datum] = 0;
-    byDay[a.datum] += (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (!by[a.nev]) by[a.nev] = {};
+    const ak = (a.anyag || '').trim() || '—';
+    by[a.nev][ak] = (by[a.nev][ak] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
   });
-  const bestDay = Object.entries(byDay).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
+  if (!Object.keys(by).length) return '';
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👥</span>Dolgozónkénti részletezés</div>`;
+  Object.keys(by).sort((a, b) => a.localeCompare(b, 'hu')).forEach(nev => {
+    const anyagok = by[nev];
+    const total   = Object.values(anyagok).reduce((s, v) => s + v, 0);
+    h += `<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;">${esc(nev)}</div>`;
+    h += `<table class="stbl"><thead><tr><th>Anyag</th><th>Mennyiség</th></tr></thead><tbody>`;
+    Object.entries(anyagok).sort((a, b) => b[1] - a[1]).forEach(([anyag, kg]) => {
+      h += `<tr><td>${esc(anyag)}</td><td class="v-bold">${fmtKg(kg)}</td></tr>`;
+    });
+    h += `</tbody><tfoot><tr class="tot"><td>Összesen</td><td>${fmtKg(total)}</td></tr></tfoot></table></div>`;
+  });
+  return h + `</div>`;
+}
 
-  const byAnyag = {};
+function anyagReszletHtml(entries) {
+  const by = {};
   entries.forEach(a => {
     const ak = (a.anyag || '').trim(); if (!ak) return;
-    if (!byAnyag[ak]) byAnyag[ak] = 0;
-    byAnyag[ak] += (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (!by[ak]) by[ak] = {};
+    by[ak][a.nev] = (by[ak][a.nev] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
   });
-  const bestAnyag = Object.entries(byAnyag).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
+  if (!Object.keys(by).length) return '';
+  const rank = Object.entries(by).sort((a, b) =>
+    Object.values(b[1]).reduce((s, v) => s + v, 0) - Object.values(a[1]).reduce((s, v) => s + v, 0)
+  );
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📦</span>Anyagonkénti részletezés</div>`;
+  rank.forEach(([anyag, workers]) => {
+    const total = Object.values(workers).reduce((s, v) => s + v, 0);
+    h += `<div style="margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;">${esc(anyag)}</div>`;
+    h += `<table class="stbl"><thead><tr><th>Dolgozó</th><th>Mennyiség</th></tr></thead><tbody>`;
+    Object.entries(workers).sort((a, b) => b[1] - a[1]).forEach(([nev, kg]) => {
+      h += `<tr><td style="font-weight:600;">${esc(nev)}</td><td class="v-bold">${fmtKg(kg)}</td></tr>`;
+    });
+    h += `</tbody><tfoot><tr class="tot"><td>Összesen</td><td>${fmtKg(total)}</td></tr></tfoot></table></div>`;
+  });
+  return h + `</div>`;
+}
 
-  if (!bestDay && !bestAnyag) return '';
-
-  let h = `<div class="card"><div class="card-title"><span class="card-title-icon">🏆</span>Legek</div><table class="stbl"><thead><tr><th>Rekord</th><th>Érték</th><th>Adat</th></tr></thead><tbody>`;
-  if (bestDay)   h += `<tr><td>🥇 Legjobb nap</td><td class="v-bold">${fmtKg(bestDay[1])}</td><td style="color:var(--text3);font-size:12.5px;">${esc(fmtS(bestDay[0]))}</td></tr>`;
-  if (bestAnyag) h += `<tr><td>📦 Legtöbb anyag</td><td class="v-bold">${fmtKg(bestAnyag[1])}</td><td style="color:var(--text3);font-size:12.5px;">${esc(bestAnyag[0])}</td></tr>`;
-  h += `</tbody></table></div>`;
-  return h;
+function napiBontasHtml(entries, isEves) {
+  if (isEves) {
+    const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+    const by = {};
+    entries.forEach(a => {
+      const mk = a.datum.substring(0, 7);
+      by[mk] = (by[mk] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    });
+    const months = Object.keys(by).sort();
+    if (!months.length) return '';
+    const total = Object.values(by).reduce((s, v) => s + v, 0);
+    let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Havi bontás</div><table class="stbl"><thead><tr><th>Hónap</th><th>Darált súly</th></tr></thead><tbody>`;
+    months.forEach(mk => {
+      h += `<tr><td><button class="dlink" data-goto-havi="${mk}">${honNev[parseInt(mk.split('-')[1]) - 1]}</button></td><td class="v-bold">${fmtKg(by[mk])}</td></tr>`;
+    });
+    return h + `</tbody><tfoot><tr class="tot"><td>Éves összesen</td><td>${fmtKg(total)}</td></tr></tfoot></table></div>`;
+  } else {
+    const by = {};
+    entries.forEach(a => {
+      by[a.datum] = (by[a.datum] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    });
+    const days = Object.keys(by).sort();
+    if (!days.length) return '';
+    const total = Object.values(by).reduce((s, v) => s + v, 0);
+    let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📅</span>Napi bontás</div><table class="stbl"><thead><tr><th>Nap</th><th>Darált súly</th></tr></thead><tbody>`;
+    days.forEach(d => {
+      h += `<tr><td><button class="dlink" data-goto="${d}">${esc(fmtS(d))}</button></td><td class="v-bold">${fmtKg(by[d])}</td></tr>`;
+    });
+    return h + `</tbody><tfoot><tr class="tot"><td>Összesen</td><td>${fmtKg(total)}</td></tr></tfoot></table></div>`;
+  }
 }

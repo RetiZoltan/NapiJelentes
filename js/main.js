@@ -4,13 +4,13 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
-import { E, msg, ag, tod, monday, initTheme, toggleTheme, showScreen } from './utils.js';
+import { E, msg, ag, tod, initTheme, toggleTheme, showScreen } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF } from './data-entry.js';
-import { napiRiport, hetiRiport, haviRiport, evesRiport,
+import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
-         switchView, riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
+         riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
 import { elemzesRiport } from './worker-analysis.js';
@@ -81,19 +81,20 @@ function buildAppUI() {
 
   E('nev').value  = state.userData.displayName || '';
   state.prevDatum = tod();
-  E('datum').value      = state.prevDatum;
-  E('riportD').value    = state.prevDatum;
-  E('hetiKezdo').value  = monday(state.prevDatum);
+  E('datum').value  = state.prevDatum;
+  E('riportD').value = state.prevDatum;
 
-  const yr = new Date().getFullYear();
-  E('haviEv').innerHTML = ''; E('elemzesEv').innerHTML = ''; E('evesEv').innerHTML = '';
+  const now = new Date();
+  const yr  = now.getFullYear();
+  const mo  = now.getMonth() + 1;
+  E('haviHonapInput').value = `${yr}-${String(mo).padStart(2, '0')}`;
+  E('evesEvInput').value    = yr;
+
+  E('elemzesEv').innerHTML = '';
   for (let y = yr; y >= yr - 5; y--) {
-    [E('haviEv'), E('elemzesEv'), E('evesEv')].forEach(sel => {
-      const o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o);
-    });
+    const o = document.createElement('option'); o.value = y; o.textContent = y; E('elemzesEv').appendChild(o);
   }
-  E('haviHonap').value    = new Date().getMonth();
-  E('elemzesHonap').value = new Date().getMonth();
+  E('elemzesHonap').value = now.getMonth();
 
   loadLists();
   addSuly(); addZsak();
@@ -233,22 +234,32 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('napi-goto', () => { switchTab('napi', E('tabBtnNapi')); napiRiport(); });
 
   // Időszakos jelentés
-  document.querySelectorAll('.vbtn').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view, b)));
-  E('aktHetBtn').addEventListener('click',          () => { E('hetiKezdo').value = monday(tod()); });
-  E('hetiBtn').addEventListener('click',            hetiRiport);
-  E('haviBtn').addEventListener('click',            haviRiport);
-  E('evesBtn').addEventListener('click',            evesRiport);
+  function updateIdoszakInputs() {
+    const isHavi = E('idoszakTipus').value === 'havi';
+    E('haviInputWrap').style.display    = isHavi ? '' : 'none';
+    E('evesInputWrap').style.display    = isHavi ? 'none' : '';
+    E('setHaviAtlagWrap').style.display = isHavi ? 'none' : '';
+  }
+  E('idoszakTipus').addEventListener('change', updateIdoszakInputs);
+  updateIdoszakInputs();
+  E('idoszakosBtn').addEventListener('click', () => {
+    if (E('idoszakTipus').value === 'havi') haviRiport(); else evesRiport();
+  });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
   // Időszakos — szekció beállítások
   const RIPORT_SETTINGS_MAP = [
-    { id: 'setNapiB',    key: 'napiB',    def: true  },
-    { id: 'setDolgozoi', key: 'dolgozoi', def: true  },
-    { id: 'setAnyag',    key: 'anyag',    def: true  },
-    { id: 'setLegek',    key: 'legek',    def: true  },
-    { id: 'setMuszak',   key: 'muszak',   def: false },
-    { id: 'setElozo',    key: 'elozo',    def: false },
+    { id: 'setTeljes',        key: 'teljes',        def: true  },
+    { id: 'setDolgRangsor',   key: 'dolgRangsor',   def: true  },
+    { id: 'setAnyagOssz',     key: 'anyagOssz',     def: true  },
+    { id: 'setNapiAtlag',     key: 'napiAtlag',     def: true  },
+    { id: 'setDolgNapiAtlag', key: 'dolgNapiAtlag', def: false },
+    { id: 'setHaviAtlag',     key: 'haviAtlag',     def: false },
+    { id: 'setMuszak',        key: 'muszak',        def: false },
+    { id: 'setDolgReszlet',   key: 'dolgReszlet',   def: false },
+    { id: 'setAnyagReszlet',  key: 'anyagReszlet',  def: false },
+    { id: 'setNapiBontas',    key: 'napiBontas',    def: true  },
   ];
   function saveRiportSettings() {
     const s = {};
