@@ -61,7 +61,20 @@ async function egyeniElemzes() {
     return;
   }
 
-  const perEntry = wa.map(a => (a.sulyok || []).reduce((s, x) => s + x.suly, 0)).filter(v => v > 0);
+  // Group by day: multiple entries on the same day count as one daily total
+  const byDay = {};
+  wa.forEach(a => {
+    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (!byDay[a.datum]) byDay[a.datum] = { kg: 0, idok: new Set() };
+    byDay[a.datum].kg += kg;
+    if (a.ido) byDay[a.datum].idok.add(a.ido);
+  });
+  const perDay = Object.entries(byDay)
+    .map(([datum, d]) => ({ datum, kg: d.kg, ido: [...d.idok].join(' / ') }))
+    .filter(d => d.kg > 0)
+    .sort((a, b) => b.datum.localeCompare(a.datum));
+
+  const perEntry = perDay.map(d => d.kg);
   const count    = perEntry.length;
   const total    = perEntry.reduce((s, v) => s + v, 0);
   const avg      = count > 0 ? total / count : 0;
@@ -69,7 +82,14 @@ async function egyeniElemzes() {
   const maxV     = count > 0 ? Math.max(...perEntry) : 0;
   const szoras   = count > 1 ? Math.sqrt(perEntry.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / count) : 0;
 
-  const globalVals = allForAnyag.map(a => (a.sulyok || []).reduce((s, x) => s + x.suly, 0)).filter(v => v > 0);
+  // Global comparison: also group by (worker+day) for consistency
+  const globalByWD = {};
+  allForAnyag.forEach(a => {
+    const key = `${a.nev}__${a.datum}`;
+    const kg  = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    globalByWD[key] = (globalByWD[key] || 0) + kg;
+  });
+  const globalVals = Object.values(globalByWD).filter(v => v > 0);
   const globalAvg  = globalVals.length > 0 ? globalVals.reduce((s, v) => s + v, 0) / globalVals.length : 0;
   const diffPct    = globalAvg > 0 ? (avg - globalAvg) / globalAvg * 100 : null;
 
@@ -77,10 +97,10 @@ async function egyeniElemzes() {
 
   html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Összefoglaló</div>
     <table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>
-    <tr><td>Bejegyzések száma</td><td style="font-weight:600;color:var(--text);">${count}</td></tr>
-    <tr><td>Maximális termelés</td><td class="v-bold">${fmtKg(maxV)}</td></tr>
-    <tr><td>Minimális termelés</td><td class="v-bold">${fmtKg(minV)}</td></tr>
-    <tr><td>Átlagos termelés</td><td class="v-bold">${fmtKg(avg)}</td></tr>
+    <tr><td>Aktív munkanapok</td><td style="font-weight:600;color:var(--text);">${count}</td></tr>
+    <tr><td>Legjobb nap</td><td class="v-bold">${fmtKg(maxV)}</td></tr>
+    <tr><td>Leggyengébb nap</td><td class="v-bold">${fmtKg(minV)}</td></tr>
+    <tr><td>Napi átlag</td><td class="v-bold">${fmtKg(avg)}</td></tr>
     <tr><td>Szórás (kiegyensúlyozottság)</td><td style="color:var(--text2);">${szoras.toFixed(0)} kg</td></tr>
     </tbody></table></div>`;
 
@@ -95,16 +115,13 @@ async function egyeniElemzes() {
       </tbody></table></div>`;
   }
 
-  html += `<div class="card"><div class="card-title"><span class="card-title-icon">📋</span>Részletek</div>
-    <table class="stbl"><thead><tr><th>Dátum</th><th>Műszak</th><th>Súlyok</th><th>Összesen</th></tr></thead><tbody>`;
-  wa.sort((a, b) => b.datum.localeCompare(a.datum)).forEach(a => {
-    const sulyok = a.sulyok || [];
-    const ossz   = sulyok.reduce((s, x) => s + x.suly, 0);
+  html += `<div class="card"><div class="card-title"><span class="card-title-icon">📋</span>Napi bontás</div>
+    <table class="stbl"><thead><tr><th>Dátum</th><th>Műszak</th><th>Napi összesen</th></tr></thead><tbody>`;
+  perDay.forEach(d => {
     html += `<tr>
-      <td>${esc(fmtS(a.datum))}</td>
-      <td style="color:var(--text3);">${esc(a.ido || '—')}</td>
-      <td style="color:var(--text2);font-size:12px;">${esc(sulyok.map(s => s.suly.toFixed(0)).join(', ') || '—')} kg</td>
-      <td class="v-bold">${ossz > 0 ? fmtKg(ossz) : '—'}</td>
+      <td>${esc(fmtS(d.datum))}</td>
+      <td style="color:var(--text3);">${esc(d.ido || '—')}</td>
+      <td class="v-bold">${fmtKg(d.kg)}</td>
     </tr>`;
   });
   html += `</tbody></table></div>`;
@@ -119,11 +136,18 @@ async function anyagRangsor() {
   E('anyagRangsorDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   const entries = await getEntries();
 
-  const byWorker = {};
+  // Group by (worker + day) so multiple entries on the same day count as one
+  const byWorkerDay = {};
   entries.filter(a => (a.anyag || '').trim() === anyag).forEach(a => {
-    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
-    if (!byWorker[a.nev]) byWorker[a.nev] = [];
-    byWorker[a.nev].push(kg);
+    const kg  = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    const key = `${a.nev}__${a.datum}`;
+    if (!byWorkerDay[key]) byWorkerDay[key] = { nev: a.nev, kg: 0 };
+    byWorkerDay[key].kg += kg;
+  });
+  const byWorker = {};
+  Object.values(byWorkerDay).forEach(({ nev, kg }) => {
+    if (!byWorker[nev]) byWorker[nev] = [];
+    byWorker[nev].push(kg);
   });
 
   if (!Object.keys(byWorker).length) {
