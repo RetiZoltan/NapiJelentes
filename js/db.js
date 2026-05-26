@@ -9,7 +9,6 @@ export async function loadLists() {
     if (s.exists()) {
       state.nevek   = s.data().nevek   || [];
       state.anyagok = s.data().anyagok || [];
-      state.gepek   = s.data().gepek   || [];
     }
     refreshListUI();
   } catch { msg('Lista betöltési hiba', 'error'); }
@@ -17,7 +16,7 @@ export async function loadLists() {
 
 export async function saveLists() {
   try {
-    await setDoc(doc(db, 'config', 'lists'), { nevek: state.nevek, anyagok: state.anyagok, gepek: state.gepek });
+    await setDoc(doc(db, 'config', 'lists'), { nevek: state.nevek, anyagok: state.anyagok });
   } catch { msg('Lista mentési hiba', 'error'); }
 }
 
@@ -25,11 +24,8 @@ export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   E('nevDL').innerHTML   = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
   E('anyagDL').innerHTML = srt(state.anyagok).map(a => `<option value="${esc(a)}"></option>`).join('');
-  const gepDL = E('gepDL');
-  if (gepDL) gepDL.innerHTML = srt(state.gepek).map(g => `<option value="${esc(g)}"></option>`).join('');
   fillSel(E('nevLista'),   state.nevek);
   fillSel(E('anyagLista'), state.anyagok);
-  fillSel(E('gepLista'),   state.gepek);
   updDolgSzuro();
 }
 

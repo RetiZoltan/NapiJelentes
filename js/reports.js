@@ -3,7 +3,6 @@ import { db, doc, getDoc, deleteDoc, collection, query, where,
 import { state, canSeeAllReports, isMainAdmin } from './state.js';
 import { E, esc, msg, tod, fmtL, fmtS, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
-import { fetchStoppages, stoppageHtml, deleteStoppage } from './stoppages.js';
 
 let unsubNapi = null;
 
@@ -39,20 +38,19 @@ export function napiRiport() {
     query(collection(db, 'entries'), ...constraints),
     async snap => {
       const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      let altM = '', allasSok = [];
+      let altM = '';
       try {
         const ns = await getDoc(doc(db, 'dailyNotes', rd));
         if (ns.exists()) altM = ns.data().szoveg || '';
       } catch {}
-      allasSok = await fetchStoppages(rd);
-      renderNapi(rd, lista, altM, szuro, allasSok);
+      renderNapi(rd, lista, altM, szuro);
     },
     err => msg('Lekérdezési hiba: ' + err.message, 'error', 5000)
   );
 }
 
-function renderNapi(rd, lista, altM, szuro, allasSok = []) {
-  if (!lista.length && !altM && !allasSok.length) {
+function renderNapi(rd, lista, altM, szuro) {
+  if (!lista.length && !altM) {
     E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
     E('napiKepMentBtn').disabled = true;
     E('napiNyomtatBtn').disabled = true;
@@ -62,7 +60,6 @@ function renderNapi(rd, lista, altM, szuro, allasSok = []) {
   const badges = shifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
   if (lista.length) h += workerHtml(grpWorkers(lista));
-  if (allasSok.length) h += stoppageHtml(allasSok);
   if (altM) h += `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(altM).replace(/\n/g, '<br>')}</p>${isMainAdmin() ? `<button class="del-btn" data-type="megj" data-datum="${rd}" style="position:absolute;top:11px;right:11px;">✕</button>` : ''}</div>`;
   E('napiRiportDiv').innerHTML = h;
   E('napiKepMentBtn').disabled = false;
@@ -158,11 +155,6 @@ export async function riportKlikk(e) {
     await deleteDoc(doc(db, 'dailyNotes', datum));
     msg('Megjegyzés törölve.');
     napiRiport();
-  } else if (dtype === 'stoppage') {
-    const sid = btn.dataset.sid;
-    if (!sid || !confirm('Törlöd ezt a gépállás bejegyzést?')) return;
-    const ok = await deleteStoppage(sid);
-    if (ok) napiRiport();
   } else if (ids) {
     const arr = ids.split(',');
     if (!confirm(`Biztosan törlöd a kijelölt ${arr.length} bejegyzést?`)) return;

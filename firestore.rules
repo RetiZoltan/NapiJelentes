@@ -81,18 +81,7 @@ service cloud.firestore {
       );
     }
 
-    // ── stoppages ──────────────────────────────────────────────
-    match /stoppages/{id} {
-      allow read: if isAuth() && (
-        isMainAdmin() ||
-        hasPerm('mindenJelentes') ||
-        hasPerm('sajatJelentes')
-      );
-      allow create: if isAuth() && hasPerm('adatbevitel');
-      allow delete: if isAuth() && isMainAdmin();
-    }
-
-    // ── config/premiumConfig (csak prémium kezelő írhat) ───────
+// ── config/premiumConfig (csak prémium kezelő írhat) ───────
     match /config/premiumConfig {
       allow read:  if isAuth();
       allow write: if isAuth() && (

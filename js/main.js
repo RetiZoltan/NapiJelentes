@@ -16,7 +16,6 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initNaptar } from './calendar.js';
-import { saveStoppage, clearStoppageForm } from './stoppages.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 
 /* ── Bootstrap / user setup ── */
@@ -217,9 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
   E('napiMegj').addEventListener('input',    () => ag(E('napiMegj')));
-  E('allasMentBtn').addEventListener('click', saveStoppage);
-  E('addGepBtn').addEventListener('click',    () => addToList(E('allasGep'), state.gepek));
-  [E('nev'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
+[E('nev'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
   E('napiMegj').addEventListener('focus', e => e.target.select());
   E('datum').addEventListener('change', async e => {
     await saveNapiFor(state.prevDatum);
@@ -317,10 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Admin — listák
   E('nevLista').addEventListener('dblclick',   e => editItem(e, state.nevek));
   E('anyagLista').addEventListener('dblclick', e => editItem(e, state.anyagok));
-  E('gepLista').addEventListener('dblclick',   e => editItem(e, state.gepek));
-  E('nevTorBtn').addEventListener('click',     () => delFromList(E('nevLista'), state.nevek));
+E('nevTorBtn').addEventListener('click',     () => delFromList(E('nevLista'), state.nevek));
   E('anyagTorBtn').addEventListener('click',   () => delFromList(E('anyagLista'), state.anyagok));
-  E('gepTorBtn').addEventListener('click',     () => delFromList(E('gepLista'), state.gepek));
 
   // Admin — prémium konfig
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);
