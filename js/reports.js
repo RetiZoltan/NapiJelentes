@@ -53,6 +53,7 @@ function renderNapi(rd, lista, altM, szuro) {
   if (!lista.length && !altM) {
     E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
     E('napiKepMentBtn').disabled = true;
+    E('napiNyomtatBtn').disabled = true;
     return;
   }
   const shifts = [...new Set(lista.map(a => a.ido))].sort();
@@ -62,6 +63,7 @@ function renderNapi(rd, lista, altM, szuro) {
   if (altM) h += `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(altM).replace(/\n/g, '<br>')}</p>${isMainAdmin() ? `<button class="del-btn" data-type="megj" data-datum="${rd}" style="position:absolute;top:11px;right:11px;">✕</button>` : ''}</div>`;
   E('napiRiportDiv').innerHTML = h;
   E('napiKepMentBtn').disabled = false;
+  E('napiNyomtatBtn').disabled = false;
 }
 
 /* ── Havi riport ── */
@@ -79,7 +81,8 @@ export async function haviRiport() {
   const hA = await fetchEntries({ datumFrom: from, datumTo: to });
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
-    E('idoszakosKepMentBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = true;
+    E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   let html = `<div class="r-head">${ev}. ${honNev[honap]}</div>`;
@@ -94,6 +97,7 @@ export async function haviRiport() {
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
   E('idoszakosKepMentBtn').disabled = false;
+  E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Éves riport ── */
@@ -106,7 +110,8 @@ export async function evesRiport() {
   const hA = await fetchEntries({ datumFrom: from, datumTo: to });
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`;
-    E('idoszakosKepMentBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = true;
+    E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   let html = `<div class="r-head">${ev}. év</div>`;
@@ -122,6 +127,7 @@ export async function evesRiport() {
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
   E('idoszakosKepMentBtn').disabled = false;
+  E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Klikk handler (törlés + nap-link) ── */
@@ -178,6 +184,46 @@ export async function napTorol() {
 /* ── Mentés képként ── */
 export function napiKepMent()      { kepMentDiv('napiRiportDiv',      E('riportD').value || tod()); }
 export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', tod()); }
+
+/* ── Nyomtatás ── */
+export function napiNyomtat()      { nyomtatDiv('napiRiportDiv'); }
+export function idoszakosNyomtat() { nyomtatDiv('idoszakosRiportDiv'); }
+
+function nyomtatDiv(divId) {
+  const src = E(divId);
+  if (!src.children.length || src.querySelector('.empty-st')) {
+    msg('Nincs nyomtatható tartalom.', 'error'); return;
+  }
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('.del-btn').forEach(x => x.remove());
+  clone.querySelectorAll('.dlink').forEach(x => {
+    const sp = document.createElement('span');
+    sp.textContent = x.textContent;
+    x.replaceWith(sp);
+  });
+  const now = new Date();
+  const nyomtatva = now.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+                  + ', ' + now.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+  const pf = document.getElementById('print-frame');
+  pf.innerHTML = '';
+  const hdr = document.createElement('div');
+  hdr.className = 'pf-hdr';
+  hdr.innerHTML = `<span class="pf-brand">Napi Jelentés – Termelési nyilvántartó</span><span class="pf-meta">Nyomtatva: ${esc(nyomtatva)}</span>`;
+  pf.appendChild(hdr);
+  pf.appendChild(clone);
+  const ftr = document.createElement('div');
+  ftr.className = 'pf-ftr';
+  ftr.textContent = 'Plasticnapi termelési nyilvántartó';
+  pf.appendChild(ftr);
+  document.body.classList.add('is-printing');
+  window.print();
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('is-printing');
+  const pf = document.getElementById('print-frame');
+  if (pf) pf.innerHTML = '';
+});
 
 function kepMentDiv(divId, suffix) {
   const cs  = getComputedStyle(document.documentElement);
@@ -257,10 +303,8 @@ function workerHtml(c) {
 /* ── Időszakos szekció-generátorok ── */
 function teljesHtml(entries) {
   const totalS = entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
-  const totalZ = entries.reduce((s, a) => s + (a.zsakSulyok || []).reduce((x, y) => x + y, 0), 0);
   let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Teljes termelés</div><table class="stbl"><thead><tr><th>Megnevezés</th><th>Érték</th></tr></thead><tbody>`;
   h += `<tr><td>Darált súly</td><td class="v-bold">${fmtKg(totalS)}</td></tr>`;
-  if (totalZ > 0) h += `<tr><td>Zsákok összesen</td><td class="v-green" style="font-weight:600;">${fmtKg(totalZ)}</td></tr>`;
   return h + `</tbody></table></div>`;
 }
 

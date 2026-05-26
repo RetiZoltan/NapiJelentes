@@ -174,7 +174,8 @@
       </div>
       <div id="napiRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz dátumot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost btn-full" id="napiKepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
+        <button class="btn btn-ghost" style="flex:1;" id="napiKepMentBtn" disabled>⬇ Mentés képként</button>
+        <button class="btn btn-ghost" id="napiNyomtatBtn" disabled>🖨 Nyomtatás</button>
       </div>
     </div>
 
@@ -236,7 +237,8 @@
       </div>
       <div id="idoszakosRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost btn-full" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként (JPG)</button>
+        <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként</button>
+        <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtatás</button>
       </div>
     </div>
 
@@ -354,6 +356,7 @@
   </div>
 </div><!-- /screen-app -->
 
+<div id="print-frame"></div>
 <script type="module" src="js/main.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

@@ -10,6 +10,7 @@ import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
 import { addSuly, addZsak, rogzit, clearF } from './data-entry.js';
 import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
+         napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
@@ -229,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('mutatBtn').addEventListener('click',      napiRiport);
   E('napTorBtn').addEventListener('click',     napTorol);
   E('napiKepMentBtn').addEventListener('click', napiKepMent);
+  E('napiNyomtatBtn').addEventListener('click', napiNyomtat);
   E('napiRiportDiv').addEventListener('click', riportKlikk);
   document.addEventListener('napi-goto', () => { switchTab('napi', E('tabBtnNapi')); napiRiport(); });
 
@@ -245,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (E('idoszakTipus').value === 'havi') haviRiport(); else evesRiport();
   });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
+  E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
   // Időszakos — szekció beállítások
