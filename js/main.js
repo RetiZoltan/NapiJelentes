@@ -77,11 +77,11 @@ function buildAppUI() {
   E('tabBtnIdoszakos').style.display   = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('sajatJelentes') || canSeeAllReports())            ? '' : 'none';
-  E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes'))            ? '' : 'none';
+  E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
   E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
-  E('stab-premium-cfg-btn').style.display  = isMainAdmin() ? '' : 'none';
+  E('stab-premium-cfg-btn').style.display  = (isMainAdmin() || hasPerm('premiumKezeles')) ? '' : 'none';
   E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
