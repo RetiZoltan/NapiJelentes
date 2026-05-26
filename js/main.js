@@ -17,6 +17,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
 import { initElemzes } from './worker-analysis.js';
 import { initNaptar } from './calendar.js';
 import { saveStoppage, clearStoppageForm } from './stoppages.js';
+import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -76,10 +77,12 @@ function buildAppUI() {
   E('tabBtnIdoszakos').style.display   = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('sajatJelentes') || canSeeAllReports())            ? '' : 'none';
+  E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes'))            ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
-  E('stab-roles-btn').style.display = isMainAdmin() ? '' : 'none';
-  E('stab-data-btn').style.display  = isMainAdmin() ? '' : 'none';
+  E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
+  E('stab-premium-cfg-btn').style.display  = isMainAdmin() ? '' : 'none';
+  E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
 
@@ -113,7 +116,8 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'admin') loadAdminUsers();
   if (name !== 'napi') cleanupNapiListener();
-  if (name === 'naptar') initNaptar();
+  if (name === 'naptar')  initNaptar();
+  if (name === 'premium') initPremiumTab();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
@@ -125,8 +129,9 @@ function switchAdminSubtab(name) {
   document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
   document.querySelector(`.stab-btn[data-stab="${name}"]`).classList.add('active');
   E('stab-' + name).classList.add('active');
-  if (name === 'roles') loadRoles();
-  if (name === 'lists') refreshListUI();
+  if (name === 'roles')        loadRoles();
+  if (name === 'lists')        refreshListUI();
+  if (name === 'premium-cfg')  initPremiumAdmin();
 }
 
 /* ── Auth helpers ── */
@@ -316,6 +321,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('nevTorBtn').addEventListener('click',     () => delFromList(E('nevLista'), state.nevek));
   E('anyagTorBtn').addEventListener('click',   () => delFromList(E('anyagLista'), state.anyagok));
   E('gepTorBtn').addEventListener('click',     () => delFromList(E('gepLista'), state.gepek));
+
+  // Admin — prémium konfig
+  E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);
 
   // Admin — adatok
   E('mentFajlBtn').addEventListener('click',  mentFajl);

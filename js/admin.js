@@ -49,7 +49,7 @@ export async function loadRoles() {
   try {
     const snap = await getDocs(collection(db, 'roles'));
     if (snap.empty) { E('roleListDiv').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px;">Még nincs szerepkör</div>'; return; }
-    const permLabel = { adatbevitel: 'Adatbevitel', sajatJelentes: 'Saját jelent.', mindenJelentes: 'Mindenki jelent.', felhasznalokKezelese: 'Felh. kezelése' };
+    const permLabel = { adatbevitel: 'Adatbevitel', sajatJelentes: 'Saját jelent.', mindenJelentes: 'Mindenki jelent.', felhasznalokKezelese: 'Felh. kezelése', premiumMegtekintes: 'Prémium megtekintés' };
     E('roleListDiv').innerHTML = snap.docs.map(d => {
       const r = { id: d.id, ...d.data() };
       const perms = Object.entries(r.permissions || {}).filter(([, v]) => v).map(([k]) => permLabel[k] || k).join(', ') || 'Nincs jogosultság';
@@ -65,7 +65,8 @@ export async function saveRole() {
     adatbevitel:          E('pAdatbevitel').checked,
     sajatJelentes:        E('pSajatJelentes').checked,
     mindenJelentes:       E('pMindenJelentes').checked,
-    felhasznalokKezelese: E('pFelhasznalok').checked
+    felhasznalokKezelese: E('pFelhasznalok').checked,
+    premiumMegtekintes:   E('pPremiumMegtekintes').checked
   };
   try {
     if (editingRoleId) {
@@ -82,7 +83,7 @@ export async function saveRole() {
 export function cancelRoleForm() {
   E('newRoleForm').classList.remove('open');
   E('newRoleNev').value = '';
-  ['pAdatbevitel','pSajatJelentes','pMindenJelentes','pFelhasznalok'].forEach(id => E(id).checked = false);
+  ['pAdatbevitel','pSajatJelentes','pMindenJelentes','pFelhasznalok','pPremiumMegtekintes'].forEach(id => E(id).checked = false);
   editingRoleId = null;
   E('saveRoleBtn').textContent = 'Mentés';
 }
@@ -100,6 +101,7 @@ export async function handleRoleListClick(e) {
     E('pSajatJelentes').checked        = !!r.permissions?.sajatJelentes;
     E('pMindenJelentes').checked       = !!r.permissions?.mindenJelentes;
     E('pFelhasznalok').checked         = !!r.permissions?.felhasznalokKezelese;
+    E('pPremiumMegtekintes').checked   = !!r.permissions?.premiumMegtekintes;
     editingRoleId = id;
     E('newRoleForm').classList.add('open');
     E('saveRoleBtn').textContent = 'Frissítés';

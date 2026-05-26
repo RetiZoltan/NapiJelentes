@@ -95,6 +95,7 @@
       <button class="tab-btn" data-tab="idoszakos" id="tabBtnIdoszakos" style="display:none">📊 Időszakos</button>
       <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
+      <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
     </div>
 
@@ -332,6 +333,23 @@
       </div>
     </div>
 
+    <!-- ══ PRÉMIUM ══ -->
+    <div id="tab-premium" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div class="field"><label class="lbl">Hónap</label><input type="month" id="premiumHonapInput"></div>
+          <div class="field" style="margin-bottom:13px;">
+            <label class="lbl" style="visibility:hidden;">–</label>
+            <button class="btn btn-primary btn-sm" id="premiumSzamolBtn">Számol</button>
+          </div>
+        </div>
+      </div>
+      <div id="premiumResultDiv"><div class="empty-st"><div class="empty-ic">💰</div>Válassz hónapot és kattints a <strong>Számol</strong> gombra</div></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-ghost" id="premiumNyomtatBtn" disabled>🖨 Nyomtatás</button>
+      </div>
+    </div>
+
     <!-- ══ ADMIN ══ -->
     <div id="tab-admin" class="tab-panel">
       <div class="card">
@@ -339,6 +357,7 @@
           <button class="stab-btn active" data-stab="users">👥 Felhasználók</button>
           <button class="stab-btn" data-stab="roles" id="stab-roles-btn">🎭 Szerepkörök</button>
           <button class="stab-btn" data-stab="lists">📋 Listák</button>
+          <button class="stab-btn" data-stab="premium-cfg" id="stab-premium-cfg-btn">💰 Prémium konfig</button>
           <button class="stab-btn" data-stab="data" id="stab-data-btn">💾 Adatok</button>
         </div>
 
@@ -364,6 +383,7 @@
               <label class="perm-check"><input type="checkbox" id="pSajatJelentes"><span>Saját jelentés</span></label>
               <label class="perm-check"><input type="checkbox" id="pMindenJelentes"><span>Mindenki jelentése</span></label>
               <label class="perm-check"><input type="checkbox" id="pFelhasznalok"><span>Felhasználók kezelése</span></label>
+              <label class="perm-check"><input type="checkbox" id="pPremiumMegtekintes"><span>Prémium megtekintés</span></label>
             </div>
             <div class="btn-row" style="margin-top:10px;">
               <button class="btn btn-primary btn-sm" id="saveRoleBtn">Mentés</button>
@@ -397,6 +417,13 @@
               <button class="btn btn-danger btn-sm btn-full" id="gepTorBtn">Kijelöltek törlése</button>
             </div>
           </div>
+        </div>
+
+        <!-- Prémium konfig (főadmin) -->
+        <div id="stab-premium-cfg" class="stab-panel">
+          <p style="font-size:12.5px;color:var(--text3);margin-bottom:12px;">Anyagonként add meg a napi alapteljesítményt, a prémium arányát és az eladási árat. Csak azok az anyagok kapnak prémiumot, amelyeknél ki van töltve a konfiguráció.</p>
+          <div id="premiumAdminDiv"></div>
+          <button class="btn btn-primary btn-sm" id="premiumAdminSaveBtn" style="margin-top:12px;display:none;">Mentés</button>
         </div>
 
         <!-- Adatok (főadmin) -->

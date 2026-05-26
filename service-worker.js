@@ -1,4 +1,4 @@
-const CACHE = 'napi-jelentes-v6';
+const CACHE = 'napi-jelentes-v7';
 
 self.addEventListener('install', () => self.skipWaiting());
 
