@@ -181,6 +181,10 @@
     <!-- ══ IDŐSZAKOS JELENTÉS ══ -->
     <div id="tab-idoszakos" class="tab-panel">
       <div class="card">
+        <div style="display:flex;align-items:center;margin-bottom:14px;">
+          <p class="sec-hd" style="margin:0;border:none;padding:0;flex:1;"><span>1.</span> Időszak kiválasztása</p>
+          <button class="btn btn-ghost btn-sm" id="riportSettingsBtn" style="font-size:11.5px;">⚙ Szekciók beállítása</button>
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field">
             <label class="lbl">Jelentés típusa</label>
@@ -199,28 +203,29 @@
           </div>
           <button class="btn btn-primary btn-sm" id="idoszakosBtn">Mutat</button>
         </div>
-        <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
-          <div style="display:flex;flex-wrap:wrap;gap:16px 36px;">
-            <div>
+        <div id="riportSettings" style="display:none;border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+          <p class="sec-hd"><span>2.</span> Riport tartalma</p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div class="rs-group" style="flex:1;min-width:170px;">
               <p class="rs-group-lbl">Fő összesítések</p>
-              <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
                 <label class="rs-lbl"><input type="checkbox" id="setTeljes"> Teljes termelés</label>
                 <label class="rs-lbl"><input type="checkbox" id="setDolgRangsor"> Dolgozói rangsor</label>
                 <label class="rs-lbl"><input type="checkbox" id="setAnyagOssz"> Anyagtípusok összesítése</label>
               </div>
             </div>
-            <div>
+            <div class="rs-group" style="flex:1;min-width:200px;">
               <p class="rs-group-lbl">Átlagok és statisztikák</p>
-              <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
                 <label class="rs-lbl"><input type="checkbox" id="setNapiAtlag"> Napi átlagteljesítmény</label>
                 <label class="rs-lbl"><input type="checkbox" id="setDolgNapiAtlag"> Dolgozónkénti napi átlag</label>
                 <label class="rs-lbl" id="setHaviAtlagWrap" style="display:none;"><input type="checkbox" id="setHaviAtlag"> Havi átlagteljesítmény</label>
                 <label class="rs-lbl"><input type="checkbox" id="setMuszak"> Műszakok összehasonlítása</label>
               </div>
             </div>
-            <div>
+            <div class="rs-group" style="flex:1;min-width:200px;">
               <p class="rs-group-lbl">Részletező táblázatok</p>
-              <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
                 <label class="rs-lbl"><input type="checkbox" id="setDolgReszlet"> Dolgozónkénti részletezés</label>
                 <label class="rs-lbl"><input type="checkbox" id="setAnyagReszlet"> Anyagonkénti részletezés</label>
                 <label class="rs-lbl"><input type="checkbox" id="setNapiBontas"> Napi bontás</label>
@@ -228,7 +233,6 @@
             </div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm" id="riportSettingsBtn" style="margin-top:10px;font-size:11px;">⚙ Szekciók</button>
       </div>
       <div id="idoszakosRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
