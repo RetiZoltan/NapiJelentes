@@ -40,15 +40,13 @@ function wEnter(e, type) {
 }
 
 export async function rogzit() {
-  const datum     = E('datum').value;
-  const ido       = E('ido').value;
-  const nev       = E('nev').value.trim();
-  const anyagB    = E('anyag').value.trim();
-  const dolgMegj  = E('megj').value.trim();
+  const datum      = E('datum').value;
+  const ido        = E('ido').value;
+  const nev        = E('nev').value.trim();
+  const anyagB     = E('anyag').value.trim();
+  const dolgMegj   = E('megj').value.trim();
+  const napiSzoveg = E('napiMegj').value.trim();
 
-  await saveNapiFor(datum);
-
-  if (!nev)   { msg('Add meg a dolgozó nevét!', 'error'); return; }
   if (!datum) { msg('Dátum kötelező!', 'error'); E('datum').focus(); return; }
 
   const sm = E('sulyC').querySelectorAll('.wrow');
@@ -56,6 +54,21 @@ export async function rogzit() {
   const vA = anyagB !== '';
   const vS = Array.from(sm).some(m => m.querySelector('.wsuly').value.trim() !== '');
   const vZ = Array.from(zm).some(m => m.querySelector('.wzsak').value.trim() !== '');
+
+  await saveNapiFor(datum);
+
+  // Ha csak napi megjegyzés van (nincs nev/anyag/súly/megj), csak azt mentjük
+  if (!nev && !vA && !vS && !vZ && !dolgMegj) {
+    if (napiSzoveg) {
+      msg('Napi megjegyzés mentve.');
+      E('napiMegj').value = ''; ag(E('napiMegj'));
+    } else {
+      msg('Adj meg adatot vagy megjegyzést!', 'error');
+    }
+    return;
+  }
+
+  if (!nev) { msg('Add meg a dolgozó nevét!', 'error'); return; }
 
   let entry = null;
 
@@ -99,7 +112,7 @@ export async function rogzit() {
 }
 
 export function clearF(sh = true) {
-  if (!state.isNamePinned) E('nev').value = state.userData?.displayName || '';
+  if (!state.isNamePinned) E('nev').value = '';
   E('anyag').value = '';
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();

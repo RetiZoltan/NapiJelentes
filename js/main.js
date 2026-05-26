@@ -80,7 +80,7 @@ function buildAppUI() {
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
 
-  E('nev').value  = state.userData.displayName || '';
+  E('nev').value  = '';
   state.prevDatum = tod();
   E('datum').value  = state.prevDatum;
   E('riportD').value = state.prevDatum;
