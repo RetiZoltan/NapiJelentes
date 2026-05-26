@@ -7,7 +7,7 @@ import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from '.
 import { E, msg, ag, tod, initTheme, toggleTheme, showScreen } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, delFromList, editItem } from './db.js';
-import { addSuly, addZsak, rogzit, clearF } from './data-entry.js';
+import { addSuly, addZsak, rogzit, clearF, startEditEntry } from './data-entry.js';
 import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
          napiNyomtat, idoszakosNyomtat,
@@ -241,6 +241,11 @@ document.addEventListener('DOMContentLoaded', () => {
   E('napiNyomtatBtn').addEventListener('click', napiNyomtat);
   E('napiRiportDiv').addEventListener('click', riportKlikk);
   document.addEventListener('napi-goto', () => { switchTab('napi', E('tabBtnNapi')); napiRiport(); });
+  document.addEventListener('napi-edit-entry', async e => {
+    switchTab('adatbevitel', E('tabBtnAdatbevitel'));
+    await startEditEntry(e.detail);
+  });
+  E('editCancelBtn').addEventListener('click', () => clearF(false));
 
   // Időszakos jelentés
   function updateIdoszakInputs() {

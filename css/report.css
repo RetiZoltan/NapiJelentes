@@ -17,7 +17,7 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 .v-kezdett{color:var(--amber);font-weight:700;}
 .v-green{color:var(--green);font-weight:700;}
 .v-bold{color:var(--text);font-weight:700;}
-.dtoggle{color:var(--text);font-weight:600;background:none;border:none;font-family:'Source Sans 3',sans-serif;font-size:13px;padding:0;cursor:default;text-decoration:none;}
+.dtoggle{color:var(--text);font-weight:600;background:none;border:none;font-family:'Source Sans 3',sans-serif;font-size:13px;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-style:dotted;}
 .dbox{display:none!important;}
 
 .wnote{padding:8px 14px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--accent) 5%,var(--surf2));font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}

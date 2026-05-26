@@ -148,6 +148,21 @@ export async function riportKlikk(e) {
     haviRiport();
     return;
   }
+  const toggle = e.target.closest('.dtoggle');
+  if (toggle) {
+    const box = toggle.nextElementSibling;
+    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    return;
+  }
+  const editBtn = e.target.closest('.edit-btn');
+  if (editBtn) {
+    const id = editBtn.dataset.editId;
+    const snap = await getDoc(doc(db, 'entries', id));
+    if (snap.exists()) {
+      document.dispatchEvent(new CustomEvent('napi-edit-entry', { detail: { id: snap.id, ...snap.data() } }));
+    }
+    return;
+  }
   const btn = e.target.closest('.del-btn'); if (!btn) return;
   const dtype = btn.dataset.type, datum = btn.dataset.datum, ids = btn.dataset.ids;
   if (dtype === 'megj' && datum) {
@@ -260,12 +275,13 @@ function grpWorkers(list) {
     const hS = Array.isArray(a.sulyok) && a.sulyok.length > 0;
     const hZ = Array.isArray(a.zsakSulyok) && a.zsakSulyok.length > 0;
     if ((a.anyag || '').trim() || hS || hZ) {
-      if (!c[a.nev].anyagok[ak]) c[a.nev].anyagok[ak] = { nev: (a.anyag || '').trim() || '—', sulyok: [], zsakSulyok: [], megj: [], ids: [] };
+      if (!c[a.nev].anyagok[ak]) c[a.nev].anyagok[ak] = { nev: (a.anyag || '').trim() || '—', sulyok: [], zsakSulyok: [], megj: [], ids: [], owners: [] };
       if (hS) c[a.nev].anyagok[ak].sulyok.push(...a.sulyok);
       if (hZ) c[a.nev].anyagok[ak].zsakSulyok.push(...a.zsakSulyok);
       if (a.megjegyzes?.trim()) c[a.nev].anyagok[ak].megj.push(a.megjegyzes.trim());
       c[a.nev].anyagok[ak].ids.push(a.id);
-    } else if (a.megjegyzes?.trim()) c[a.nev].csMegj.push({ id: a.id, text: a.megjegyzes.trim() });
+      c[a.nev].anyagok[ak].owners.push(a.createdBy);
+    } else if (a.megjegyzes?.trim()) c[a.nev].csMegj.push({ id: a.id, text: a.megjegyzes.trim(), owner: a.createdBy });
   });
   return c;
 }
@@ -284,11 +300,13 @@ function workerHtml(c) {
         if (aa.sulyok.length > 0) {
           const os  = aa.sulyok.reduce((s, x) => s + x.suly, 0); ds += os;
           const det = aa.sulyok.map(s => `<span class="${s.statusz === 'teli' ? 'v-teli' : 'v-kezdett'}">${s.suly.toFixed(0)}</span>`).join(', ');
-          sh = `<span class="dtoggle" style="cursor:default">${fmtKg(os)}</span><div style="display:none;font-size:12px;margin-top:3px;">${det}</div>`;
+          sh = `<span class="dtoggle" style="cursor:pointer">${fmtKg(os)}</span><div style="display:none;font-size:12px;margin-top:3px;">${det}</div>`;
         }
         let zh = '—';
         if (aa.zsakSulyok.length > 0) { const zo = aa.zsakSulyok.reduce((s, x) => s + x, 0); dz += zo; zh = `<span class="v-green">${aa.zsakSulyok.map(s => s.toFixed(0)).join(', ')} kg</span>`; }
-        h += `<tr><td>${esc(aa.nev)}</td><td>${sh}</td><td>${zh}</td><td><button class="del-btn" data-ids="${esc(ids)}">✕</button></td></tr>`;
+        const canEdit = aa.ids.length === 1 && (isMainAdmin() || aa.owners[0] === state.appUser.uid);
+        const editBtn = canEdit ? `<button class="edit-btn" data-edit-id="${esc(aa.ids[0])}" title="Szerkesztés">✎</button>` : '';
+        h += `<tr><td>${esc(aa.nev)}</td><td>${sh}</td><td>${zh}</td><td style="white-space:nowrap;">${editBtn}<button class="del-btn" data-ids="${esc(ids)}">✕</button></td></tr>`;
         aa.megj.forEach(m => { notes += `<div class="wnote">${esc(m)}</div>`; });
       });
       h += `</tbody><tfoot><tr><td>Összesen</td><td class="v-bold">${fmtKg(ds)}</td><td class="v-green" style="font-weight:600;">${fmtKg(dz)}</td><td></td></tr></tfoot></table>`;

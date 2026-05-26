@@ -1,7 +1,7 @@
-import { db, addDoc, collection, serverTimestamp } from './firebase.js';
+import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
-import { saveNapiFor } from './db.js';
+import { saveNapiFor, loadNapiFor } from './db.js';
 
 export function addSuly(v = '', st = 'teli') {
   const d = document.createElement('div');
@@ -102,8 +102,14 @@ export async function rogzit() {
 
   if (entry) {
     try {
-      await addDoc(collection(db, 'entries'), entry);
-      msg('Adat rögzítve!');
+      if (state.editingEntryId) {
+        const { createdBy: _cb, createdAt: _ca, ...fields } = entry;
+        await updateDoc(doc(db, 'entries', state.editingEntryId), { ...fields, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+        msg('Bejegyzés szerkesztve!');
+      } else {
+        await addDoc(collection(db, 'entries'), entry);
+        msg('Adat rögzítve!');
+      }
       clearF(false);
     } catch (e) { msg('Rögzítési hiba: ' + e.message, 'error'); }
   } else {
@@ -112,6 +118,10 @@ export async function rogzit() {
 }
 
 export function clearF(sh = true) {
+  state.editingEntryId = null;
+  E('rogzitBtn').textContent = '✓ Adatok rögzítése';
+  const banner = E('editBanner');
+  if (banner) banner.style.display = 'none';
   if (!state.isNamePinned) E('nev').value = '';
   E('anyag').value = '';
   E('megj').value  = '';
@@ -119,4 +129,34 @@ export function clearF(sh = true) {
   E('zsakC').innerHTML = ''; addZsak();
   if (state.isNamePinned) E('anyag').focus(); else E('nev').focus();
   if (sh) msg('Űrlap törölve.', 'info', 2000);
+}
+
+export async function startEditEntry(entry) {
+  state.editingEntryId = entry.id;
+  E('datum').value = entry.datum || '';
+  E('ido').value   = entry.ido   || 'Délelőtt';
+  E('nev').value   = entry.nev   || '';
+  E('anyag').value = entry.anyag || '';
+  E('megj').value  = entry.megjegyzes || '';
+
+  await loadNapiFor(entry.datum);
+  state.prevDatum = entry.datum;
+
+  E('sulyC').innerHTML = '';
+  if (Array.isArray(entry.sulyok) && entry.sulyok.length > 0) {
+    entry.sulyok.forEach(s => addSuly(s.suly, s.statusz));
+  } else {
+    addSuly();
+  }
+
+  E('zsakC').innerHTML = '';
+  if (Array.isArray(entry.zsakSulyok) && entry.zsakSulyok.length > 0) {
+    entry.zsakSulyok.forEach(z => addZsak(z));
+  } else {
+    addZsak();
+  }
+
+  E('rogzitBtn').textContent = '✓ Szerkesztés mentése';
+  const banner = E('editBanner');
+  if (banner) banner.style.display = 'flex';
 }
