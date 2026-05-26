@@ -1,102 +1,218 @@
 import { fetchEntries } from './db.js';
 import { E, esc, msg, fmtKg, fmtS } from './utils.js';
 
-export async function elemzesRiport() {
-  const ev    = parseInt(E('elemzesEv').value);
-  const honap = parseInt(E('elemzesHonap').value);
-  const prefix  = `${ev}-${String(honap + 1).padStart(2, '0')}`;
-  const lastDay = new Date(ev, honap + 1, 0).getDate();
-  const from    = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
+let cachedEntries = null;
 
-  E('elemzesDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+async function getEntries() {
+  if (!cachedEntries) cachedEntries = await fetchEntries({});
+  return cachedEntries;
+}
 
-  const entries = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (!entries.length) {
-    E('elemzesDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
+function switchETab(name) {
+  ['Egyeni', 'AnyagRangsor', 'Rekordok'].forEach(t => {
+    E('eTab' + t).style.display = t === name ? '' : 'none';
+    E('eBtn' + t).classList.toggle('active', t === name);
+  });
+}
+
+async function populateWorkers() {
+  const entries = await getEntries();
+  const workers = [...new Set(entries.map(a => a.nev))].sort((a, b) => a.localeCompare(b, 'hu'));
+  E('egyeniDolgozo').innerHTML = workers.length
+    ? workers.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+    : '<option value="">Nincs adat</option>';
+  if (workers.length) filterMaterials(entries, workers[0]);
+}
+
+function filterMaterials(entries, nev) {
+  const mats = [...new Set(
+    entries.filter(a => a.nev === nev && (a.anyag || '').trim())
+           .map(a => (a.anyag || '').trim())
+  )].sort((a, b) => a.localeCompare(b, 'hu'));
+  E('egyeniAnyag').innerHTML = mats.length
+    ? mats.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+    : '<option value="">—</option>';
+}
+
+async function populateAnyagSel() {
+  const entries = await getEntries();
+  const mats = [...new Set(
+    entries.filter(a => (a.anyag || '').trim()).map(a => (a.anyag || '').trim())
+  )].sort((a, b) => a.localeCompare(b, 'hu'));
+  E('anyagRangsorSel').innerHTML = mats.length
+    ? mats.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+    : '<option value="">Nincs adat</option>';
+}
+
+/* ── 1. fül: Egyéni elemzés ── */
+async function egyeniElemzes() {
+  const nev   = E('egyeniDolgozo').value;
+  const anyag = E('egyeniAnyag').value;
+  if (!nev || !anyag) { msg('Válassz dolgozót és anyagot!', 'error'); return; }
+
+  E('egyeniDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+
+  const wa          = entries.filter(a => a.nev === nev && (a.anyag || '').trim() === anyag);
+  const allForAnyag = entries.filter(a => (a.anyag || '').trim() === anyag);
+
+  if (!wa.length) {
+    E('egyeniDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;
     return;
   }
 
-  const workers = {};
-  entries.forEach(a => {
-    if (!workers[a.nev]) workers[a.nev] = { totalS: 0, totalZ: 0, napok: new Set(), byNap: {}, anyagok: {} };
-    const s = (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-    const z = (a.zsakSulyok || []).reduce((x, y) => x + y, 0);
-    workers[a.nev].totalS += s;
-    workers[a.nev].totalZ += z;
-    workers[a.nev].napok.add(a.datum);
-    if (!workers[a.nev].byNap[a.datum]) workers[a.nev].byNap[a.datum] = 0;
-    workers[a.nev].byNap[a.datum] += s;
-    const ak = (a.anyag || '').trim(); if (!ak) return;
-    if (!workers[a.nev].anyagok[ak]) workers[a.nev].anyagok[ak] = 0;
-    workers[a.nev].anyagok[ak] += s;
-  });
+  const perEntry = wa.map(a => (a.sulyok || []).reduce((s, x) => s + x.suly, 0)).filter(v => v > 0);
+  const count    = perEntry.length;
+  const total    = perEntry.reduce((s, v) => s + v, 0);
+  const avg      = count > 0 ? total / count : 0;
+  const minV     = count > 0 ? Math.min(...perEntry) : 0;
+  const maxV     = count > 0 ? Math.max(...perEntry) : 0;
+  const szoras   = count > 1 ? Math.sqrt(perEntry.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / count) : 0;
 
-  const anyagTotals = {};
-  entries.forEach(a => {
-    const ak = (a.anyag || '').trim(); if (!ak) return;
-    if (!anyagTotals[ak]) anyagTotals[ak] = 0;
-    anyagTotals[ak] += (a.sulyok || []).reduce((x, y) => x + y.suly, 0);
-  });
+  const globalVals = allForAnyag.map(a => (a.sulyok || []).reduce((s, x) => s + x.suly, 0)).filter(v => v > 0);
+  const globalAvg  = globalVals.length > 0 ? globalVals.reduce((s, v) => s + v, 0) / globalVals.length : 0;
+  const diffPct    = globalAvg > 0 ? (avg - globalAvg) / globalAvg * 100 : null;
 
-  const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
-  let html = `<div class="r-head">${ev}. ${honNev[honap]} — Elemzés</div>`;
+  let html = `<div class="r-head">${esc(nev)} <span class="r-shift">· ${esc(anyag)}</span></div>`;
 
-  /* ── Dolgozói teljesítmény ── */
-  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">👤</span>Dolgozói teljesítmény</div>
-    <table class="stbl"><thead><tr><th>Dolgozó</th><th>Darált</th><th>Zsákok</th><th>Napok</th><th>Napi átlag</th><th>Legjobb nap</th></tr></thead><tbody>`;
-  Object.keys(workers).sort((a, b) => workers[b].totalS - workers[a].totalS).forEach(n => {
-    const w = workers[n];
-    const napSzam = w.napok.size;
-    const atlag   = napSzam > 0 ? w.totalS / napSzam : 0;
-    const bestDay = Object.entries(w.byNap).sort((a, b) => b[1] - a[1])[0];
-    const bestDayStr = bestDay ? `${fmtS(bestDay[0])}: ${bestDay[1].toFixed(0)} kg` : '—';
-    html += `<tr>
-      <td style="font-weight:600;color:var(--text);">${esc(n)}</td>
-      <td class="v-bold">${fmtKg(w.totalS)}</td>
-      <td class="v-green" style="font-weight:600;">${w.totalZ > 0 ? fmtKg(w.totalZ) : '—'}</td>
-      <td style="color:var(--text3);">${napSzam}</td>
-      <td>${atlag > 0 ? atlag.toFixed(0) + ' kg' : '—'}</td>
-      <td style="color:var(--text3);font-size:12px;">${esc(bestDayStr)}</td>
-    </tr>`;
-  });
-  html += `</tbody></table></div>`;
+  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Összefoglaló</div>
+    <table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>
+    <tr><td>Bejegyzések száma</td><td style="font-weight:600;color:var(--text);">${count}</td></tr>
+    <tr><td>Maximális termelés</td><td class="v-bold">${fmtKg(maxV)}</td></tr>
+    <tr><td>Minimális termelés</td><td class="v-bold">${fmtKg(minV)}</td></tr>
+    <tr><td>Átlagos termelés</td><td class="v-bold">${fmtKg(avg)}</td></tr>
+    <tr><td>Szórás (kiegyensúlyozottság)</td><td style="color:var(--text2);">${szoras.toFixed(0)} kg</td></tr>
+    </tbody></table></div>`;
 
-  /* ── Anyag rangsor ── */
-  const anyagRank = Object.entries(anyagTotals).sort((a, b) => b[1] - a[1]);
-  if (anyagRank.length > 0) {
-    const totalMind = anyagRank.reduce((s, [, v]) => s + v, 0);
-    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📦</span>Anyag rangsor</div>
-      <table class="stbl"><thead><tr><th>#</th><th>Anyag</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
-    anyagRank.forEach(([anyag, kg], i) => {
-      const pct = totalMind > 0 ? (kg / totalMind * 100).toFixed(1) : 0;
-      const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
-      html += `<tr>
-        <td style="color:var(--text3);width:28px;">${i + 1}.</td>
-        <td style="font-weight:600;">${esc(anyag)}</td>
-        <td class="v-bold">${fmtKg(kg)}</td>
-        <td><div style="display:flex;align-items:center;gap:8px;">
-          <div style="height:6px;width:${barW}px;max-width:80px;background:var(--accent);border-radius:3px;opacity:.65;flex-shrink:0;"></div>
-          <span style="color:var(--text3);font-size:12px;">${pct}%</span>
-        </div></td>
-      </tr>`;
-    });
-    html += `</tbody></table></div>`;
+  if (globalAvg > 0) {
+    const col  = diffPct > 0 ? 'var(--green)' : diffPct < 0 ? 'var(--red)' : 'var(--text3)';
+    const sign = diffPct > 0 ? '+' : '';
+    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📈</span>Összehasonlítás — üzemi átlag</div>
+      <table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>
+      <tr><td>${esc(nev)} átlaga</td><td class="v-bold">${fmtKg(avg)}</td></tr>
+      <tr><td>Üzemi átlag (${esc(anyag)})</td><td style="color:var(--text2);">${fmtKg(globalAvg)}</td></tr>
+      ${diffPct !== null ? `<tr><td>Különbség</td><td><span style="color:${col};font-weight:600;">${sign}${diffPct.toFixed(1)}%</span></td></tr>` : ''}
+      </tbody></table></div>`;
   }
 
-  /* ── Egyéni rekordok ── */
-  html += `<div class="card"><div class="card-title"><span class="card-title-icon">🏅</span>Egyéni rekordok</div>
-    <table class="stbl"><thead><tr><th>Dolgozó</th><th>Legjobb nap</th><th>Legtöbb anyag</th></tr></thead><tbody>`;
-  Object.keys(workers).sort((a, b) => a.localeCompare(b, 'hu')).forEach(n => {
-    const w = workers[n];
-    const bestDay   = Object.entries(w.byNap).sort((a, b) => b[1] - a[1])[0];
-    const bestAnyag = Object.entries(w.anyagok).sort((a, b) => b[1] - a[1])[0];
+  html += `<div class="card"><div class="card-title"><span class="card-title-icon">📋</span>Részletek</div>
+    <table class="stbl"><thead><tr><th>Dátum</th><th>Műszak</th><th>Súlyok</th><th>Összesen</th></tr></thead><tbody>`;
+  wa.sort((a, b) => b.datum.localeCompare(a.datum)).forEach(a => {
+    const sulyok = a.sulyok || [];
+    const ossz   = sulyok.reduce((s, x) => s + x.suly, 0);
     html += `<tr>
-      <td style="font-weight:600;color:var(--text);">${esc(n)}</td>
-      <td>${bestDay ? `<strong>${bestDay[1].toFixed(0)} kg</strong> <span style="color:var(--text3);font-size:12px;">(${esc(fmtS(bestDay[0]))})</span>` : '—'}</td>
-      <td>${bestAnyag ? `<strong>${esc(bestAnyag[0])}</strong> <span style="color:var(--text3);font-size:12px;">(${bestAnyag[1].toFixed(0)} kg)</span>` : '—'}</td>
+      <td>${esc(fmtS(a.datum))}</td>
+      <td style="color:var(--text3);">${esc(a.ido || '—')}</td>
+      <td style="color:var(--text2);font-size:12px;">${esc(sulyok.map(s => s.suly.toFixed(0)).join(', ') || '—')} kg</td>
+      <td class="v-bold">${ossz > 0 ? fmtKg(ossz) : '—'}</td>
     </tr>`;
   });
   html += `</tbody></table></div>`;
+  E('egyeniDiv').innerHTML = html;
+}
 
-  E('elemzesDiv').innerHTML = html;
+/* ── 2. fül: Anyagtípus rangsor ── */
+async function anyagRangsor() {
+  const anyag = E('anyagRangsorSel').value;
+  if (!anyag) { msg('Válassz anyagot!', 'error'); return; }
+
+  E('anyagRangsorDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+
+  const byWorker = {};
+  entries.filter(a => (a.anyag || '').trim() === anyag).forEach(a => {
+    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (!byWorker[a.nev]) byWorker[a.nev] = [];
+    byWorker[a.nev].push(kg);
+  });
+
+  if (!Object.keys(byWorker).length) {
+    E('anyagRangsorDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ehhez az anyaghoz</div>`;
+    return;
+  }
+
+  const rank = Object.entries(byWorker).map(([nev, vals]) => ({
+    nev,
+    avg:   vals.reduce((s, v) => s + v, 0) / vals.length,
+    best:  Math.max(...vals),
+    worst: Math.min(...vals),
+  })).sort((a, b) => b.avg - a.avg);
+
+  let html = `<div class="r-head">${esc(anyag)} <span class="r-shift">· Rangsor</span></div>`;
+  html += `<div class="card"><div class="card-title"><span class="card-title-icon">🏅</span>Dolgozói rangsor — átlagos teljesítmény szerint</div>
+    <table class="stbl"><thead><tr><th>#</th><th>Dolgozó</th><th>Átlagos termelés</th><th>Személyes legjobb</th><th>Személyes leggyengébb</th></tr></thead><tbody>`;
+  rank.forEach((w, i) => {
+    html += `<tr>
+      <td style="color:var(--text3);width:28px;">${i + 1}.</td>
+      <td style="font-weight:600;color:var(--text);">${esc(w.nev)}</td>
+      <td class="v-bold">${fmtKg(w.avg)}</td>
+      <td style="color:var(--green);font-weight:600;">${fmtKg(w.best)}</td>
+      <td style="color:var(--text3);">${fmtKg(w.worst)}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  E('anyagRangsorDiv').innerHTML = html;
+}
+
+/* ── 3. fül: Személyes rekordok ── */
+async function rekordok() {
+  E('rekordokDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+
+  if (!entries.length) {
+    E('rekordokDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;
+    return;
+  }
+
+  const byWorkerDay = {};
+  entries.forEach(a => {
+    const key = `${a.nev}__${a.datum}`;
+    const kg  = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    const ak  = (a.anyag || '').trim();
+    if (!byWorkerDay[key]) byWorkerDay[key] = { nev: a.nev, datum: a.datum, kg: 0, anyagok: {} };
+    byWorkerDay[key].kg += kg;
+    if (ak && kg > 0) byWorkerDay[key].anyagok[ak] = (byWorkerDay[key].anyagok[ak] || 0) + kg;
+  });
+
+  const byWorker = {};
+  Object.values(byWorkerDay).forEach(d => {
+    if (!byWorker[d.nev] || d.kg > byWorker[d.nev].kg) byWorker[d.nev] = d;
+  });
+
+  const sorted = Object.values(byWorker).sort((a, b) => b.kg - a.kg);
+
+  let html = `<div class="r-head">Személyes rekordok</div>`;
+  html += `<div class="card"><div class="card-title"><span class="card-title-icon">🏆</span>Legjobb napi teljesítmény dolgozónként</div>
+    <table class="stbl"><thead><tr><th>#</th><th>Dolgozó</th><th>Rekord súly</th><th>Anyag</th><th>Dátum</th></tr></thead><tbody>`;
+  sorted.forEach((w, i) => {
+    const foAnyag = Object.entries(w.anyagok).sort((a, b) => b[1] - a[1])[0];
+    html += `<tr>
+      <td style="color:var(--text3);width:28px;">${i + 1}.</td>
+      <td style="font-weight:600;color:var(--text);">${esc(w.nev)}</td>
+      <td class="v-bold">${fmtKg(w.kg)}</td>
+      <td style="color:var(--text2);">${foAnyag ? esc(foAnyag[0]) : '—'}</td>
+      <td style="color:var(--text3);font-size:12.5px;">${esc(fmtS(w.datum))}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  E('rekordokDiv').innerHTML = html;
+}
+
+/* ── Inicializálás — lazy, első Elemzés tab-nyitáskor ── */
+export async function initElemzes() {
+  E('egyeniDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  await Promise.all([populateWorkers(), populateAnyagSel()]);
+  E('egyeniDiv').innerHTML = '<div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot</div>';
+
+  E('eBtnEgyeni').addEventListener('click',       () => switchETab('Egyeni'));
+  E('eBtnAnyagRangsor').addEventListener('click', () => switchETab('AnyagRangsor'));
+  E('eBtnRekordok').addEventListener('click', async () => { switchETab('Rekordok'); await rekordok(); });
+
+  E('egyeniDolgozo').addEventListener('change', async () => {
+    const entries = await getEntries();
+    filterMaterials(entries, E('egyeniDolgozo').value);
+  });
+
+  E('egyeniBtn').addEventListener('click',     egyeniElemzes);
+  E('anyagRangsorBtn').addEventListener('click', anyagRangsor);
 }

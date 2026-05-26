@@ -238,23 +238,39 @@
 
     <!-- ══ ELEMZÉS ══ -->
     <div id="tab-elemzes" class="tab-panel">
-      <div class="card">
-        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-          <div class="field"><label class="lbl">Év</label><select id="elemzesEv" style="min-width:85px;"></select></div>
-          <div class="field"><label class="lbl">Hónap</label>
-            <select id="elemzesHonap" style="min-width:120px;">
-              <option value="0">Január</option><option value="1">Február</option>
-              <option value="2">Március</option><option value="3">Április</option>
-              <option value="4">Május</option><option value="5">Június</option>
-              <option value="6">Július</option><option value="7">Augusztus</option>
-              <option value="8">Szeptember</option><option value="9">Október</option>
-              <option value="10">November</option><option value="11">December</option>
-            </select>
-          </div>
-          <button class="btn btn-primary btn-sm" id="elemzesBtn">Mutat</button>
-        </div>
+      <div class="vsw" style="margin-bottom:12px;">
+        <button class="vbtn active" id="eBtnEgyeni">Egyéni elemzés</button>
+        <button class="vbtn" id="eBtnAnyagRangsor">Anyagtípus rangsor</button>
+        <button class="vbtn" id="eBtnRekordok">Személyes rekordok</button>
       </div>
-      <div id="elemzesDiv"><div class="empty-st"><div class="empty-ic">📈</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
+
+      <!-- 1. fül: Egyéni elemzés -->
+      <div id="eTabEgyeni">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">Dolgozó</label><select id="egyeniDolgozo" style="min-width:150px;"></select></div>
+            <div class="field"><label class="lbl">Anyag</label><select id="egyeniAnyag" style="min-width:150px;"></select></div>
+            <button class="btn btn-primary btn-sm" id="egyeniBtn">Mutat</button>
+          </div>
+        </div>
+        <div id="egyeniDiv"><div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot</div></div>
+      </div>
+
+      <!-- 2. fül: Anyagtípus rangsor -->
+      <div id="eTabAnyagRangsor" style="display:none;">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">Anyag</label><select id="anyagRangsorSel" style="min-width:150px;"></select></div>
+            <button class="btn btn-primary btn-sm" id="anyagRangsorBtn">Mutat</button>
+          </div>
+        </div>
+        <div id="anyagRangsorDiv"><div class="empty-st"><div class="empty-ic">📦</div>Válassz anyagot és kattints a Mutat gombra</div></div>
+      </div>
+
+      <!-- 3. fül: Személyes rekordok -->
+      <div id="eTabRekordok" style="display:none;">
+        <div id="rekordokDiv"><div class="empty-st"><div class="empty-ic">🏆</div>Betöltés...</div></div>
+      </div>
     </div>
 
     <!-- ══ ADMIN ══ -->

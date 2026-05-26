@@ -13,7 +13,7 @@ import { napiRiport, haviRiport, evesRiport,
          riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
-import { elemzesRiport } from './worker-analysis.js';
+import { initElemzes } from './worker-analysis.js';
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -90,11 +90,6 @@ function buildAppUI() {
   E('haviHonapInput').value = `${yr}-${String(mo).padStart(2, '0')}`;
   E('evesEvInput').value    = yr;
 
-  E('elemzesEv').innerHTML = '';
-  for (let y = yr; y >= yr - 5; y--) {
-    const o = document.createElement('option'); o.value = y; o.textContent = y; E('elemzesEv').appendChild(o);
-  }
-  E('elemzesHonap').value = now.getMonth();
 
   loadLists();
   addSuly(); addZsak();
@@ -114,6 +109,10 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'admin') loadAdminUsers();
   if (name !== 'napi') cleanupNapiListener();
+  if (name === 'elemzes' && !switchTab._elemzesInited) {
+    switchTab._elemzesInited = true;
+    initElemzes();
+  }
 }
 
 function switchAdminSubtab(name) {
@@ -277,9 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const p = E('riportSettings');
     p.style.display = p.style.display === 'none' ? '' : 'none';
   });
-
-  // Elemzés
-  E('elemzesBtn').addEventListener('click', elemzesRiport);
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {
