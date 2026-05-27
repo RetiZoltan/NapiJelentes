@@ -61,7 +61,6 @@ export async function rogzit() {
   if (!nev && !vA && !vS && !vZ && !dolgMegj) {
     if (napiSzoveg) {
       msg('Napi megjegyzés mentve.');
-      E('napiMegj').value = ''; ag(E('napiMegj'));
     } else {
       msg('Adj meg adatot vagy megjegyzést!', 'error');
     }
@@ -128,6 +127,7 @@ export function clearF(sh = true) {
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
   E('zsakC').innerHTML = ''; addZsak();
+  loadNapiFor(E('datum').value, E('reszleg').value.trim());
   if (state.isNamePinned) E('anyag').focus(); else E('nev').focus();
   if (sh) msg('Űrlap törölve.', 'info', 2000);
 }
