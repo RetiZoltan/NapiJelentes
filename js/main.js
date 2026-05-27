@@ -286,8 +286,17 @@ document.addEventListener('DOMContentLoaded', () => {
   E('napiMuszakSzuro').addEventListener('change',  rerenderNapi);
   E('napiReszlegSzuro').addEventListener('change', rerenderNapi);
 
-  // Napi jelentés
-  E('maBtn').addEventListener('click',         () => { E('riportD').value = tod(); });
+  // Napi jelentés — navigáció
+  function navNap(delta) {
+    const cur = E('riportD').value;
+    const d = cur ? new Date(cur) : new Date();
+    d.setDate(d.getDate() + delta);
+    E('riportD').value = d.toISOString().slice(0, 10);
+    napiRiport();
+  }
+  E('prevNapBtn').addEventListener('click', () => navNap(-1));
+  E('nextNapBtn').addEventListener('click', () => navNap(+1));
+  E('maBtn').addEventListener('click', () => { E('riportD').value = tod(); });
   E('mutatBtn').addEventListener('click',      napiRiport);
   E('napTorBtn').addEventListener('click',     napTorol);
   E('napiKepMentBtn').addEventListener('click', napiKepMent);

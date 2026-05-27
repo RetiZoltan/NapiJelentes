@@ -79,6 +79,7 @@ function renderNapi(rd, lista, napiNotes, szuro) {
   const needsShiftBlocks = !muszakF && allShifts.length > 1;
   const badges = needsShiftBlocks ? '' : allShifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
+  h += napiOsszHtml(lista);
 
   const hasReszlegGrouping = filtered.some(a => (a.reszleg || '').trim());
   if (filtered.length) {
@@ -143,6 +144,27 @@ function getNotesForDept(napiNotes, deptKey, muszakF) {
     return iA.localeCompare(iB, 'hu');
   });
   return result;
+}
+
+/* ── Napi összesítő kártya ── */
+function napiOsszHtml(lista) {
+  if (!lista.length) return '';
+  const totalS = lista.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
+  const totalZ = lista.reduce((s, a) => s + (a.zsakSulyok || []).reduce((x, y) => x + y, 0), 0);
+  if (totalS === 0 && totalZ === 0) return '';
+  const workerSet = new Set(lista.map(a => a.nev));
+  const byWorker  = {};
+  lista.forEach(a => {
+    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (kg > 0) byWorker[a.nev] = (byWorker[a.nev] || 0) + kg;
+  });
+  const top = Object.entries(byWorker).sort((a, b) => b[1] - a[1])[0];
+  let h = `<div class="napi-ossz nossz">`;
+  if (totalS > 0) h += `<div class="nossz-item"><div class="nossz-val v-bold">${fmtKg(totalS)}</div><div class="nossz-lbl">Darált összesen</div></div>`;
+  if (totalZ > 0) h += `<div class="nossz-item"><div class="nossz-val v-green">${fmtKg(totalZ)}</div><div class="nossz-lbl">Teli zsák összesen</div></div>`;
+  h += `<div class="nossz-item"><div class="nossz-val" style="color:var(--accent);">${workerSet.size}</div><div class="nossz-lbl">Aktív dolgozó</div></div>`;
+  if (top && workerSet.size > 1) h += `<div class="nossz-item"><div class="nossz-val" style="font-size:13px;">${esc(top[0])}</div><div class="nossz-lbl">Legjobb · ${fmtKg(top[1])}</div></div>`;
+  return h + `</div>`;
 }
 
 /* ── Napi riport részleg-csoportosítás ── */
@@ -326,6 +348,7 @@ function nyomtatDiv(divId) {
     msg('Nincs nyomtatható tartalom.', 'error'); return;
   }
   const clone = src.cloneNode(true);
+  clone.querySelectorAll('.napi-ossz').forEach(x => x.remove());
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   clone.querySelectorAll('.dlink').forEach(x => {
@@ -365,6 +388,7 @@ function kepMentDiv(divId, suffix) {
   const t1  = g('--text'), t2 = g('--text2'), t3 = g('--text3');
   const acc = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
   const clone = E(divId).cloneNode(true);
+  clone.querySelectorAll('.napi-ossz').forEach(x => x.remove());
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   const wrap = document.createElement('div');

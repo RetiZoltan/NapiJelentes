@@ -176,7 +176,14 @@
     <div id="tab-napi" class="tab-panel">
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-          <div class="field" style="min-width:150px;"><label class="lbl">Dátum</label><input type="date" id="riportD"></div>
+          <div class="field" style="min-width:150px;">
+            <label class="lbl">Dátum</label>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <input type="date" id="riportD" style="flex:1;min-width:0;">
+              <button class="btn btn-ghost btn-sq" id="prevNapBtn" title="Előző nap">‹</button>
+              <button class="btn btn-ghost btn-sq" id="nextNapBtn" title="Következő nap">›</button>
+            </div>
+          </div>
           <div class="field" style="min-width:150px;" id="dolgSzuroWrap">
             <label class="lbl">Dolgozó</label>
             <select id="dolgSzuro"><option value="">— Mindenki —</option></select>
