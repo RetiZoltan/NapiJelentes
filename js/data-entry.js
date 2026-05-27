@@ -55,7 +55,7 @@ export async function rogzit() {
   const vS = Array.from(sm).some(m => m.querySelector('.wsuly').value.trim() !== '');
   const vZ = Array.from(zm).some(m => m.querySelector('.wzsak').value.trim() !== '');
 
-  await saveNapiFor(datum, E('reszleg').value.trim());
+  await saveNapiFor(datum, E('reszleg').value.trim(), E('ido').value);
 
   // Ha csak napi megjegyzés van (nincs nev/anyag/súly/megj), csak azt mentjük
   if (!nev && !vA && !vS && !vZ && !dolgMegj) {
@@ -127,7 +127,7 @@ export function clearF(sh = true) {
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
   E('zsakC').innerHTML = ''; addZsak();
-  loadNapiFor(E('datum').value, E('reszleg').value.trim());
+  loadNapiFor(E('datum').value, E('reszleg').value.trim(), E('ido').value);
   if (state.isNamePinned) E('anyag').focus(); else E('nev').focus();
   if (sh) msg('Űrlap törölve.', 'info', 2000);
 }
@@ -141,7 +141,7 @@ export async function startEditEntry(entry) {
   E('anyag').value   = entry.anyag       || '';
   E('megj').value    = entry.megjegyzes  || '';
 
-  await loadNapiFor(entry.datum, entry.reszleg || '');
+  await loadNapiFor(entry.datum, entry.reszleg || '', entry.ido || '');
   state.prevDatum = entry.datum;
 
   E('sulyC').innerHTML = '';

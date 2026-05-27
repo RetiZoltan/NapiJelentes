@@ -102,15 +102,20 @@ export async function editItem(e, list) {
   if (i > -1) { list[i] = t; refreshListUI(); await saveLists(); msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 5000); }
 }
 
-export async function loadNapiFor(date, reszleg = '') {
+// Key format: "reszleg|ido"  (e.g. "R A|Délelőtt", "|Délután", "|" for migrated old global)
+function napiKey(reszleg, ido) { return reszleg + '|' + ido; }
+
+export async function loadNapiFor(date, reszleg = '', ido = '') {
   try {
     const s = await getDoc(doc(db, 'dailyNotes', date));
     if (!s.exists()) { E('napiMegj').value = ''; ag(E('napiMegj')); return; }
     const d = s.data();
     let txt = '';
     if (d.reszlegek) {
-      txt = d.reszlegek[reszleg] || '';
-    } else if (!reszleg) {
+      const key = napiKey(reszleg, ido);
+      // fall back to old key format (reszleg without ido) for backward compat
+      txt = d.reszlegek[key] || d.reszlegek[reszleg] || '';
+    } else if (!reszleg && !ido) {
       txt = d.szoveg || '';
     }
     E('napiMegj').value = txt;
@@ -118,7 +123,7 @@ export async function loadNapiFor(date, reszleg = '') {
   } catch { E('napiMegj').value = ''; }
 }
 
-export async function saveNapiFor(date, reszleg = '') {
+export async function saveNapiFor(date, reszleg = '', ido = '') {
   const txt = E('napiMegj').value.trim();
   try {
     const ref = doc(db, 'dailyNotes', date);
@@ -127,10 +132,11 @@ export async function saveNapiFor(date, reszleg = '') {
     if (s.exists()) {
       const d = s.data();
       if (d.reszlegek) reszlegek = { ...d.reszlegek };
-      else if (d.szoveg) reszlegek[''] = d.szoveg;
+      else if (d.szoveg) reszlegek['|'] = d.szoveg;
     }
-    if (txt) reszlegek[reszleg] = txt;
-    else     delete reszlegek[reszleg];
+    const key = napiKey(reszleg, ido);
+    if (txt) reszlegek[key] = txt;
+    else     delete reszlegek[key];
     if (!Object.values(reszlegek).some(v => v)) {
       if (s.exists()) await deleteDoc(ref);
     } else {
@@ -139,14 +145,13 @@ export async function saveNapiFor(date, reszleg = '') {
   } catch { msg('Napi megjegyzés mentési hiba', 'error'); }
 }
 
-export async function deleteDailyNoteForReszleg(datum, reszleg) {
+export async function deleteDailyNoteForReszleg(datum, key) {
   try {
     const ref = doc(db, 'dailyNotes', datum);
     const s   = await getDoc(ref);
     if (!s.exists()) return;
-    const d = s.data();
-    const reszlegek = d.reszlegek ? { ...d.reszlegek } : (d.szoveg ? { '': d.szoveg } : {});
-    delete reszlegek[reszleg];
+    const reszlegek = s.data().reszlegek ? { ...s.data().reszlegek } : {};
+    delete reszlegek[key];
     if (!Object.values(reszlegek).some(v => v)) {
       await deleteDoc(ref);
     } else {

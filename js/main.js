@@ -19,6 +19,7 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 
 let _prevReszleg = '';
+let _prevIdo = '';
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -103,6 +104,7 @@ function buildAppUI() {
     E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
   }
   _prevReszleg = E('reszleg').value.trim();
+  _prevIdo     = E('ido').value;
 
   const now = new Date();
   const yr  = now.getFullYear();
@@ -240,12 +242,23 @@ document.addEventListener('DOMContentLoaded', () => {
   E('reszleg').addEventListener('focus', () => { _prevReszleg = E('reszleg').value.trim(); });
   E('reszleg').addEventListener('change', async () => {
     const newReszleg = E('reszleg').value.trim();
+    const curIdo     = E('ido').value;
     if (_prevReszleg !== newReszleg) {
-      await saveNapiFor(E('datum').value, _prevReszleg);
-      await loadNapiFor(E('datum').value, newReszleg);
+      await saveNapiFor(E('datum').value, _prevReszleg, curIdo);
+      await loadNapiFor(E('datum').value, newReszleg, curIdo);
     }
     _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
+  });
+  E('ido').addEventListener('focus', () => { _prevIdo = E('ido').value; });
+  E('ido').addEventListener('change', async () => {
+    const newIdo     = E('ido').value;
+    const curReszleg = E('reszleg').value.trim();
+    if (_prevIdo !== newIdo) {
+      await saveNapiFor(E('datum').value, curReszleg, _prevIdo);
+      await loadNapiFor(E('datum').value, curReszleg, newIdo);
+    }
+    _prevIdo = newIdo;
   });
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
@@ -254,8 +267,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('napiMegj').addEventListener('focus', e => e.target.select());
   E('datum').addEventListener('change', async e => {
     const curReszleg = E('reszleg').value.trim();
-    await saveNapiFor(state.prevDatum, curReszleg);
-    await loadNapiFor(e.target.value, curReszleg);
+    const curIdo     = E('ido').value;
+    await saveNapiFor(state.prevDatum, curReszleg, curIdo);
+    await loadNapiFor(e.target.value, curReszleg, curIdo);
     state.prevDatum = e.target.value;
   });
 

@@ -81,32 +81,57 @@ function renderNapi(rd, lista, napiNotes, szuro) {
 
   const hasReszlegGrouping = filtered.some(a => (a.reszleg || '').trim());
   if (filtered.length) {
-    h += reszlegHtml(filtered, rd, napiNotes);
+    h += reszlegHtml(filtered, rd, napiNotes, muszakF);
     if (!hasReszlegGrouping) {
-      const noteKey = reszlegF || '';
-      const note = napiNotes[noteKey] || '';
-      if (note) h += dayNoteHtml(noteKey, note, rd);
+      getNotesForDept(napiNotes, reszlegF || '', muszakF)
+        .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
     }
   } else if (lista.length) {
     h += `<div style="padding:14px 0;color:var(--text3);font-size:13px;font-style:italic;">A szűrő alapján nincs megjeleníthető adat.</div>`;
-    const noteKey = reszlegF || '';
-    const note = napiNotes[noteKey] || '';
-    if (note) h += dayNoteHtml(noteKey, note, rd);
+    getNotesForDept(napiNotes, reszlegF || '', muszakF)
+      .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
   }
   E('napiRiportDiv').innerHTML = h;
   E('napiKepMentBtn').disabled = false;
   E('napiNyomtatBtn').disabled = false;
 }
 
-function dayNoteHtml(reszlegKey, note, rd) {
+function dayNoteHtml(key, note, rd) {
+  const ido = key.includes('|') ? key.split('|')[1] : '';
+  const lbl = ido ? `📌 Napi megjegyzés (${esc(ido)})` : '📌 Napi megjegyzés';
   const delBtn = isMainAdmin()
-    ? `<button class="del-btn" data-type="megj" data-datum="${esc(rd)}" data-reszleg="${esc(reszlegKey)}" style="position:absolute;top:11px;right:11px;">✕</button>`
+    ? `<button class="del-btn" data-type="megj" data-datum="${esc(rd)}" data-reszleg="${esc(key)}" style="position:absolute;top:11px;right:11px;">✕</button>`
     : '';
-  return `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(note).replace(/\n/g, '<br>')}</p>${delBtn}</div>`;
+  return `<div class="day-note"><div class="day-note-lbl">${lbl}</div><p>${esc(note).replace(/\n/g, '<br>')}</p>${delBtn}</div>`;
+}
+
+// Returns notes matching a given dept key (and optional shift filter).
+// Handles both new format keys ("R A|Délelőtt") and old format ("R A").
+function getNotesForDept(napiNotes, deptKey, muszakF) {
+  const result = [];
+  Object.entries(napiNotes || {}).forEach(([k, v]) => {
+    if (!v) return;
+    if (k.includes('|')) {
+      const pipe     = k.indexOf('|');
+      const kReszleg = k.slice(0, pipe);
+      const kIdo     = k.slice(pipe + 1);
+      if (kReszleg === deptKey && (!muszakF || !kIdo || kIdo === muszakF)) {
+        result.push({ key: k, note: v });
+      }
+    } else if (k === deptKey) {
+      result.push({ key: k, note: v });
+    }
+  });
+  result.sort((a, b) => {
+    const iA = a.key.includes('|') ? a.key.split('|')[1] : '';
+    const iB = b.key.includes('|') ? b.key.split('|')[1] : '';
+    return iA.localeCompare(iB, 'hu');
+  });
+  return result;
 }
 
 /* ── Napi riport részleg-csoportosítás ── */
-function reszlegHtml(lista, rd, napiNotes) {
+function reszlegHtml(lista, rd, napiNotes, muszakF) {
   const hasReszleg = lista.some(a => (a.reszleg || '').trim());
   if (!hasReszleg) return workerHtml(grpWorkers(lista));
 
@@ -123,12 +148,12 @@ function reszlegHtml(lista, rd, napiNotes) {
   });
   let h = '';
   keys.forEach(r => {
-    const noteKey = r === 'Ismeretlen részleg' ? '' : r;
-    const note    = (napiNotes || {})[noteKey] || '';
+    const deptKey = r === 'Ismeretlen részleg' ? '' : r;
+    const notes   = getNotesForDept(napiNotes, deptKey, muszakF);
     h += `<div class="reszleg-block">
       <div class="reszleg-hd"><span class="reszleg-dot"></span>${esc(r)}</div>
       ${workerHtml(grpWorkers(byReszleg[r]))}
-      ${note ? dayNoteHtml(noteKey, note, rd) : ''}
+      ${notes.map(n => dayNoteHtml(n.key, n.note, rd)).join('')}
     </div>`;
   });
   return h;
