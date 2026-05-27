@@ -5,6 +5,7 @@ import { E, esc, msg, tod, fmtL, fmtS, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
 
 let unsubNapi = null;
+let _lastNapiState = null;
 
 const RIPORT_DEF = {
   teljes: true, dolgRangsor: true, anyagOssz: true,
@@ -49,21 +50,65 @@ export function napiRiport() {
   );
 }
 
+export function rerenderNapi() {
+  if (!_lastNapiState) return;
+  const { rd, lista, altM, szuro } = _lastNapiState;
+  renderNapi(rd, lista, altM, szuro);
+}
+
 function renderNapi(rd, lista, altM, szuro) {
+  _lastNapiState = { rd, lista, altM, szuro };
+
+  const muszakF  = E('napiMuszakSzuro')?.value  || '';
+  const reszlegF = E('napiReszlegSzuro')?.value || '';
+  let filtered = lista;
+  if (muszakF)  filtered = filtered.filter(a => a.ido === muszakF);
+  if (reszlegF) filtered = filtered.filter(a => (a.reszleg || '') === reszlegF);
+
   if (!lista.length && !altM) {
     E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
     E('napiKepMentBtn').disabled = true;
     E('napiNyomtatBtn').disabled = true;
     return;
   }
-  const shifts = [...new Set(lista.map(a => a.ido))].sort();
+  const shifts = [...new Set(filtered.map(a => a.ido))].sort();
   const badges = shifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
-  if (lista.length) h += workerHtml(grpWorkers(lista));
+  if (filtered.length) {
+    h += reszlegHtml(filtered);
+  } else if (lista.length) {
+    h += `<div style="padding:14px 0;color:var(--text3);font-size:13px;font-style:italic;">A szűrő alapján nincs megjeleníthető adat.</div>`;
+  }
   if (altM) h += `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(altM).replace(/\n/g, '<br>')}</p>${isMainAdmin() ? `<button class="del-btn" data-type="megj" data-datum="${rd}" style="position:absolute;top:11px;right:11px;">✕</button>` : ''}</div>`;
   E('napiRiportDiv').innerHTML = h;
   E('napiKepMentBtn').disabled = false;
   E('napiNyomtatBtn').disabled = false;
+}
+
+/* ── Napi riport részleg-csoportosítás ── */
+function reszlegHtml(lista) {
+  const hasReszleg = lista.some(a => (a.reszleg || '').trim());
+  if (!hasReszleg) return workerHtml(grpWorkers(lista));
+
+  const byReszleg = {};
+  lista.forEach(a => {
+    const r = (a.reszleg || '').trim() || 'Ismeretlen részleg';
+    if (!byReszleg[r]) byReszleg[r] = [];
+    byReszleg[r].push(a);
+  });
+  const keys = Object.keys(byReszleg).sort((a, b) => {
+    if (a === 'Ismeretlen részleg') return 1;
+    if (b === 'Ismeretlen részleg') return -1;
+    return a.localeCompare(b, 'hu');
+  });
+  let h = '';
+  keys.forEach(r => {
+    h += `<div class="reszleg-block">
+      <div class="reszleg-hd"><span class="reszleg-dot"></span>${esc(r)}</div>
+      ${workerHtml(grpWorkers(byReszleg[r]))}
+    </div>`;
+  });
+  return h;
 }
 
 /* ── Havi riport ── */
@@ -76,17 +121,21 @@ export async function haviRiport() {
   const lastDay = new Date(ev, honap + 1, 0).getDate();
   const from = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
   const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
   E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  const hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
     E('idoszakosKepMentBtn').disabled = true;
     E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
-  let html = `<div class="r-head">${ev}. ${honNev[honap]}</div>`;
+  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
+  let html = `<div class="r-head">${ev}. ${honNev[honap]}${reszlegBadge}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
@@ -105,17 +154,21 @@ export async function evesRiport() {
   const ev = parseInt(E('evesEvInput').value);
   if (!ev) { msg('Válassz évet!', 'error'); return; }
   const from = `${ev}-01-01`, to = `${ev}-12-31`;
+  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
   E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  const hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
     E('idoszakosKepMentBtn').disabled = true;
     E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
-  let html = `<div class="r-head">${ev}. év</div>`;
+  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
+  let html = `<div class="r-head">${ev}. év${reszlegBadge}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
@@ -211,6 +264,7 @@ function nyomtatDiv(divId) {
   }
   const clone = src.cloneNode(true);
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
+  clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   clone.querySelectorAll('.dlink').forEach(x => {
     const sp = document.createElement('span');
     sp.textContent = x.textContent;
@@ -249,12 +303,13 @@ function kepMentDiv(divId, suffix) {
   const acc = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
   const clone = E(divId).cloneNode(true);
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
+  clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   const wrap = document.createElement('div');
   wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
   const inner = document.createElement('div');
   inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
   const style = document.createElement('style');
-  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.dtoggle{text-decoration:none;cursor:default;}.edit-btn{display:none;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
+  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.dtoggle{text-decoration:none;cursor:default;}.edit-btn{display:none;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
   inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner); document.body.appendChild(wrap);
   html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
     document.body.removeChild(wrap);
@@ -319,6 +374,28 @@ function workerHtml(c) {
 }
 
 /* ── Időszakos szekció-generátorok ── */
+function reszlegOsszesitoHtml(entries) {
+  const by = {};
+  entries.forEach(a => {
+    const r = (a.reszleg || '').trim() || 'Ismeretlen részleg';
+    by[r] = (by[r] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+  });
+  const rank = Object.entries(by).filter(([, v]) => v > 0).sort((a, b) => {
+    if (a[0] === 'Ismeretlen részleg') return 1;
+    if (b[0] === 'Ismeretlen részleg') return -1;
+    return b[1] - a[1];
+  });
+  if (rank.length < 2) return '';
+  const total = rank.reduce((s, [, v]) => s + v, 0);
+  let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🏭</span>Részleg összesítés</div><table class="stbl"><thead><tr><th>#</th><th>Részleg</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
+  rank.forEach(([r, kg], i) => {
+    const pct  = total > 0 ? (kg / total * 100).toFixed(1) : 0;
+    const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
+    h += `<tr><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;">${esc(r)}</td><td class="v-bold">${fmtKg(kg)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:var(--accent);border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td></tr>`;
+  });
+  return h + `</tbody></table></div>`;
+}
+
 function teljesHtml(entries) {
   const totalS = entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
   let h = `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Teljes termelés</div><table class="stbl"><thead><tr><th>Megnevezés</th><th>Érték</th></tr></thead><tbody>`;

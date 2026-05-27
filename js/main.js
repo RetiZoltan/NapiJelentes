@@ -11,7 +11,7 @@ import { addSuly, addZsak, rogzit, clearF, startEditEntry } from './data-entry.j
 import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
          napiNyomtat, idoszakosNyomtat,
-         riportKlikk, napTorol, cleanupNapiListener } from './reports.js';
+         riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
@@ -85,10 +85,21 @@ function buildAppUI() {
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
 
-  E('nev').value  = '';
+  E('nev').value    = '';
+  E('reszleg').value = '';
   state.prevDatum = tod();
-  E('datum').value  = state.prevDatum;
+  E('datum').value   = state.prevDatum;
   E('riportD').value = state.prevDatum;
+
+  // Restore pinned reszleg from localStorage
+  const savedReszleg = localStorage.getItem('pinnedReszleg');
+  if (savedReszleg !== null) {
+    state.isReszlegPinned = true;
+    E('reszleg').value = savedReszleg;
+    E('pinReszlegBtn').style.background = 'var(--accent)';
+    E('pinReszlegBtn').style.color      = '#fff';
+    E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
+  }
 
   const now = new Date();
   const yr  = now.getFullYear();
@@ -211,12 +222,25 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
   });
-  E('addNevBtn').addEventListener('click',   () => addToList(E('nev'), state.nevek));
-  E('addAnyagBtn').addEventListener('click', () => addToList(E('anyag'), state.anyagok));
+  E('addNevBtn').addEventListener('click',    () => addToList(E('nev'),    state.nevek));
+  E('addAnyagBtn').addEventListener('click',  () => addToList(E('anyag'),  state.anyagok));
+  E('addReszlegBtn').addEventListener('click',() => addToList(E('reszleg'),state.reszlegek));
+  E('pinReszlegBtn').addEventListener('click', () => {
+    state.isReszlegPinned = !state.isReszlegPinned;
+    const btn = E('pinReszlegBtn');
+    btn.style.background = state.isReszlegPinned ? 'var(--accent)' : '';
+    btn.style.color      = state.isReszlegPinned ? '#fff' : '';
+    btn.title = state.isReszlegPinned ? 'Részleg rögzítve — kattints a feloldáshoz' : 'Részleg rögzítése';
+    if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
+    else localStorage.removeItem('pinnedReszleg');
+  });
+  E('reszleg').addEventListener('change', () => {
+    if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
+  });
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
   E('napiMegj').addEventListener('input',    () => ag(E('napiMegj')));
-[E('nev'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
+[E('nev'), E('reszleg'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
   E('napiMegj').addEventListener('focus', e => e.target.select());
   E('datum').addEventListener('change', async e => {
     await saveNapiFor(state.prevDatum);
@@ -232,6 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.classList.contains('aZsak')) addZsak();
     else if (e.target.classList.contains('dZsak') && E('zsakC').querySelectorAll('.wrow').length > 1) e.target.closest('.wrow').remove();
   });
+
+  // Napi szűrők → azonnali újrarajzolás
+  E('napiMuszakSzuro').addEventListener('change',  rerenderNapi);
+  E('napiReszlegSzuro').addEventListener('change', rerenderNapi);
 
   // Napi jelentés
   E('maBtn').addEventListener('click',         () => { E('riportD').value = tod(); });
@@ -317,10 +345,12 @@ document.addEventListener('DOMContentLoaded', () => {
   E('roleListDiv').addEventListener('click', handleRoleListClick);
 
   // Admin — listák
-  E('nevLista').addEventListener('dblclick',   e => editItem(e, state.nevek));
-  E('anyagLista').addEventListener('dblclick', e => editItem(e, state.anyagok));
-E('nevTorBtn').addEventListener('click',     () => delFromList(E('nevLista'), state.nevek));
-  E('anyagTorBtn').addEventListener('click',   () => delFromList(E('anyagLista'), state.anyagok));
+  E('nevLista').addEventListener('dblclick',    e => editItem(e, state.nevek));
+  E('anyagLista').addEventListener('dblclick',  e => editItem(e, state.anyagok));
+  E('reszlegLista').addEventListener('dblclick',e => editItem(e, state.reszlegek));
+  E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
+  E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
+  E('reszlegTorBtn').addEventListener('click',() => delFromList(E('reszlegLista'),state.reszlegek));
 
   // Admin — prémium konfig
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);

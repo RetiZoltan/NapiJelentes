@@ -92,10 +92,10 @@ export async function rogzit() {
     });
     if (hiba) { msg('Érvénytelen súlyérték!', 'error'); return; }
     if (sulyok.length > 0 || zsakSulyok.length > 0) {
-      entry = { datum, ido, nev, anyag: anyagB, sulyok, zsakSulyok, megjegyzes: dolgMegj, createdBy: state.appUser.uid, createdAt: serverTimestamp() };
+      entry = { datum, ido, nev, reszleg: E('reszleg').value.trim(), anyag: anyagB, sulyok, zsakSulyok, megjegyzes: dolgMegj, createdBy: state.appUser.uid, createdAt: serverTimestamp() };
     }
   } else if (dolgMegj) {
-    entry = { datum, ido, nev, anyag: '', sulyok: [], zsakSulyok: [], megjegyzes: dolgMegj, createdBy: state.appUser.uid, createdAt: serverTimestamp() };
+    entry = { datum, ido, nev, reszleg: E('reszleg').value.trim(), anyag: '', sulyok: [], zsakSulyok: [], megjegyzes: dolgMegj, createdBy: state.appUser.uid, createdAt: serverTimestamp() };
   } else {
     msg('Adj meg súlyt vagy megjegyzést!', 'error'); return;
   }
@@ -122,7 +122,8 @@ export function clearF(sh = true) {
   E('rogzitBtn').textContent = '✓ Adatok rögzítése';
   const banner = E('editBanner');
   if (banner) banner.style.display = 'none';
-  if (!state.isNamePinned) E('nev').value = '';
+  if (!state.isNamePinned)    E('nev').value    = '';
+  if (!state.isReszlegPinned) E('reszleg').value = '';
   E('anyag').value = '';
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
@@ -133,11 +134,12 @@ export function clearF(sh = true) {
 
 export async function startEditEntry(entry) {
   state.editingEntryId = entry.id;
-  E('datum').value = entry.datum || '';
-  E('ido').value   = entry.ido   || 'Délelőtt';
-  E('nev').value   = entry.nev   || '';
-  E('anyag').value = entry.anyag || '';
-  E('megj').value  = entry.megjegyzes || '';
+  E('datum').value   = entry.datum       || '';
+  E('ido').value     = entry.ido         || 'Délelőtt';
+  E('nev').value     = entry.nev         || '';
+  E('reszleg').value = entry.reszleg     || '';
+  E('anyag').value   = entry.anyag       || '';
+  E('megj').value    = entry.megjegyzes  || '';
 
   await loadNapiFor(entry.datum);
   state.prevDatum = entry.datum;

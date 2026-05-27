@@ -132,6 +132,14 @@
             <button class="btn btn-ghost btn-sq" id="addAnyagBtn" title="Hozzáad a listához">＋</button>
           </div>
         </div>
+        <div class="irow" style="margin-top:8px;">
+          <div class="field" style="flex:1;"><label class="lbl">Részleg</label>
+            <input list="reszlegDL" id="reszleg" autocomplete="off" placeholder="Válassz vagy írj be…">
+            <datalist id="reszlegDL"></datalist>
+          </div>
+          <button class="btn btn-ghost btn-sq" id="pinReszlegBtn" title="Részleg rögzítése">📌</button>
+          <button class="btn btn-ghost btn-sq" id="addReszlegBtn" title="Hozzáad a listához">＋</button>
+        </div>
         <div class="field" style="margin-top:11px;">
           <label class="lbl">Megjegyzés (opcionális)</label>
           <textarea id="megj" placeholder="Teljesítmény, probléma…"></textarea>
@@ -173,6 +181,18 @@
             <label class="lbl">Dolgozó</label>
             <select id="dolgSzuro"><option value="">— Mindenki —</option></select>
           </div>
+          <div class="field" style="min-width:120px;">
+            <label class="lbl">Műszak</label>
+            <select id="napiMuszakSzuro">
+              <option value="">— Mindkettő —</option>
+              <option value="Délelőtt">Délelőtt</option>
+              <option value="Délután">Délután</option>
+            </select>
+          </div>
+          <div class="field" style="min-width:130px;">
+            <label class="lbl">Részleg</label>
+            <select id="napiReszlegSzuro"><option value="">— Mind —</option></select>
+          </div>
           <div class="field" style="margin-bottom:13px;">
             <label class="lbl" style="visibility:hidden;">–</label>
             <div style="display:flex;gap:8px;">
@@ -212,6 +232,10 @@
           <div class="field" id="evesInputWrap" style="display:none;">
             <label class="lbl">Év</label>
             <input type="number" id="evesEvInput" min="2000" max="2099" style="min-width:90px;">
+          </div>
+          <div class="field" style="min-width:130px;">
+            <label class="lbl">Részleg</label>
+            <select id="idoszakosReszlegSzuro"><option value="">— Mind —</option></select>
           </div>
           <div class="field" style="margin-bottom:13px;">
             <label class="lbl" style="visibility:hidden;">–</label>
@@ -316,6 +340,10 @@
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field"><label class="lbl">Hónap</label><input type="month" id="premiumHonapInput"></div>
+          <div class="field" style="min-width:130px;">
+            <label class="lbl">Részleg</label>
+            <select id="premiumReszlegSzuro"><option value="">— Mind —</option></select>
+          </div>
           <div class="field" style="margin-bottom:13px;">
             <label class="lbl" style="visibility:hidden;">–</label>
             <button class="btn btn-primary btn-sm" id="premiumSzamolBtn">Számol</button>
@@ -386,6 +414,12 @@
               <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
               <select id="anyagLista" multiple size="5" style="width:100%;"></select>
               <button class="btn btn-danger btn-sm btn-full" id="anyagTorBtn">Kijelöltek törlése</button>
+            </div>
+            <div class="lbox">
+              <div class="lbox-t">Részleglista</div>
+              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
+              <select id="reszlegLista" multiple size="5" style="width:100%;"></select>
+              <button class="btn btn-danger btn-sm btn-full" id="reszlegTorBtn">Kijelöltek törlése</button>
             </div>
           </div>
         </div>

@@ -110,4 +110,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
   .dbox{display:none!important;}
   .empty-st{display:none!important;}
   .dtoggle{text-decoration:none;cursor:default;}
+  /* Részleg fejléc nyomtatásban */
+  .reszleg-block{margin-bottom:10px;}
+  .reszleg-hd{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#1565C0;padding:5px 0 4px;border-bottom:1.5px solid #1565C0;margin-bottom:7px;display:flex;align-items:center;gap:5px;opacity:1;}
+  .reszleg-dot{width:6px;height:6px;border-radius:50%;background:#1565C0;flex-shrink:0;}
 }

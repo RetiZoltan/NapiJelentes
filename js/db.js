@@ -7,8 +7,9 @@ export async function loadLists() {
   try {
     const s = await getDoc(doc(db, 'config', 'lists'));
     if (s.exists()) {
-      state.nevek   = s.data().nevek   || [];
-      state.anyagok = s.data().anyagok || [];
+      state.nevek     = s.data().nevek     || [];
+      state.anyagok   = s.data().anyagok   || [];
+      state.reszlegek = s.data().reszlegek || [];
     }
     refreshListUI();
   } catch { msg('Lista betöltési hiba', 'error'); }
@@ -16,17 +17,22 @@ export async function loadLists() {
 
 export async function saveLists() {
   try {
-    await setDoc(doc(db, 'config', 'lists'), { nevek: state.nevek, anyagok: state.anyagok });
+    await setDoc(doc(db, 'config', 'lists'), {
+      nevek: state.nevek, anyagok: state.anyagok, reszlegek: state.reszlegek
+    });
   } catch { msg('Lista mentési hiba', 'error'); }
 }
 
 export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
-  E('nevDL').innerHTML   = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
-  E('anyagDL').innerHTML = srt(state.anyagok).map(a => `<option value="${esc(a)}"></option>`).join('');
-  fillSel(E('nevLista'),   state.nevek);
-  fillSel(E('anyagLista'), state.anyagok);
+  E('nevDL').innerHTML     = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
+  E('anyagDL').innerHTML   = srt(state.anyagok).map(a => `<option value="${esc(a)}"></option>`).join('');
+  E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
+  fillSel(E('nevLista'),     state.nevek);
+  fillSel(E('anyagLista'),   state.anyagok);
+  fillSel(E('reszlegLista'), state.reszlegek);
   updDolgSzuro();
+  updReszlegSzuro();
 }
 
 export function fillSel(sel, list) {
@@ -51,6 +57,17 @@ export async function updDolgSzuro() {
     E('dolgSzuro').innerHTML = '<option value="">— Mindenki —</option>' +
       nn.map(n => `<option value="${esc(n)}"${n === prev ? ' selected' : ''}>${esc(n)}</option>`).join('');
   } catch {}
+}
+
+export function updReszlegSzuro() {
+  const opts = [...state.reszlegek].sort((a, b) => a.localeCompare(b, 'hu'))
+    .map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  ['napiReszlegSzuro', 'idoszakosReszlegSzuro', 'premiumReszlegSzuro'].forEach(id => {
+    const el = E(id); if (!el) return;
+    const prev = el.value;
+    el.innerHTML = '<option value="">— Mind —</option>' + opts;
+    if (prev) el.value = prev;
+  });
 }
 
 export async function addToList(inp, list) {

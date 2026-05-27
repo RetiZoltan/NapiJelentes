@@ -101,24 +101,26 @@ async function calcAndRender() {
   const raw = E('premiumHonapInput').value;
   if (!raw) { msg('Válassz hónapot!', 'error'); return; }
   const [year, mon] = raw.split('-').map(Number);
+  const reszlegF = E('premiumReszlegSzuro')?.value || '';
   const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
-  lastLabel = `${year}. ${honNev[mon - 1]}`;
+  lastLabel = `${year}. ${honNev[mon - 1]}${reszlegF ? ' · ' + reszlegF : ''}`;
 
   E('premiumResultDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   E('premiumNyomtatBtn').disabled = true;
 
   await loadPremiumConfig();
-  lastResults = await computePremium(year, mon);
+  lastResults = await computePremium(year, mon, reszlegF);
   renderPremiumResults(lastResults, lastLabel);
 }
 
-async function computePremium(year, month) {
+async function computePremium(year, month, reszlegFilter = '') {
   const prefix  = `${year}-${String(month).padStart(2, '0')}`;
   const lastDay = new Date(year, month, 0).getDate();
-  const entries = await fetchEntries({
+  let entries = await fetchEntries({
     datumFrom: `${prefix}-01`,
     datumTo:   `${prefix}-${String(lastDay).padStart(2, '0')}`
   });
+  if (reszlegFilter) entries = entries.filter(a => (a.reszleg || '') === reszlegFilter);
 
   // Group: worker → material → { days: Set, totalKg }
   const byWM = {};
