@@ -18,6 +18,8 @@ import { initElemzes } from './worker-analysis.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 
+let _prevReszleg = '';
+
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
   const ref  = doc(db, 'users', fbUser.uid);
@@ -100,6 +102,7 @@ function buildAppUI() {
     E('pinReszlegBtn').style.color      = '#fff';
     E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
   }
+  _prevReszleg = E('reszleg').value.trim();
 
   const now = new Date();
   const yr  = now.getFullYear();
@@ -234,7 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
     else localStorage.removeItem('pinnedReszleg');
   });
-  E('reszleg').addEventListener('change', () => {
+  E('reszleg').addEventListener('focus', () => { _prevReszleg = E('reszleg').value.trim(); });
+  E('reszleg').addEventListener('change', async () => {
+    const newReszleg = E('reszleg').value.trim();
+    if (_prevReszleg !== newReszleg) {
+      await saveNapiFor(E('datum').value, _prevReszleg);
+      await loadNapiFor(E('datum').value, newReszleg);
+    }
+    _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
   });
   E('rogzitBtn').addEventListener('click',   rogzit);
@@ -243,8 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
 [E('nev'), E('reszleg'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
   E('napiMegj').addEventListener('focus', e => e.target.select());
   E('datum').addEventListener('change', async e => {
-    await saveNapiFor(state.prevDatum);
-    await loadNapiFor(e.target.value);
+    const curReszleg = E('reszleg').value.trim();
+    await saveNapiFor(state.prevDatum, curReszleg);
+    await loadNapiFor(e.target.value, curReszleg);
     state.prevDatum = e.target.value;
   });
 

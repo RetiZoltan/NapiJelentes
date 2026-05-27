@@ -2,7 +2,7 @@ import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
 import { state, canSeeAllReports, isMainAdmin } from './state.js';
 import { E, esc, msg, tod, fmtL, fmtS, fmtKg } from './utils.js';
-import { fetchEntries } from './db.js';
+import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
 
 let unsubNapi = null;
 let _lastNapiState = null;
@@ -39,12 +39,15 @@ export function napiRiport() {
     query(collection(db, 'entries'), ...constraints),
     async snap => {
       const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      let altM = '';
+      let napiNotes = {};
       try {
         const ns = await getDoc(doc(db, 'dailyNotes', rd));
-        if (ns.exists()) altM = ns.data().szoveg || '';
+        if (ns.exists()) {
+          const nd = ns.data();
+          napiNotes = nd.reszlegek || (nd.szoveg ? { '': nd.szoveg } : {});
+        }
       } catch {}
-      renderNapi(rd, lista, altM, szuro);
+      renderNapi(rd, lista, napiNotes, szuro);
     },
     err => msg('Lekérdezési hiba: ' + err.message, 'error', 5000)
   );
@@ -52,12 +55,12 @@ export function napiRiport() {
 
 export function rerenderNapi() {
   if (!_lastNapiState) return;
-  const { rd, lista, altM, szuro } = _lastNapiState;
-  renderNapi(rd, lista, altM, szuro);
+  const { rd, lista, napiNotes, szuro } = _lastNapiState;
+  renderNapi(rd, lista, napiNotes, szuro);
 }
 
-function renderNapi(rd, lista, altM, szuro) {
-  _lastNapiState = { rd, lista, altM, szuro };
+function renderNapi(rd, lista, napiNotes, szuro) {
+  _lastNapiState = { rd, lista, napiNotes, szuro };
 
   const muszakF  = E('napiMuszakSzuro')?.value  || '';
   const reszlegF = E('napiReszlegSzuro')?.value || '';
@@ -65,7 +68,8 @@ function renderNapi(rd, lista, altM, szuro) {
   if (muszakF)  filtered = filtered.filter(a => a.ido === muszakF);
   if (reszlegF) filtered = filtered.filter(a => (a.reszleg || '') === reszlegF);
 
-  if (!lista.length && !altM) {
+  const hasNotes = Object.values(napiNotes).some(v => v);
+  if (!lista.length && !hasNotes) {
     E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
     E('napiKepMentBtn').disabled = true;
     E('napiNyomtatBtn').disabled = true;
@@ -74,19 +78,35 @@ function renderNapi(rd, lista, altM, szuro) {
   const shifts = [...new Set(filtered.map(a => a.ido))].sort();
   const badges = shifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
+
+  const hasReszlegGrouping = filtered.some(a => (a.reszleg || '').trim());
   if (filtered.length) {
-    h += reszlegHtml(filtered);
+    h += reszlegHtml(filtered, rd, napiNotes);
+    if (!hasReszlegGrouping) {
+      const noteKey = reszlegF || '';
+      const note = napiNotes[noteKey] || '';
+      if (note) h += dayNoteHtml(noteKey, note, rd);
+    }
   } else if (lista.length) {
     h += `<div style="padding:14px 0;color:var(--text3);font-size:13px;font-style:italic;">A szűrő alapján nincs megjeleníthető adat.</div>`;
+    const noteKey = reszlegF || '';
+    const note = napiNotes[noteKey] || '';
+    if (note) h += dayNoteHtml(noteKey, note, rd);
   }
-  if (altM) h += `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(altM).replace(/\n/g, '<br>')}</p>${isMainAdmin() ? `<button class="del-btn" data-type="megj" data-datum="${rd}" style="position:absolute;top:11px;right:11px;">✕</button>` : ''}</div>`;
   E('napiRiportDiv').innerHTML = h;
   E('napiKepMentBtn').disabled = false;
   E('napiNyomtatBtn').disabled = false;
 }
 
+function dayNoteHtml(reszlegKey, note, rd) {
+  const delBtn = isMainAdmin()
+    ? `<button class="del-btn" data-type="megj" data-datum="${esc(rd)}" data-reszleg="${esc(reszlegKey)}" style="position:absolute;top:11px;right:11px;">✕</button>`
+    : '';
+  return `<div class="day-note"><div class="day-note-lbl">📌 Napi megjegyzés</div><p>${esc(note).replace(/\n/g, '<br>')}</p>${delBtn}</div>`;
+}
+
 /* ── Napi riport részleg-csoportosítás ── */
-function reszlegHtml(lista) {
+function reszlegHtml(lista, rd, napiNotes) {
   const hasReszleg = lista.some(a => (a.reszleg || '').trim());
   if (!hasReszleg) return workerHtml(grpWorkers(lista));
 
@@ -103,9 +123,12 @@ function reszlegHtml(lista) {
   });
   let h = '';
   keys.forEach(r => {
+    const noteKey = r === 'Ismeretlen részleg' ? '' : r;
+    const note    = (napiNotes || {})[noteKey] || '';
     h += `<div class="reszleg-block">
       <div class="reszleg-hd"><span class="reszleg-dot"></span>${esc(r)}</div>
       ${workerHtml(grpWorkers(byReszleg[r]))}
+      ${note ? dayNoteHtml(noteKey, note, rd) : ''}
     </div>`;
   });
   return h;
@@ -219,9 +242,9 @@ export async function riportKlikk(e) {
   const btn = e.target.closest('.del-btn'); if (!btn) return;
   const dtype = btn.dataset.type, datum = btn.dataset.datum, ids = btn.dataset.ids;
   if (dtype === 'megj' && datum) {
-    if (!confirm(`Törlöd a(z) ${datum} napi megjegyzést?`)) return;
-    await deleteDoc(doc(db, 'dailyNotes', datum));
-    msg('Megjegyzés törölve.');
+    if (!confirm('Törlöd a napi megjegyzést?')) return;
+    const reszleg = btn.dataset.reszleg ?? '';
+    await deleteDailyNoteForReszleg(datum, reszleg);
     napiRiport();
   } else if (ids) {
     const arr = ids.split(',');

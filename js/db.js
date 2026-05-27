@@ -102,23 +102,58 @@ export async function editItem(e, list) {
   if (i > -1) { list[i] = t; refreshListUI(); await saveLists(); msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 5000); }
 }
 
-export async function loadNapiFor(date) {
+export async function loadNapiFor(date, reszleg = '') {
   try {
     const s = await getDoc(doc(db, 'dailyNotes', date));
-    E('napiMegj').value = s.exists() ? (s.data().szoveg || '') : '';
+    if (!s.exists()) { E('napiMegj').value = ''; ag(E('napiMegj')); return; }
+    const d = s.data();
+    let txt = '';
+    if (d.reszlegek) {
+      txt = d.reszlegek[reszleg] || '';
+    } else if (!reszleg) {
+      txt = d.szoveg || '';
+    }
+    E('napiMegj').value = txt;
     ag(E('napiMegj'));
   } catch { E('napiMegj').value = ''; }
 }
 
-export async function saveNapiFor(date) {
+export async function saveNapiFor(date, reszleg = '') {
   const txt = E('napiMegj').value.trim();
   try {
-    if (txt) {
-      await setDoc(doc(db, 'dailyNotes', date), { szoveg: txt, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+    const ref = doc(db, 'dailyNotes', date);
+    const s   = await getDoc(ref);
+    let reszlegek = {};
+    if (s.exists()) {
+      const d = s.data();
+      if (d.reszlegek) reszlegek = { ...d.reszlegek };
+      else if (d.szoveg) reszlegek[''] = d.szoveg;
+    }
+    if (txt) reszlegek[reszleg] = txt;
+    else     delete reszlegek[reszleg];
+    if (!Object.values(reszlegek).some(v => v)) {
+      if (s.exists()) await deleteDoc(ref);
     } else {
-      await deleteDoc(doc(db, 'dailyNotes', date));
+      await setDoc(ref, { reszlegek, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
     }
   } catch { msg('Napi megjegyzés mentési hiba', 'error'); }
+}
+
+export async function deleteDailyNoteForReszleg(datum, reszleg) {
+  try {
+    const ref = doc(db, 'dailyNotes', datum);
+    const s   = await getDoc(ref);
+    if (!s.exists()) return;
+    const d = s.data();
+    const reszlegek = d.reszlegek ? { ...d.reszlegek } : (d.szoveg ? { '': d.szoveg } : {});
+    delete reszlegek[reszleg];
+    if (!Object.values(reszlegek).some(v => v)) {
+      await deleteDoc(ref);
+    } else {
+      await setDoc(ref, { reszlegek, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+    }
+    msg('Megjegyzés törölve.');
+  } catch { msg('Törlési hiba', 'error'); }
 }
 
 export async function fetchEntries(filters = {}) {

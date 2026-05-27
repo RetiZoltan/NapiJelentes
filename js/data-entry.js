@@ -55,7 +55,7 @@ export async function rogzit() {
   const vS = Array.from(sm).some(m => m.querySelector('.wsuly').value.trim() !== '');
   const vZ = Array.from(zm).some(m => m.querySelector('.wzsak').value.trim() !== '');
 
-  await saveNapiFor(datum);
+  await saveNapiFor(datum, E('reszleg').value.trim());
 
   // Ha csak napi megjegyzés van (nincs nev/anyag/súly/megj), csak azt mentjük
   if (!nev && !vA && !vS && !vZ && !dolgMegj) {
@@ -141,7 +141,7 @@ export async function startEditEntry(entry) {
   E('anyag').value   = entry.anyag       || '';
   E('megj').value    = entry.megjegyzes  || '';
 
-  await loadNapiFor(entry.datum);
+  await loadNapiFor(entry.datum, entry.reszleg || '');
   state.prevDatum = entry.datum;
 
   E('sulyC').innerHTML = '';
