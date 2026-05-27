@@ -75,16 +75,31 @@ function renderNapi(rd, lista, napiNotes, szuro) {
     E('napiNyomtatBtn').disabled = true;
     return;
   }
-  const shifts = [...new Set(filtered.map(a => a.ido))].sort();
-  const badges = shifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
+  const allShifts = [...new Set(filtered.map(a => a.ido))].sort();
+  const needsShiftBlocks = !muszakF && allShifts.length > 1;
+  const badges = needsShiftBlocks ? '' : allShifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
 
   const hasReszlegGrouping = filtered.some(a => (a.reszleg || '').trim());
   if (filtered.length) {
-    h += reszlegHtml(filtered, rd, napiNotes, muszakF);
-    if (!hasReszlegGrouping) {
-      getNotesForDept(napiNotes, reszlegF || '', muszakF)
-        .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
+    if (needsShiftBlocks) {
+      allShifts.forEach(shift => {
+        const se = filtered.filter(a => a.ido === shift);
+        const hasRGInShift = se.some(a => (a.reszleg || '').trim());
+        h += `<div class="muszak-block"><div class="muszak-hd"><span class="muszak-dot"></span>${esc(shift)}</div>`;
+        h += reszlegHtml(se, rd, napiNotes, shift);
+        if (!hasRGInShift) {
+          getNotesForDept(napiNotes, reszlegF || '', shift)
+            .forEach(n => { h += dayNoteHtml(n.key, n.note, rd, true); });
+        }
+        h += `</div>`;
+      });
+    } else {
+      h += reszlegHtml(filtered, rd, napiNotes, muszakF);
+      if (!hasReszlegGrouping) {
+        getNotesForDept(napiNotes, reszlegF || '', muszakF)
+          .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
+      }
     }
   } else if (lista.length) {
     h += `<div style="padding:14px 0;color:var(--text3);font-size:13px;font-style:italic;">A szűrő alapján nincs megjeleníthető adat.</div>`;
@@ -96,9 +111,9 @@ function renderNapi(rd, lista, napiNotes, szuro) {
   E('napiNyomtatBtn').disabled = false;
 }
 
-function dayNoteHtml(key, note, rd) {
+function dayNoteHtml(key, note, rd, hideIdo = false) {
   const ido = key.includes('|') ? key.split('|')[1] : '';
-  const lbl = ido ? `📌 Napi megjegyzés (${esc(ido)})` : '📌 Napi megjegyzés';
+  const lbl = (ido && !hideIdo) ? `📌 Napi megjegyzés (${esc(ido)})` : '📌 Napi megjegyzés';
   const delBtn = isMainAdmin()
     ? `<button class="del-btn" data-type="megj" data-datum="${esc(rd)}" data-reszleg="${esc(key)}" style="position:absolute;top:11px;right:11px;">✕</button>`
     : '';
@@ -153,7 +168,7 @@ function reszlegHtml(lista, rd, napiNotes, muszakF) {
     h += `<div class="reszleg-block">
       <div class="reszleg-hd"><span class="reszleg-dot"></span>${esc(r)}</div>
       ${workerHtml(grpWorkers(byReszleg[r]))}
-      ${notes.map(n => dayNoteHtml(n.key, n.note, rd)).join('')}
+      ${notes.map(n => dayNoteHtml(n.key, n.note, rd, !!muszakF)).join('')}
     </div>`;
   });
   return h;
@@ -357,7 +372,7 @@ function kepMentDiv(divId, suffix) {
   const inner = document.createElement('div');
   inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
   const style = document.createElement('style');
-  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.dtoggle{text-decoration:none;cursor:default;}.edit-btn{display:none;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
+  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${t1};background:${surf2};border:1px solid ${b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.dtoggle{text-decoration:none;cursor:default;}.edit-btn{display:none;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
   inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner); document.body.appendChild(wrap);
   html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
     document.body.removeChild(wrap);
