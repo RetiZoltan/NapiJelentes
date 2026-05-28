@@ -128,7 +128,6 @@ export function clearF(sh = true) {
   E('sulyC').innerHTML = ''; addSuly();
   E('zsakC').innerHTML = ''; addZsak();
   loadNapiFor(E('datum').value, E('reszleg').value.trim(), E('ido').value);
-  if (state.isNamePinned) E('anyag').focus(); else E('nev').focus();
   if (sh) msg('Űrlap törölve.', 'info', 2000);
 }
 
