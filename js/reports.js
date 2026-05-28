@@ -447,13 +447,19 @@ function workerHtml(c) {
         let zh = '—';
         if (aa.zsakSulyok.length > 0) { const zo = aa.zsakSulyok.reduce((s, x) => s + x, 0); dz += zo; zh = `<span class="v-green">${aa.zsakSulyok.map(s => s.toFixed(0)).join(', ')} kg</span>`; }
         const canEdit = aa.ids.length === 1 && (isMainAdmin() || aa.owners[0] === state.appUser.uid);
+        const canDelete = isMainAdmin() || aa.owners.every(o => o === state.appUser.uid);
         const editBtn = canEdit ? `<button class="edit-btn" data-edit-id="${esc(aa.ids[0])}" title="Szerkesztés">✎</button>` : '';
-        h += `<tr><td>${esc(aa.nev)}</td><td>${sh}</td><td>${zh}</td><td style="white-space:nowrap;">${editBtn}<button class="del-btn" data-ids="${esc(ids)}">✕</button></td></tr>`;
+        const delBtnHtml = canDelete ? `<button class="del-btn" data-ids="${esc(ids)}">✕</button>` : '';
+        h += `<tr><td>${esc(aa.nev)}</td><td>${sh}</td><td>${zh}</td><td style="white-space:nowrap;">${editBtn}${delBtnHtml}</td></tr>`;
         aa.megj.forEach(m => { notes += `<div class="wnote">${esc(m)}</div>`; });
       });
       h += `</tbody><tfoot><tr><td>Összesen</td><td class="v-bold">${fmtKg(ds)}</td><td class="v-green" style="font-weight:600;">${fmtKg(dz)}</td><td></td></tr></tfoot></table>`;
     }
-    cd.csMegj.forEach(m => { notes += `<div class="wnote">${esc(m.text)}<button class="del-btn" data-ids="${m.id}" style="position:absolute;top:6px;right:8px;">✕</button></div>`; });
+    cd.csMegj.forEach(m => {
+      const canDelNote = isMainAdmin() || m.owner === state.appUser.uid;
+      const delBtn = canDelNote ? `<button class="del-btn" data-ids="${m.id}" style="position:absolute;top:6px;right:8px;">✕</button>` : '';
+      notes += `<div class="wnote">${esc(m.text)}${delBtn}</div>`;
+    });
     if (notes) h += notes;
     h += `</div>`;
   });
