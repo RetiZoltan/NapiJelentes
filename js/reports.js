@@ -32,13 +32,13 @@ export function napiRiport() {
 
   const constraints = [where('datum', '==', rd)];
   if (!canSeeAllReports()) constraints.push(where('createdBy', '==', state.appUser.uid));
-  if (szuro) constraints.push(where('nev', '==', szuro));
   constraints.push(orderBy('datum'), orderBy('createdAt'));
 
   unsubNapi = onSnapshot(
     query(collection(db, 'entries'), ...constraints),
     async snap => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      let lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (szuro) lista = lista.filter(a => a.nev === szuro);
       let napiNotes = {};
       try {
         const ns = await getDoc(doc(db, 'dailyNotes', rd));
