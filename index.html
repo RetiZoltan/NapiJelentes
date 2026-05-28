@@ -173,8 +173,13 @@
 
     <!-- ══ JELENTÉSEK ══ -->
     <div id="tab-jelentesek" class="tab-panel">
+      <div class="subtabs" id="jelentesekSubtabs">
+        <button class="stab-btn active" data-jstab="napi">📋 Napi</button>
+        <button class="stab-btn" data-jstab="idoszakos">📊 Időszakos</button>
+      </div>
 
-      <!-- Napi szekció -->
+      <!-- Napi al-fül -->
+      <div id="jstab-napi" class="jstab-panel active">
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field" style="min-width:150px;">
@@ -216,15 +221,10 @@
         <button class="btn btn-ghost" style="flex:1;" id="napiKepMentBtn" disabled>⬇ Mentés képként</button>
         <button class="btn btn-ghost" id="napiNyomtatBtn" disabled>🖨 Nyomtatás</button>
       </div>
+      </div><!-- /jstab-napi -->
 
-      <!-- Elválasztó -->
-      <div style="display:flex;align-items:center;gap:12px;margin:28px 0 16px;">
-        <div style="flex:1;height:1px;background:var(--border);"></div>
-        <span style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">📊 Időszakos jelentés</span>
-        <div style="flex:1;height:1px;background:var(--border);"></div>
-      </div>
-
-      <!-- Időszakos szekció -->
+      <!-- Időszakos al-fül -->
+      <div id="jstab-idoszakos" class="jstab-panel">
       <div class="card">
         <div style="display:flex;align-items:center;margin-bottom:14px;">
           <p class="sec-hd" style="margin:0;border:none;padding:0;flex:1;"><span>1.</span> Időszak kiválasztása</p>
@@ -291,6 +291,7 @@
         <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként</button>
         <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtatás</button>
       </div>
+      </div><!-- /jstab-idoszakos -->
     </div>
 
     <!-- ══ NAPTÁR ══ -->

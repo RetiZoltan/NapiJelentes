@@ -138,6 +138,14 @@ function switchTab(name, btn) {
   }
 }
 
+function switchJelentesekSubtab(name) {
+  document.querySelectorAll('#jelentesekSubtabs .stab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#jelentesekSubtabs .stab-btn[data-jstab="${name}"]`).classList.add('active');
+  document.querySelectorAll('.jstab-panel').forEach(p => p.classList.remove('active'));
+  E('jstab-' + name).classList.add('active');
+  if (name !== 'napi') cleanupNapiListener();
+}
+
 function switchAdminSubtab(name) {
   document.querySelectorAll('.stab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
@@ -210,6 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
   E('mainTabs').addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn'); if (!btn || !btn.dataset.tab) return;
     switchTab(btn.dataset.tab, btn);
+  });
+
+  // Jelentések al-fülek
+  E('jelentesekSubtabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.jstab) return;
+    switchJelentesekSubtab(btn.dataset.jstab);
   });
 
   // Admin subtabs
@@ -301,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('napiKepMentBtn').addEventListener('click', napiKepMent);
   E('napiNyomtatBtn').addEventListener('click', napiNyomtat);
   E('napiRiportDiv').addEventListener('click', riportKlikk);
-  document.addEventListener('napi-goto', () => { switchTab('jelentesek', E('tabBtnJelentesek')); napiRiport(); });
+  document.addEventListener('napi-goto', () => { switchTab('jelentesek', E('tabBtnJelentesek')); switchJelentesekSubtab('napi'); napiRiport(); });
   document.addEventListener('napi-edit-entry', async e => {
     switchTab('adatbevitel', E('tabBtnAdatbevitel'));
     await startEditEntry(e.detail);
