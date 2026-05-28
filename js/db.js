@@ -70,6 +70,14 @@ export function updReszlegSzuro() {
   });
 }
 
+export async function autoAddToList(value, list) {
+  const v = (value || '').trim();
+  if (!v || list.some(x => x.toLowerCase() === v.toLowerCase())) return;
+  list.push(v);
+  refreshListUI();
+  await saveLists();
+}
+
 export async function addToList(inp, list) {
   const v = inp.value.trim();
   if (!v) { msg('Adj meg értéket!', 'error'); return; }

@@ -1,7 +1,7 @@
 import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
-import { saveNapiFor, loadNapiFor } from './db.js';
+import { saveNapiFor, loadNapiFor, autoAddToList } from './db.js';
 
 export function addSuly(v = '', st = 'teli') {
   const d = document.createElement('div');
@@ -48,6 +48,8 @@ export async function rogzit() {
   const napiSzoveg = E('napiMegj').value.trim();
 
   if (!datum) { msg('Dátum kötelező!', 'error'); E('datum').focus(); return; }
+  await autoAddToList(nev, state.nevek);
+  await autoAddToList(anyagB, state.anyagok);
 
   const sm = E('sulyC').querySelectorAll('.wrow');
   const zm = E('zsakC').querySelectorAll('.wrow');

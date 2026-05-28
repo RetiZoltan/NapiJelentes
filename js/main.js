@@ -6,7 +6,7 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
 import { E, msg, ag, tod, initTheme, toggleTheme, showScreen } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, delFromList, editItem } from './db.js';
+         addToList, autoAddToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry } from './data-entry.js';
 import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
@@ -261,8 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
   });
-  E('addNevBtn').addEventListener('click',    () => addToList(E('nev'),    state.nevek));
-  E('addAnyagBtn').addEventListener('click',  () => addToList(E('anyag'),  state.anyagok));
+  E('nev').addEventListener('change',   () => autoAddToList(E('nev').value,   state.nevek));
+  E('anyag').addEventListener('change', () => autoAddToList(E('anyag').value, state.anyagok));
   E('addReszlegBtn').addEventListener('click',() => addToList(E('reszleg'),state.reszlegek));
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
