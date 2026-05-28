@@ -49,7 +49,7 @@ export async function loadRoles() {
   try {
     const snap = await getDocs(collection(db, 'roles'));
     if (snap.empty) { E('roleListDiv').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px;">Még nincs szerepkör</div>'; return; }
-    const permLabel = { adatbevitel: 'Adatbevitel', sajatJelentes: 'Saját jelent.', mindenJelentes: 'Mindenki jelent.', naptar: 'Naptár', elemzes: 'Elemzés', felhasznalokKezelese: 'Felh. kezelése', premiumMegtekintes: 'Prémium megtekintés', premiumKezeles: 'Prémium kezelés' };
+    const permLabel = { adatbevitel: 'Adatbevitel', sajatJelentes: 'Saját jelent.', mindenJelentes: 'Mindenki jelent.', naptar: 'Naptár', elemzes: 'Elemzés', felhasznalokKezelese: 'Felh. kezelése', premiumMegtekintes: 'Prémium megtekintés', premiumKezeles: 'Prémium kezelés', dolgozokMegtekintes: 'Dolgozók megtekintés', dolgozokKezeles: 'Dolgozók kezelése' };
     E('roleListDiv').innerHTML = snap.docs.map(d => {
       const r = { id: d.id, ...d.data() };
       const perms = Object.entries(r.permissions || {}).filter(([, v]) => v).map(([k]) => permLabel[k] || k).join(', ') || 'Nincs jogosultság';
@@ -69,7 +69,9 @@ export async function saveRole() {
     elemzes:              E('pElemzes').checked,
     felhasznalokKezelese: E('pFelhasznalok').checked,
     premiumMegtekintes:   E('pPremiumMegtekintes').checked,
-    premiumKezeles:       E('pPremiumKezeles').checked
+    premiumKezeles:       E('pPremiumKezeles').checked,
+    dolgozokMegtekintes:  E('pDolgozokMegtekintes').checked,
+    dolgozokKezeles:      E('pDolgozokKezeles').checked
   };
   try {
     if (editingRoleId) {
@@ -86,7 +88,7 @@ export async function saveRole() {
 export function cancelRoleForm() {
   E('newRoleForm').classList.remove('open');
   E('newRoleNev').value = '';
-  ['pAdatbevitel','pSajatJelentes','pMindenJelentes','pNaptar','pElemzes','pFelhasznalok','pPremiumMegtekintes','pPremiumKezeles'].forEach(id => E(id).checked = false);
+  ['pAdatbevitel','pSajatJelentes','pMindenJelentes','pNaptar','pElemzes','pFelhasznalok','pPremiumMegtekintes','pPremiumKezeles','pDolgozokMegtekintes','pDolgozokKezeles'].forEach(id => E(id).checked = false);
   editingRoleId = null;
   E('saveRoleBtn').textContent = 'Mentés';
 }
@@ -108,6 +110,8 @@ export async function handleRoleListClick(e) {
     E('pFelhasznalok').checked         = !!r.permissions?.felhasznalokKezelese;
     E('pPremiumMegtekintes').checked   = !!r.permissions?.premiumMegtekintes;
     E('pPremiumKezeles').checked       = !!r.permissions?.premiumKezeles;
+    E('pDolgozokMegtekintes').checked  = !!r.permissions?.dolgozokMegtekintes;
+    E('pDolgozokKezeles').checked      = !!r.permissions?.dolgozokKezeles;
     editingRoleId = id;
     E('newRoleForm').classList.add('open');
     E('saveRoleBtn').textContent = 'Frissítés';

@@ -18,6 +18,9 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
 import { initElemzes } from './worker-analysis.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
+import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
+         handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
+         loadTeljesitmeny, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
 let _prevIdo = '';
@@ -79,6 +82,7 @@ function buildAppUI() {
   E('tabBtnJelentesek').style.display  = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('elemzes') || hasPerm('sajatJelentes') || canSeeAllReports())           ? '' : 'none';
+  E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
@@ -131,11 +135,12 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
-  if (name === 'admin') loadAdminUsers();
+  if (name === 'admin')    loadAdminUsers();
   if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek') cleanupNapiListener();
-  if (name === 'naptar')  initNaptar();
-  if (name === 'premium') initPremiumTab();
+  if (name === 'naptar')   initNaptar();
+  if (name === 'dolgozok') { loadEmployees(); _setupDolgozokUI(); }
+  if (name === 'premium')  initPremiumTab();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
@@ -164,6 +169,24 @@ function switchJelentesekSubtab(name) {
   document.querySelectorAll('.jstab-panel').forEach(p => p.classList.remove('active'));
   E('jstab-' + name).classList.add('active');
   if (name !== 'napi') cleanupNapiListener();
+}
+
+function switchDolgozokSubtab(name) {
+  document.querySelectorAll('#dolgozokSubtabs .stab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#dolgozokSubtabs .stab-btn[data-dtab="${name}"]`).classList.add('active');
+  document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
+  E('dtab-' + name).classList.add('active');
+  if (name === 'hianyok')      loadAbsences();
+  if (name === 'teljesitmeny') {}
+}
+
+let _dolgozokUISetup = false;
+function _setupDolgozokUI() {
+  if (_dolgozokUISetup) return;
+  _dolgozokUISetup = true;
+  const ce = canEditEmp();
+  E('ujDolgozoWrap').style.display  = ce ? '' : 'none';
+  E('hianyFormWrap').style.display  = ce ? '' : 'none';
 }
 
 function switchAdminSubtab(name) {
@@ -388,6 +411,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const p = E('riportSettings');
     p.style.display = p.style.display === 'none' ? '' : 'none';
   });
+
+  // Dolgozók
+  E('dolgozokSubtabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.dtab) return;
+    switchDolgozokSubtab(btn.dataset.dtab);
+  });
+  E('ujDolgozoBtn').addEventListener('click',  () => openEmpForm());
+  E('empSaveBtn').addEventListener('click',    saveEmployee);
+  E('empCancelBtn').addEventListener('click',  closeEmpForm);
+  E('dolgozoGrid').addEventListener('click',   handleEmpGridClick);
+  E('dolgReszlegF').addEventListener('change', renderEmployeeGrid);
+  E('dolgStatuszF').addEventListener('change', renderEmployeeGrid);
+  E('hianyMutatBtn').addEventListener('click', loadAbsences);
+  E('absSaveBtn').addEventListener('click',    saveAbsence);
+  E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
+  E('teljMutatBtn').addEventListener('click',  loadTeljesitmeny);
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {

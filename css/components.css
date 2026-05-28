@@ -233,6 +233,24 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .muszak-hd{font-size:13px;font-weight:700;color:var(--text);background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 13px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
 .muszak-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;}
 
+/* ── Dolgozók modul ── */
+.dtab-panel{display:none;}
+.dtab-panel.active{display:block;}
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+.emp-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--sh);}
+.emp-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.emp-dept{font-size:12px;color:var(--text3);}
+.emp-status{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;flex-shrink:0;}
+.emp-aktiv{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green);border:1px solid color-mix(in srgb,var(--green) 25%,transparent);}
+.emp-inaktiv{background:var(--surf2);color:var(--text3);border:1px solid var(--border);}
+.emp-szab{background:color-mix(in srgb,var(--amber) 12%,transparent);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);}
+.telj-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.telj-item{background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;text-align:center;}
+.telj-item.telj-hianyzas{background:var(--redl);border-color:color-mix(in srgb,var(--red) 20%,transparent);}
+.telj-val{font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
+.telj-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}
+.telj-hianyzas .telj-val{color:var(--red);}
+
 /* ── Részleg csoportosítás (napi riport) ── */
 .reszleg-block{margin-bottom:14px;}
 .reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--accent);padding:7px 2px 6px;border-bottom:2px solid var(--accent);margin-bottom:9px;display:flex;align-items:center;gap:7px;opacity:.85;}

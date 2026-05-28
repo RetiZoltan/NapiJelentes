@@ -99,6 +99,32 @@ service cloud.firestore {
       );
     }
 
+    // ── employees ──────────────────────────────────────────────
+    match /employees/{empId} {
+      allow read: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('dolgozokMegtekintes') ||
+        hasPerm('dolgozokKezeles')
+      );
+      allow write: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('dolgozokKezeles')
+      );
+    }
+
+    // ── absences ───────────────────────────────────────────────
+    match /absences/{absId} {
+      allow read: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('dolgozokMegtekintes') ||
+        hasPerm('dolgozokKezeles')
+      );
+      allow write: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('dolgozokKezeles')
+      );
+    }
+
     // ── config (nevek/anyagok/gépek listák) ────────────────────
     match /config/{doc} {
       allow read:  if isAuth();

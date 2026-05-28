@@ -94,6 +94,7 @@
       <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none">📋 Jelentések</button>
       <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
+      <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none">👷 Dolgozók</button>
       <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
     </div>
@@ -349,6 +350,121 @@
       </div>
     </div>
 
+    <!-- ══ DOLGOZÓK ══ -->
+    <div id="tab-dolgozok" class="tab-panel">
+      <div class="subtabs" id="dolgozokSubtabs">
+        <button class="stab-btn active" data-dtab="adatlapok">👤 Adatlapok</button>
+        <button class="stab-btn" data-dtab="hianyok">📅 Hiányzások</button>
+        <button class="stab-btn" data-dtab="teljesitmeny">📊 Teljesítmény</button>
+      </div>
+
+      <!-- Adatlapok -->
+      <div id="dtab-adatlapok" class="dtab-panel active">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:130px;">
+              <label class="lbl">Részleg</label>
+              <select id="dolgReszlegF"><option value="">— Mind —</option></select>
+            </div>
+            <div class="field" style="min-width:120px;">
+              <label class="lbl">Státusz</label>
+              <select id="dolgStatuszF">
+                <option value="">— Mind —</option>
+                <option value="aktiv">Aktív</option>
+                <option value="inaktiv">Inaktív</option>
+                <option value="szabadsag">Szabadságon</option>
+              </select>
+            </div>
+            <div id="ujDolgozoWrap" style="margin-bottom:13px;display:none;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="ujDolgozoBtn">＋ Új dolgozó</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="dolgozoForm" style="display:none;">
+          <div class="card-title"><span class="card-title-icon">📝</span><span id="empFormTitle">Új dolgozó</span></div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Név</label><input type="text" id="empFormNev" placeholder="Teljes név"></div>
+            <div class="field"><label class="lbl">Részleg</label>
+              <input list="empFormReszlegDL" id="empFormReszleg" autocomplete="off" placeholder="Részleg…">
+              <datalist id="empFormReszlegDL"></datalist>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Belépési dátum</label><input type="date" id="empFormBelepet"></div>
+            <div class="field"><label class="lbl">Státusz</label>
+              <select id="empFormStatusz">
+                <option value="aktiv">Aktív</option>
+                <option value="inaktiv">Inaktív</option>
+                <option value="szabadsag">Szabadságon</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label class="lbl">Megjegyzés</label><textarea id="empFormMegj" placeholder="Opcionális…"></textarea></div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" id="empSaveBtn">✓ Mentés</button>
+            <button class="btn btn-ghost btn-sm" id="empCancelBtn">Mégse</button>
+          </div>
+        </div>
+        <div id="dolgozoGrid"><div class="empty-st"><div class="empty-ic">👷</div>Betöltés…</div></div>
+      </div><!-- /dtab-adatlapok -->
+
+      <!-- Hiányzások -->
+      <div id="dtab-hianyok" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label><input type="month" id="hianyHonapF"></div>
+            <div class="field" style="min-width:150px;"><label class="lbl">Dolgozó</label>
+              <select id="hianyNevF"><option value="">— Mindenki —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="hianyMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="hianyFormWrap" style="display:none;">
+          <div class="card">
+            <div class="card-title"><span class="card-title-icon">➕</span>Hiányzás rögzítése</div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Dolgozó</label>
+                <select id="absFormNev"><option value="">— Válassz —</option></select>
+              </div>
+              <div class="field"><label class="lbl">Típus</label>
+                <select id="absFormTipus">
+                  <option value="szabadsag">🌴 Szabadság</option>
+                  <option value="betegseg">🤒 Betegszabadság</option>
+                  <option value="fizetesnelkuli">📋 Fizetés nélküli</option>
+                  <option value="egyeb">❓ Egyéb</option>
+                </select>
+              </div>
+            </div>
+            <div class="g2">
+              <div class="field"><label class="lbl">-tól</label><input type="date" id="absFormTol"></div>
+              <div class="field"><label class="lbl">-ig (opcionális)</label><input type="date" id="absFormIg"></div>
+            </div>
+            <div class="field"><label class="lbl">Megjegyzés</label><textarea id="absFormMegj" placeholder="Opcionális…"></textarea></div>
+            <div class="btn-row"><button class="btn btn-primary btn-sm" id="absSaveBtn">✓ Rögzít</button></div>
+          </div>
+        </div>
+        <div id="hianyListDiv"><div class="empty-st"><div class="empty-ic">📅</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
+      </div><!-- /dtab-hianyok -->
+
+      <!-- Teljesítmény -->
+      <div id="dtab-teljesitmeny" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label><input type="month" id="teljHonapF"></div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="teljMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="teljDiv"><div class="empty-st"><div class="empty-ic">📊</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
+      </div><!-- /dtab-teljesitmeny -->
+    </div><!-- /tab-dolgozok -->
+
     <!-- ══ PRÉMIUM ══ -->
     <div id="tab-premium" class="tab-panel">
       <div class="card">
@@ -408,6 +524,8 @@
               <label class="perm-check"><input type="checkbox" id="pFelhasznalok"><span>Felhasználók kezelése</span></label>
               <label class="perm-check"><input type="checkbox" id="pPremiumMegtekintes"><span>Prémium megtekintés</span></label>
               <label class="perm-check"><input type="checkbox" id="pPremiumKezeles"><span>Prémium kezelés (konfig)</span></label>
+              <label class="perm-check"><input type="checkbox" id="pDolgozokMegtekintes"><span>Dolgozók megtekintés</span></label>
+              <label class="perm-check"><input type="checkbox" id="pDolgozokKezeles"><span>Dolgozók kezelése</span></label>
             </div>
             <div class="btn-row" style="margin-top:10px;">
               <button class="btn btn-primary btn-sm" id="saveRoleBtn">Mentés</button>
