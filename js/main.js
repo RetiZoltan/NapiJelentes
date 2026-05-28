@@ -77,8 +77,8 @@ function buildAppUI() {
   E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
   E('tabBtnNapi').style.display        = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnIdoszakos').style.display   = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
-  E('tabBtnNaptar').style.display      = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
-  E('tabBtnElemzes').style.display     = (hasPerm('sajatJelentes') || canSeeAllReports())            ? '' : 'none';
+  E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
+  E('tabBtnElemzes').style.display     = (hasPerm('elemzes') || hasPerm('sajatJelentes') || canSeeAllReports())           ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
