@@ -91,8 +91,7 @@
   <div class="outer">
     <div class="tabs" id="mainTabs">
       <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
-      <button class="tab-btn" data-tab="napi" id="tabBtnNapi" style="display:none">📋 Napi</button>
-      <button class="tab-btn" data-tab="idoszakos" id="tabBtnIdoszakos" style="display:none">📊 Időszakos</button>
+      <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none">📋 Jelentések</button>
       <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
       <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
@@ -172,8 +171,10 @@
       </div>
     </div>
 
-    <!-- ══ NAPI JELENTÉS ══ -->
-    <div id="tab-napi" class="tab-panel">
+    <!-- ══ JELENTÉSEK ══ -->
+    <div id="tab-jelentesek" class="tab-panel">
+
+      <!-- Napi szekció -->
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field" style="min-width:150px;">
@@ -215,10 +216,15 @@
         <button class="btn btn-ghost" style="flex:1;" id="napiKepMentBtn" disabled>⬇ Mentés képként</button>
         <button class="btn btn-ghost" id="napiNyomtatBtn" disabled>🖨 Nyomtatás</button>
       </div>
-    </div>
 
-    <!-- ══ IDŐSZAKOS JELENTÉS ══ -->
-    <div id="tab-idoszakos" class="tab-panel">
+      <!-- Elválasztó -->
+      <div style="display:flex;align-items:center;gap:12px;margin:28px 0 16px;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">📊 Időszakos jelentés</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+
+      <!-- Időszakos szekció -->
       <div class="card">
         <div style="display:flex;align-items:center;margin-bottom:14px;">
           <p class="sec-hd" style="margin:0;border:none;padding:0;flex:1;"><span>1.</span> Időszak kiválasztása</p>

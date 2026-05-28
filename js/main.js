@@ -75,8 +75,7 @@ function buildAppUI() {
   E('userAvatar').textContent   = (name[0] || '?').toUpperCase();
 
   E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
-  E('tabBtnNapi').style.display        = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
-  E('tabBtnIdoszakos').style.display   = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
+  E('tabBtnJelentesek').style.display  = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('elemzes') || hasPerm('sajatJelentes') || canSeeAllReports())           ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
@@ -117,7 +116,7 @@ function buildAppUI() {
   addSuly(); addZsak();
 
   if (!hasPerm('adatbevitel') && (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))) {
-    switchTab('napi', E('tabBtnNapi'));
+    switchTab('jelentesek', E('tabBtnJelentesek'));
   } else if (!hasPerm('adatbevitel') && canManageUsers()) {
     switchTab('admin', E('tabBtnAdmin'));
   }
@@ -130,7 +129,7 @@ function switchTab(name, btn) {
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'admin') loadAdminUsers();
-  if (name !== 'napi') cleanupNapiListener();
+  if (name !== 'jelentesek') cleanupNapiListener();
   if (name === 'naptar')  initNaptar();
   if (name === 'premium') initPremiumTab();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
@@ -302,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('napiKepMentBtn').addEventListener('click', napiKepMent);
   E('napiNyomtatBtn').addEventListener('click', napiNyomtat);
   E('napiRiportDiv').addEventListener('click', riportKlikk);
-  document.addEventListener('napi-goto', () => { switchTab('napi', E('tabBtnNapi')); napiRiport(); });
+  document.addEventListener('napi-goto', () => { switchTab('jelentesek', E('tabBtnJelentesek')); napiRiport(); });
   document.addEventListener('napi-edit-entry', async e => {
     switchTab('adatbevitel', E('tabBtnAdatbevitel'));
     await startEditEntry(e.detail);
