@@ -79,7 +79,7 @@ function renderNapi(rd, lista, napiNotes, szuro) {
   const needsShiftBlocks = !muszakF && allShifts.length > 1;
   const badges = needsShiftBlocks ? '' : allShifts.map(s => `<span class="r-shift">(${esc(s)})</span>`).join(' ');
   let h = `<div class="r-head">${esc(fmtL(rd))}${badges}</div>`;
-  h += napiOsszHtml(lista);
+  h += napiOsszHtml(filtered);
 
   const hasReszlegGrouping = filtered.some(a => (a.reszleg || '').trim());
   if (filtered.length) {
