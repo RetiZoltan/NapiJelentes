@@ -167,9 +167,9 @@ function switchJelentesekSubtab(name) {
 }
 
 function switchAdminSubtab(name) {
-  document.querySelectorAll('.stab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#adminSubtabs .stab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.stab-btn[data-stab="${name}"]`).classList.add('active');
+  document.querySelector(`#adminSubtabs .stab-btn[data-stab="${name}"]`).classList.add('active');
   E('stab-' + name).classList.add('active');
   if (name === 'roles')        loadRoles();
   if (name === 'lists')        refreshListUI();
@@ -261,9 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
   });
-  E('nev').addEventListener('change',   () => autoAddToList(E('nev').value,   state.nevek));
-  E('anyag').addEventListener('change', () => autoAddToList(E('anyag').value, state.anyagok));
-  E('addReszlegBtn').addEventListener('click',() => addToList(E('reszleg'),state.reszlegek));
+  E('nev').addEventListener('change',   async () => autoAddToList(E('nev').value,   state.nevek));
+  E('anyag').addEventListener('change', async () => autoAddToList(E('anyag').value, state.anyagok));
+  E('addReszlegBtn').addEventListener('click', async () => addToList(E('reszleg'), state.reszlegek));
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
     const btn = E('pinReszlegBtn');
