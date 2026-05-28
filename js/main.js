@@ -13,7 +13,8 @@ import { napiRiport, haviRiport, evesRiport,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
-         handleRoleListClick, mentFajl, betoltFajl, mindTorol } from './admin.js';
+         handleRoleListClick, mentFajl, betoltFajl, mindTorol,
+         loadNoticeAdmin, saveNotice, clearNotice } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
@@ -82,6 +83,7 @@ function buildAppUI() {
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
   E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
+  E('stab-kozlemeny-btn').style.display    = canManageUsers() ? '' : 'none';
   E('stab-premium-cfg-btn').style.display  = (isMainAdmin() || hasPerm('premiumKezeles')) ? '' : 'none';
   E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
@@ -113,6 +115,7 @@ function buildAppUI() {
 
 
   loadLists();
+  loadAndDisplayNotice();
   addSuly(); addZsak();
 
   if (!hasPerm('adatbevitel') && (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))) {
@@ -129,6 +132,7 @@ function switchTab(name, btn) {
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'admin') loadAdminUsers();
+  if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek') cleanupNapiListener();
   if (name === 'naptar')  initNaptar();
   if (name === 'premium') initPremiumTab();
@@ -136,6 +140,22 @@ function switchTab(name, btn) {
     switchTab._elemzesInited = true;
     initElemzes();
   }
+}
+
+async function loadAndDisplayNotice() {
+  try {
+    const s = await getDoc(doc(db, 'config', 'notice'));
+    const banner = E('noticeBanner');
+    if (s.exists() && s.data().text) {
+      const d = s.data();
+      const icons = { info: 'ℹ️', warning: '⚠️', success: '✅' };
+      E('noticeBannerIcon').textContent = icons[d.type] || 'ℹ️';
+      E('noticeBannerMsg').textContent  = d.text;
+      banner.className = `notice-banner active ${d.type || 'info'}`;
+    } else {
+      banner.className = 'notice-banner';
+    }
+  } catch {}
 }
 
 function switchJelentesekSubtab(name) {
@@ -153,6 +173,7 @@ function switchAdminSubtab(name) {
   E('stab-' + name).classList.add('active');
   if (name === 'roles')        loadRoles();
   if (name === 'lists')        refreshListUI();
+  if (name === 'kozlemeny')    loadNoticeAdmin();
   if (name === 'premium-cfg')  initPremiumAdmin();
 }
 
@@ -398,6 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
   E('reszlegTorBtn').addEventListener('click',() => delFromList(E('reszlegLista'),state.reszlegek));
+
+  // Admin — közlemény
+  E('noticeSaveBtn').addEventListener('click', saveNotice);
+  E('noticeClearBtn').addEventListener('click', clearNotice);
 
   // Admin — prémium konfig
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);

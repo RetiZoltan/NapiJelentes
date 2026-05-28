@@ -100,6 +100,10 @@
 
     <!-- ══ ADATBEVITEL ══ -->
     <div id="tab-adatbevitel" class="tab-panel active">
+      <div id="noticeBanner" class="notice-banner">
+        <span class="notice-banner-icon" id="noticeBannerIcon">ℹ️</span>
+        <span class="notice-banner-txt" id="noticeBannerMsg"></span>
+      </div>
       <div class="card">
         <div class="card-title"><span class="card-title-icon">📅</span>Időszak</div>
         <div class="g2">
@@ -377,6 +381,7 @@
           <button class="stab-btn active" data-stab="users">👥 Felhasználók</button>
           <button class="stab-btn" data-stab="roles" id="stab-roles-btn">🎭 Szerepkörök</button>
           <button class="stab-btn" data-stab="lists">📋 Listák</button>
+          <button class="stab-btn" data-stab="kozlemeny" id="stab-kozlemeny-btn">📢 Közlemény</button>
           <button class="stab-btn" data-stab="premium-cfg" id="stab-premium-cfg-btn">💰 Prémium konfig</button>
           <button class="stab-btn" data-stab="data" id="stab-data-btn">💾 Adatok</button>
         </div>
@@ -438,6 +443,28 @@
               <button class="btn btn-danger btn-sm btn-full" id="reszlegTorBtn">Kijelöltek törlése</button>
             </div>
           </div>
+        </div>
+
+        <!-- Közlemény -->
+        <div id="stab-kozlemeny" class="stab-panel">
+          <p style="font-size:12.5px;color:var(--text3);margin-bottom:14px;">Az itt megadott üzenet az adatbeviteli oldalon jelenik meg minden bejelentkezett felhasználónak.</p>
+          <div class="field">
+            <label class="lbl">Üzenet típusa</label>
+            <select id="noticeTypeSelect" style="max-width:220px;">
+              <option value="info">ℹ️ Tájékoztatás</option>
+              <option value="warning">⚠️ Figyelmeztetés</option>
+              <option value="success">✅ Jó hír</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <label class="lbl">Üzenet szövege</label>
+            <textarea id="noticeInput" placeholder="Pl.: Ma délutáni műszak kezdete 14:00-ra változik…" rows="3"></textarea>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn btn-primary btn-sm" id="noticeSaveBtn">📢 Közzétesz</button>
+            <button class="btn btn-danger btn-sm" id="noticeClearBtn">Visszavon</button>
+          </div>
+          <div id="noticePreviewDiv" style="margin-top:18px;"></div>
         </div>
 
         <!-- Prémium konfig (főadmin) -->

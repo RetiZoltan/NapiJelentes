@@ -118,6 +118,50 @@ export async function handleRoleListClick(e) {
   }
 }
 
+/* ── Közlemény ── */
+const NOTICE_ICONS = { info: 'ℹ️', warning: '⚠️', success: '✅' };
+
+export async function loadNoticeAdmin() {
+  try {
+    const s = await getDoc(doc(db, 'config', 'notice'));
+    const preview = E('noticePreviewDiv');
+    if (s.exists() && s.data().text) {
+      const d = s.data();
+      E('noticeTypeSelect').value = d.type || 'info';
+      E('noticeInput').value = d.text;
+      preview.innerHTML = `<p style="font-size:11.5px;font-weight:600;color:var(--text3);margin-bottom:6px;">Aktív közlemény előnézete:</p>
+        <div class="notice-banner active ${d.type || 'info'}">
+          <span class="notice-banner-icon">${NOTICE_ICONS[d.type] || 'ℹ️'}</span>
+          <span class="notice-banner-txt">${esc(d.text)}</span>
+        </div>`;
+    } else {
+      E('noticeInput').value = '';
+      preview.innerHTML = '<p style="font-size:12.5px;color:var(--text3);">Jelenleg nincs aktív közlemény.</p>';
+    }
+  } catch { msg('Betöltési hiba', 'error'); }
+}
+
+export async function saveNotice() {
+  const text = E('noticeInput').value.trim();
+  if (!text) { msg('Írj be üzenetet!', 'error'); return; }
+  const type = E('noticeTypeSelect').value;
+  try {
+    await setDoc(doc(db, 'config', 'notice'), { text, type, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+    msg('Közlemény közzétéve.');
+    loadNoticeAdmin();
+  } catch { msg('Mentési hiba', 'error'); }
+}
+
+export async function clearNotice() {
+  if (!confirm('Visszavonod az aktív közleményt?')) return;
+  try {
+    await deleteDoc(doc(db, 'config', 'notice'));
+    msg('Közlemény visszavonva.');
+    E('noticeInput').value = '';
+    E('noticePreviewDiv').innerHTML = '<p style="font-size:12.5px;color:var(--text3);">Jelenleg nincs aktív közlemény.</p>';
+  } catch { msg('Törlési hiba', 'error'); }
+}
+
 /* ── Fájl export / import ── */
 export async function mentFajl() {
   try {

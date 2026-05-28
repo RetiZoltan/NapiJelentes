@@ -81,6 +81,15 @@ service cloud.firestore {
       );
     }
 
+    // ── config/notice (közlemény — csak admin írhat) ──────────
+    match /config/notice {
+      allow read:  if isAuth();
+      allow write: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('felhasznalokKezelese')
+      );
+    }
+
 // ── config/premiumConfig (csak prémium kezelő írhat) ───────
     match /config/premiumConfig {
       allow read:  if isAuth();
