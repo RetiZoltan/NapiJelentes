@@ -348,23 +348,6 @@ export async function idoszakosPdfMent() {
 async function _exportPdf(el, filename) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
   msg('PDF generálás…', 'info', 7000);
-
-  // 1. Ideiglenesen világos téma (sötét módban a szöveg fehér lenne fehér háttérre)
-  const htmlEl  = document.documentElement;
-  const wasDark = htmlEl.getAttribute('data-theme') === 'dark';
-  if (wasDark) {
-    htmlEl.setAttribute('data-theme', 'light');
-    await new Promise(r => setTimeout(r, 100));
-  }
-
-  // 2. Klón, amiből eltávolítjuk az akciógombokat
-  const clone = el.cloneNode(true);
-  clone.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + el.offsetWidth + 'px;';
-  ['.del-btn', '.edit-btn', '.napi-ossz'].forEach(sel =>
-    clone.querySelectorAll(sel).forEach(x => x.remove())
-  );
-  document.body.appendChild(clone);
-
   try {
     const MARGIN  = 10;
     const { jsPDF } = window.jspdf;
@@ -373,35 +356,31 @@ async function _exportPdf(el, filename) {
     const pdfH    = pdf.internal.pageSize.getHeight();
     const usableW = pdfW - MARGIN * 2;
     const usableH = pdfH - MARGIN * 2;
+    const scale   = el.scrollHeight > 4000 ? 1.5 : 2;
 
-    // Vászon méret korlát: nagyon hosszú riportnál csökkentjük a scale-t
-    const elH   = clone.scrollHeight;
-    const scale = elH > 4000 ? 1.5 : 2;
-
-    const canvas = await html2canvas(clone, {
+    // onclone: a html2canvas saját klónján belül módosítunk — nincs off-screen elem
+    const canvas = await html2canvas(el, {
       scale,
-      useCORS:         true,
-      logging:         false,
+      useCORS:    true,
+      logging:    false,
       backgroundColor: '#ffffff',
-      windowWidth:     Math.max(el.offsetWidth, 900),
-      scrollX:         0,
-      scrollY:         0,
+      windowWidth: Math.max(document.documentElement.offsetWidth, 900),
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY,
+      onclone: (clonedDoc, clonedEl) => {
+        clonedDoc.documentElement.setAttribute('data-theme', 'light');
+        clonedEl.querySelectorAll('.del-btn, .edit-btn, .napi-ossz').forEach(x => x.remove());
+      }
     });
 
-    document.body.removeChild(clone);
-
-    const iw = canvas.width;
-    const ih = canvas.height;
-
-    // Képszélesség = usableW mm, magasság arányosan
-    const imgW   = usableW;
-    const imgH   = ih * (usableW / iw);
-    const dataFn = () => canvas.toDataURL('image/jpeg', 0.94);
+    const iw  = canvas.width;
+    const ih  = canvas.height;
+    const imgW = usableW;
+    const imgH = ih * (usableW / iw);
 
     if (imgH <= usableH) {
-      pdf.addImage(dataFn(), 'JPEG', MARGIN, MARGIN, imgW, imgH);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', MARGIN, MARGIN, imgW, imgH);
     } else {
-      // Laphasítás: hány canvas pixel fér egy oldalmagasságba
       const pageHpx = Math.floor(iw * usableH / usableW);
       let sy = 0;
       while (sy < ih) {
@@ -415,15 +394,9 @@ async function _exportPdf(el, filename) {
         sy += pageHpx;
       }
     }
-
     pdf.save(filename);
     msg('PDF mentve!');
-  } catch (err) {
-    if (document.body.contains(clone)) document.body.removeChild(clone);
-    msg('PDF hiba: ' + err.message, 'error');
-  } finally {
-    if (wasDark) htmlEl.setAttribute('data-theme', 'dark');
-  }
+  } catch (err) { msg('PDF hiba: ' + err.message, 'error'); }
 }
 
 /* ── Nyomtatás ── */
@@ -480,7 +453,7 @@ function kepMentDiv(divId, suffix) {
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   const wrap = document.createElement('div');
-  wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
+  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
   const inner = document.createElement('div');
   inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
   const style = document.createElement('style');
