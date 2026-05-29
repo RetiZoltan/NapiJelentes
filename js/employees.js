@@ -2,7 +2,6 @@ import { db, doc, addDoc, updateDoc, deleteDoc,
          collection, query, where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, hasPerm, isMainAdmin } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
-import { fetchEntries } from './db.js';
 
 const HIANYZAS = {
   szabadsag:      { label: 'Szabadság',       icon: '🌴' },
@@ -275,80 +274,3 @@ export async function handleAbsenceClick(e) {
   } catch (e) { msg('Törlési hiba', 'error'); }
 }
 
-/* ══════════════════════════════════════
-   TELJESÍTMÉNY
-══════════════════════════════════════ */
-
-export async function loadTeljesitmeny() {
-  const honapF = E('teljHonapF')?.value;
-  if (!honapF) { msg('Válassz hónapot!', 'error'); return; }
-  const from = honapF + '-01';
-  const to   = honapF + '-31';
-
-  E('teljDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  try {
-    const [entries, absSnap] = await Promise.all([
-      fetchEntries({ datumFrom: from, datumTo: to }),
-      getDocs(query(collection(db, 'absences'),
-        where('tol', '>=', from), where('tol', '<=', to), orderBy('tol')))
-    ]);
-
-    const absences = absSnap.docs.map(d => d.data());
-
-    const workers = {};
-    entries.forEach(e => {
-      if (!e.nev) return;
-      if (!workers[e.nev]) workers[e.nev] = { kg: 0, napok: new Set(), reszleg: e.reszleg || '' };
-      const s = (e.sulyok     || []).reduce((a, b) => a + b.suly, 0);
-      const z = (e.zsakSulyok || []).reduce((a, b) => a + b, 0);
-      workers[e.nev].kg += s + z;
-      workers[e.nev].napok.add(e.datum);
-    });
-
-    const absMap = {};
-    absences.forEach(a => {
-      absMap[a.dolgozoNev] = (absMap[a.dolgozoNev] || 0) + countDays(a.tol, a.ig);
-    });
-
-    const names = [...new Set([...Object.keys(workers), ...Object.keys(absMap)])]
-      .sort((a, b) => a.localeCompare(b, 'hu'));
-
-    if (!names.length) {
-      E('teljDiv').innerHTML = '<div class="empty-st"><div class="empty-ic">📊</div>Nincs adat erre a hónapra</div>';
-      return;
-    }
-
-    E('teljDiv').innerHTML = '<div class="emp-grid">' + names.map(nev => {
-      const w          = workers[nev] || { kg: 0, napok: new Set(), reszleg: '' };
-      const munkanapok = w.napok.size;
-      const hianyzas   = absMap[nev] || 0;
-      const kg         = w.kg;
-      const atlag      = munkanapok > 0 ? Math.round(kg / munkanapok) : null;
-      return `<div class="emp-card">
-        <div class="emp-name">${esc(nev)}</div>
-        ${w.reszleg ? `<div class="emp-dept">${esc(w.reszleg)}</div>` : ''}
-        <div class="telj-grid">
-          <div class="telj-item">
-            <div class="telj-val">${kg > 0 ? (kg / 1000).toFixed(2) + ' t' : '—'}</div>
-            <div class="telj-lbl">Össz. termelés</div>
-          </div>
-          <div class="telj-item">
-            <div class="telj-val">${atlag !== null ? atlag + ' kg' : '—'}</div>
-            <div class="telj-lbl">Napi átlag</div>
-          </div>
-          <div class="telj-item">
-            <div class="telj-val">${munkanapok}</div>
-            <div class="telj-lbl">Munkanap</div>
-          </div>
-          <div class="telj-item${hianyzas ? ' telj-hianyzas' : ''}">
-            <div class="telj-val">${hianyzas}</div>
-            <div class="telj-lbl">Hiányzás (nap)</div>
-          </div>
-        </div>
-      </div>`;
-    }).join('') + '</div>';
-  } catch (e) {
-    msg('Hiba: ' + e.message, 'error');
-    E('teljDiv').innerHTML = '';
-  }
-}

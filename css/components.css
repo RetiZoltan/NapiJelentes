@@ -244,12 +244,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .emp-aktiv{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green);border:1px solid color-mix(in srgb,var(--green) 25%,transparent);}
 .emp-inaktiv{background:var(--surf2);color:var(--text3);border:1px solid var(--border);}
 .emp-szab{background:color-mix(in srgb,var(--amber) 12%,transparent);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);}
-.telj-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
-.telj-item{background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;text-align:center;}
-.telj-item.telj-hianyzas{background:var(--redl);border-color:color-mix(in srgb,var(--red) 20%,transparent);}
-.telj-val{font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
-.telj-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}
-.telj-hianyzas .telj-val{color:var(--red);}
 
 /* ── Részleg csoportosítás (napi riport) ── */
 .reszleg-block{margin-bottom:14px;}

@@ -20,7 +20,7 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
-         loadTeljesitmeny, canEditEmp } from './employees.js';
+         canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
 let _prevIdo = '';
@@ -176,8 +176,7 @@ function switchDolgozokSubtab(name) {
   document.querySelector(`#dolgozokSubtabs .stab-btn[data-dtab="${name}"]`).classList.add('active');
   document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
   E('dtab-' + name).classList.add('active');
-  if (name === 'hianyok')      loadAbsences();
-  if (name === 'teljesitmeny') {}
+  if (name === 'hianyok') loadAbsences();
 }
 
 let _dolgozokUISetup = false;
@@ -426,7 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
   E('hianyMutatBtn').addEventListener('click', loadAbsences);
   E('absSaveBtn').addEventListener('click',    saveAbsence);
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
-  E('teljMutatBtn').addEventListener('click',  loadTeljesitmeny);
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {
