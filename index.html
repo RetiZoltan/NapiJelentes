@@ -355,6 +355,8 @@
       <div class="subtabs" id="dolgozokSubtabs">
         <button class="stab-btn active" data-dtab="adatlapok">👤 Adatlapok</button>
         <button class="stab-btn" data-dtab="hianyok">📅 Hiányzások</button>
+        <button class="stab-btn" data-dtab="naptar">🗓 Naptár</button>
+        <button class="stab-btn" data-dtab="statisztika">📊 Statisztika</button>
       </div>
 
       <!-- Adatlapok -->
@@ -398,6 +400,24 @@
                 <option value="szabadsag">Szabadságon</option>
               </select>
             </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Telefon</label><input type="tel" id="empFormTelefon" placeholder="+36 20 …"></div>
+            <div class="field"><label class="lbl">E-mail</label><input type="email" id="empFormEmail" placeholder="nev@example.com"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Születési dátum</label><input type="date" id="empFormSzulDatum"></div>
+            <div class="field"><label class="lbl">Szerződés típusa</label>
+              <select id="empFormSzerzodesT">
+                <option value="hatarozatlan">Határozatlan</option>
+                <option value="hatarozott">Határozott</option>
+                <option value="megbizasi">Megbízási</option>
+              </select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Próbaidő vége</label><input type="date" id="empFormProbaidoVege"></div>
+            <div class="field"><label class="lbl">Éves szabadságkeret (nap)</label><input type="number" id="empFormSzabadsagKeret" min="0" max="365" value="20"></div>
           </div>
           <div class="field"><label class="lbl">Megjegyzés</label><textarea id="empFormMegj" placeholder="Opcionális…"></textarea></div>
           <div class="btn-row">
@@ -448,6 +468,40 @@
         </div>
         <div id="hianyListDiv"><div class="empty-st"><div class="empty-ic">📅</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
       </div><!-- /dtab-hianyok -->
+
+      <!-- Naptár -->
+      <div id="dtab-naptar" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label><input type="month" id="naptarHonapF"></div>
+            <div class="field" style="min-width:130px;"><label class="lbl">Részleg</label>
+              <select id="naptarReszlegF"><option value="">— Mind —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="naptarMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="naptarDiv"><div class="empty-st"><div class="empty-ic">🗓</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
+      </div><!-- /dtab-naptar -->
+
+      <!-- Statisztika -->
+      <div id="dtab-statisztika" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">Év</label>
+              <input type="number" id="statEvF" min="2000" max="2099" style="min-width:90px;">
+            </div>
+            <div style="margin-bottom:13px;display:flex;gap:6px;align-items:flex-end;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="statMutatBtn">Mutat</button>
+              <button class="btn btn-ghost btn-sm" id="statExportBtn">⬇ CSV</button>
+            </div>
+          </div>
+        </div>
+        <div id="statDiv"><div class="empty-st"><div class="empty-ic">📊</div>Válassz évet és kattints a <strong>Mutat</strong> gombra</div></div>
+      </div><!-- /dtab-statisztika -->
 
     </div><!-- /tab-dolgozok -->
 

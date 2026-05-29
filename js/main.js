@@ -20,7 +20,7 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
-         canEditEmp } from './employees.js';
+         loadCalendar, loadStatisztika, exportCsv, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
 let _prevIdo = '';
@@ -183,9 +183,14 @@ let _dolgozokUISetup = false;
 function _setupDolgozokUI() {
   if (_dolgozokUISetup) return;
   _dolgozokUISetup = true;
-  const ce = canEditEmp();
-  E('ujDolgozoWrap').style.display  = ce ? '' : 'none';
-  E('hianyFormWrap').style.display  = ce ? '' : 'none';
+  const ce  = canEditEmp();
+  E('ujDolgozoWrap').style.display = ce ? '' : 'none';
+  E('hianyFormWrap').style.display = ce ? '' : 'none';
+  const now = new Date();
+  const mo  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  if (!E('hianyHonapF').value)  E('hianyHonapF').value  = mo;
+  if (!E('naptarHonapF').value) E('naptarHonapF').value = mo;
+  if (!E('statEvF').value)      E('statEvF').value      = now.getFullYear();
 }
 
 function switchAdminSubtab(name) {
@@ -425,6 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('hianyMutatBtn').addEventListener('click', loadAbsences);
   E('absSaveBtn').addEventListener('click',    saveAbsence);
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
+  E('naptarMutatBtn').addEventListener('click', loadCalendar);
+  E('statMutatBtn').addEventListener('click',   loadStatisztika);
+  E('statExportBtn').addEventListener('click',  exportCsv);
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {
