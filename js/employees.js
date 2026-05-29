@@ -88,6 +88,7 @@ export function renderEmployeeGrid() {
           data-id="${esc(emp.id)}" data-statusz="${esc(emp.statusz || 'aktiv')}">
           ${(emp.statusz || 'aktiv') === 'inaktiv' ? 'Aktivál' : 'Archivál'}
         </button>
+        <button class="btn btn-danger btn-xs emp-del-btn" data-id="${esc(emp.id)}" data-nev="${esc(emp.nev)}" style="margin-left:auto;">Töröl</button>
       </div>` : '';
     return `<div class="emp-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -157,14 +158,25 @@ export async function handleEmpGridClick(e) {
     return;
   }
   const archBtn = e.target.closest('.emp-arch-btn');
-  if (!archBtn) return;
-  const cur   = archBtn.dataset.statusz;
-  const newSt = cur === 'inaktiv' ? 'aktiv' : 'inaktiv';
-  if (!confirm(`Biztosan ${newSt === 'inaktiv' ? 'archiválod' : 'aktiválod'} ezt a dolgozót?`)) return;
+  if (archBtn) {
+    const cur   = archBtn.dataset.statusz;
+    const newSt = cur === 'inaktiv' ? 'aktiv' : 'inaktiv';
+    if (!confirm(`Biztosan ${newSt === 'inaktiv' ? 'archiválod' : 'aktiválod'} ezt a dolgozót?`)) return;
+    try {
+      await updateDoc(doc(db, 'employees', archBtn.dataset.id),
+        { statusz: newSt, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+      msg('Státusz frissítve.');
+      loadEmployees();
+    } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+    return;
+  }
+
+  const delBtn = e.target.closest('.emp-del-btn');
+  if (!delBtn) return;
+  if (!confirm(`Véglegesen törlöd „${delBtn.dataset.nev}" dolgozót? Ez nem visszavonható.`)) return;
   try {
-    await updateDoc(doc(db, 'employees', archBtn.dataset.id),
-      { statusz: newSt, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
-    msg('Státusz frissítve.');
+    await deleteDoc(doc(db, 'employees', delBtn.dataset.id));
+    msg('Dolgozó törölve.');
     loadEmployees();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
