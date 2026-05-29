@@ -20,7 +20,8 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
-         loadCalendar, loadStatisztika, exportCsv, canEditEmp } from './employees.js';
+         loadCalendar, loadStatisztika, exportCsv,
+         closeEmpDrawer, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
 let _prevIdo = '';
@@ -430,6 +431,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('hianyMutatBtn').addEventListener('click', loadAbsences);
   E('absSaveBtn').addEventListener('click',    saveAbsence);
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
+  E('empDrawerClose').addEventListener('click', closeEmpDrawer);
+  E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEmpDrawer(); });
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);

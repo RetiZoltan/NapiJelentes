@@ -26,6 +26,17 @@ let _lastStatData = null;
 
 export function canEditEmp() { return isMainAdmin() || hasPerm('dolgozokKezeles'); }
 
+function initials(nev) {
+  return nev.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
+}
+
+function avatarColor(nev) {
+  const palette = ['#1565C0','#2E7D32','#C62828','#E65100','#6A1B9A','#00695C','#AD1457','#0277BD'];
+  let h = 0;
+  for (let i = 0; i < nev.length; i++) h = nev.charCodeAt(i) + ((h << 5) - h);
+  return palette[Math.abs(h) % palette.length];
+}
+
 function countDays(tol, ig) {
   const a = new Date(tol), b = new Date(ig || tol);
   return Math.max(1, Math.round((b - a) / 86400000) + 1);
@@ -133,36 +144,21 @@ export function renderEmployeeGrid() {
       probaWarn = `<div class="emp-proba-warn">⚠️ Próbaidő vége: ${esc(emp.probaidoVege)}</div>`;
     }
 
-    const extras = [
-      emp.belepet        ? `Belépett: ${esc(emp.belepet)}` : '',
-      emp.szerzodesTipus ? (SZERZODES[emp.szerzodesTipus] || '') : '',
-      emp.telefon        ? `📞 ${esc(emp.telefon)}` : '',
-      emp.email          ? `✉️ ${esc(emp.email)}` : '',
-    ].filter(Boolean).join(' · ');
-
-    const btns = canEditEmp() ? `
-      <div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-        <button class="btn btn-ghost btn-xs emp-edit-btn" data-id="${esc(emp.id)}">Szerkeszt</button>
-        <button class="btn btn-${(emp.statusz||'aktiv') === 'inaktiv' ? 'ghost' : 'danger'} btn-xs emp-arch-btn"
-          data-id="${esc(emp.id)}" data-statusz="${esc(emp.statusz || 'aktiv')}">
-          ${(emp.statusz || 'aktiv') === 'inaktiv' ? 'Aktivál' : 'Archivál'}
-        </button>
-        <button class="btn btn-danger btn-xs emp-del-btn" data-id="${esc(emp.id)}" data-nev="${esc(emp.nev)}" style="margin-left:auto;">Töröl</button>
-      </div>` : '';
-
-    return `<div class="emp-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <div style="min-width:0;">
-          <div class="emp-name">${esc(emp.nev)}</div>
-          <div class="emp-dept">${esc(emp.reszleg || '—')}</div>
-          ${extras ? `<div style="font-size:11px;color:var(--text3);margin-top:3px;">${extras}</div>` : ''}
+    return `<div class="emp-card emp-card-clickable" data-id="${esc(emp.id)}">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="emp-avatar-sm" style="background:${avatarColor(emp.nev)};flex-shrink:0;">${initials(emp.nev)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+            <div style="min-width:0;">
+              <div class="emp-name">${esc(emp.nev)}</div>
+              <div class="emp-dept">${esc(emp.reszleg || '—')}</div>
+            </div>
+            <span class="emp-status ${st.cls}" style="flex-shrink:0;margin-top:2px;">${st.label}</span>
+          </div>
         </div>
-        <span class="emp-status ${st.cls}">${st.label}</span>
       </div>
-      ${emp.megjegyzes ? `<div style="font-size:12px;color:var(--text2);margin-top:8px;font-style:italic;">${esc(emp.megjegyzes)}</div>` : ''}
       ${szabBadge}
       ${probaWarn}
-      ${btns}
     </div>`;
   }).join('') + '</div>';
 }
@@ -224,34 +220,124 @@ export async function saveEmployee() {
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
 
-export async function handleEmpGridClick(e) {
-  const editBtn = e.target.closest('.emp-edit-btn');
-  if (editBtn) {
-    const emp = _employees.find(x => x.id === editBtn.dataset.id);
-    if (emp) openEmpForm(emp);
-    return;
+export function handleEmpGridClick(e) {
+  const card = e.target.closest('.emp-card-clickable');
+  if (!card) return;
+  const emp = _employees.find(x => x.id === card.dataset.id);
+  if (emp) openEmpDrawer(emp);
+}
+
+export function openEmpDrawer(emp) {
+  const STATUSZ = {
+    aktiv:     { label: 'Aktív',       cls: 'emp-aktiv' },
+    inaktiv:   { label: 'Inaktív',     cls: 'emp-inaktiv' },
+    szabadsag: { label: 'Szabadságon', cls: 'emp-szab' }
+  };
+  const st    = STATUSZ[emp.statusz || 'aktiv'] || STATUSZ.aktiv;
+  const keret = emp.szabadsagKeret ?? 20;
+  const felh  = _szabadsagMap[emp.nev] || 0;
+  const marad = Math.max(0, keret - felh);
+  const today   = tod();
+  const in30    = new Date(); in30.setDate(in30.getDate() + 30);
+  const in30Str = in30.toISOString().slice(0, 10);
+
+  E('empDrawerAvatar').textContent      = initials(emp.nev);
+  E('empDrawerAvatar').style.background = avatarColor(emp.nev);
+  E('empDrawerName').textContent        = emp.nev;
+  E('empDrawerDept').textContent        = emp.reszleg || '—';
+  E('empDrawerStatus').innerHTML        = `<span class="emp-status ${st.cls}">${st.label}</span>`;
+
+  let body = '';
+
+  // Alapadatok
+  const rows = [
+    emp.telefon        ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📞</span><span>${esc(emp.telefon)}</span></div>` : '',
+    emp.email          ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">✉️</span><span>${esc(emp.email)}</span></div>` : '',
+    emp.belepet        ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📅</span><span>Belépett: <strong>${esc(emp.belepet)}</strong></span></div>` : '',
+    emp.szulDatum      ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">🎂</span><span>Születési dátum: <strong>${esc(emp.szulDatum)}</strong></span></div>` : '',
+    emp.szerzodesTipus ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📋</span><span>${esc(SZERZODES[emp.szerzodesTipus] || emp.szerzodesTipus)}</span></div>` : '',
+  ].filter(Boolean);
+  if (rows.length) {
+    body += `<div class="emp-drawer-section">
+      <div class="emp-drawer-section-title">Alapadatok</div>${rows.join('')}</div>`;
   }
-  const archBtn = e.target.closest('.emp-arch-btn');
-  if (archBtn) {
-    const cur   = archBtn.dataset.statusz;
-    const newSt = cur === 'inaktiv' ? 'aktiv' : 'inaktiv';
-    if (!confirm(`Biztosan ${newSt === 'inaktiv' ? 'archiválod' : 'aktiválod'} ezt a dolgozót?`)) return;
+
+  // Próbaidő
+  if (emp.probaidoVege) {
+    const isWarn = emp.probaidoVege >= today && emp.probaidoVege <= in30Str;
+    const isOver = emp.probaidoVege < today;
+    body += `<div class="emp-drawer-section">
+      <div class="emp-drawer-section-title">Próbaidő</div>
+      <div class="emp-drawer-row">
+        <span class="emp-drawer-row-icon">${isWarn ? '⚠️' : isOver ? '✅' : '⏳'}</span>
+        <span style="${isWarn ? 'color:var(--amber);font-weight:600;' : ''}">
+          ${isOver ? 'Lejárt: ' : 'Vége: '}<strong>${esc(emp.probaidoVege)}</strong>${isWarn ? ' — hamarosan!' : ''}
+        </span>
+      </div>
+    </div>`;
+  }
+
+  // Szabadság
+  body += `<div class="emp-drawer-section">
+    <div class="emp-drawer-section-title">Szabadság — ${new Date().getFullYear()}</div>
+    <div class="nossz">
+      <div class="nossz-item"><div class="nossz-val">${felh}</div><div class="nossz-lbl">Felhasznált</div></div>
+      <div class="nossz-item"><div class="nossz-val">${keret}</div><div class="nossz-lbl">Keret</div></div>
+      <div class="nossz-item${marad < 5 ? ' emp-szab-low' : ''}">
+        <div class="nossz-val">${marad}</div><div class="nossz-lbl">Maradt</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Megjegyzés
+  if (emp.megjegyzes) {
+    body += `<div class="emp-drawer-section">
+      <div class="emp-drawer-section-title">Megjegyzés</div>
+      <div style="font-size:13.5px;color:var(--text2);font-style:italic;line-height:1.6;">${esc(emp.megjegyzes)}</div>
+    </div>`;
+  }
+
+  // Műveletek
+  if (canEditEmp()) {
+    const isInaktiv = (emp.statusz || 'aktiv') === 'inaktiv';
+    body += `<div class="emp-drawer-actions">
+      <button class="btn btn-primary btn-sm" id="drawerEditBtn">✎ Szerkeszt</button>
+      <button class="btn btn-${isInaktiv ? 'ghost' : 'danger'} btn-sm" id="drawerArchBtn">
+        ${isInaktiv ? '▶ Aktivál' : '⏸ Archivál'}
+      </button>
+      <button class="btn btn-danger btn-sm" id="drawerDelBtn" style="margin-left:auto;">🗑 Töröl</button>
+    </div>`;
+  }
+
+  E('empDrawerBody').innerHTML = body;
+
+  E('drawerEditBtn')?.addEventListener('click', () => { closeEmpDrawer(); openEmpForm(emp); });
+  E('drawerArchBtn')?.addEventListener('click', async () => {
+    const newSt = (emp.statusz || 'aktiv') === 'inaktiv' ? 'aktiv' : 'inaktiv';
+    if (!confirm(`Biztosan ${newSt === 'inaktiv' ? 'archiválod' : 'aktiválod'}?`)) return;
     try {
-      await updateDoc(doc(db, 'employees', archBtn.dataset.id),
+      await updateDoc(doc(db, 'employees', emp.id),
         { statusz: newSt, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
-      msg('Státusz frissítve.');
-      loadEmployees();
-    } catch (e) { msg('Hiba: ' + e.message, 'error'); }
-    return;
-  }
-  const delBtn = e.target.closest('.emp-del-btn');
-  if (!delBtn) return;
-  if (!confirm(`Véglegesen törlöd „${delBtn.dataset.nev}" dolgozót? Ez nem visszavonható.`)) return;
-  try {
-    await deleteDoc(doc(db, 'employees', delBtn.dataset.id));
-    msg('Dolgozó törölve.');
-    loadEmployees();
-  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+      msg('Státusz frissítve.'); closeEmpDrawer(); loadEmployees();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
+  });
+  E('drawerDelBtn')?.addEventListener('click', async () => {
+    if (!confirm(`Véglegesen törlöd „${emp.nev}" dolgozót?`)) return;
+    try {
+      await deleteDoc(doc(db, 'employees', emp.id));
+      msg('Dolgozó törölve.'); closeEmpDrawer(); loadEmployees();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
+  });
+
+  E('empDrawerOverlay').classList.add('open');
+  E('empDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+export function closeEmpDrawer() {
+  E('empDrawerOverlay').classList.remove('open');
+  E('empDrawer').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 /* ══════════════════════════════════════
