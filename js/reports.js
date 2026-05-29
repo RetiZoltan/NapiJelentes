@@ -364,9 +364,7 @@ async function _exportPdf(el, filename) {
       useCORS:    true,
       logging:    false,
       backgroundColor: '#ffffff',
-      windowWidth: Math.max(document.documentElement.offsetWidth, 900),
-      scrollX: -window.scrollX,
-      scrollY: -window.scrollY,
+      windowWidth: 900,
       onclone: (clonedDoc, clonedEl) => {
         clonedDoc.documentElement.setAttribute('data-theme', 'light');
         clonedEl.querySelectorAll('.del-btn, .edit-btn, .napi-ossz').forEach(x => x.remove());
@@ -453,7 +451,7 @@ function kepMentDiv(divId, suffix) {
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
   const wrap = document.createElement('div');
-  wrap.style.cssText = `position:absolute;left:-9999px;top:0;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
+  wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
   const inner = document.createElement('div');
   inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
   const style = document.createElement('style');
