@@ -348,6 +348,29 @@ export async function idoszakosPdfMent() {
 async function _exportPdf(el, filename) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
   msg('PDF generálás…', 'info', 7000);
+
+  // Ugyanaz a megközelítés mint a képmentésnél: felszámított színek explicit <style>-ba
+  // → nincs CSS-változó, nincs color-mix() → html2canvas nem dob hibát
+  const cs = getComputedStyle(document.documentElement);
+  const g  = v => cs.getPropertyValue(v).trim();
+  const bg = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
+  const b  = g('--border'), b2 = g('--border2');
+  const t1 = g('--text'), t2 = g('--text2'), t3 = g('--text3');
+  const acc = g('--accent'), green = g('--green'), amber = g('--amber'),
+        amberl = g('--amberl'), red = g('--red');
+
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('.del-btn, .edit-btn, .napi-ossz').forEach(x => x.remove());
+
+  const wrap  = document.createElement('div');
+  wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:24px 28px 32px;box-sizing:border-box;`;
+  const inner = document.createElement('div');
+  inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:20px 22px 24px;`;
+  const style = document.createElement('style');
+  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${t1};background:${surf2};border:1px solid ${b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.del-btn,.edit-btn,.napi-ossz,.dlink{display:none!important;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.nossz{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}.nossz-item{flex:1;min-width:100px;text-align:center;padding:10px 12px;background:${surf};border:1px solid ${b};border-radius:8px;}.nossz-val{font-size:18px;font-weight:700;color:${t1};line-height:1.2;}.nossz-lbl{font-size:10px;color:${t3};text-transform:uppercase;letter-spacing:.6px;margin-top:3px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.card-title{font-size:14px;font-weight:700;color:${acc};border-bottom:1px solid ${b};padding-bottom:10px;margin-bottom:16px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
+  inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner);
+  document.body.appendChild(wrap);
+
   try {
     const MARGIN  = 10;
     const { jsPDF } = window.jspdf;
@@ -356,45 +379,39 @@ async function _exportPdf(el, filename) {
     const pdfH    = pdf.internal.pageSize.getHeight();
     const usableW = pdfW - MARGIN * 2;
     const usableH = pdfH - MARGIN * 2;
-    const scale   = el.scrollHeight > 4000 ? 1.5 : 2;
+    const scale   = wrap.scrollHeight > 4000 ? 1.5 : 2;
 
-    // onclone: a html2canvas saját klónján belül módosítunk — nincs off-screen elem
-    const canvas = await html2canvas(el, {
-      scale,
-      useCORS:    true,
-      logging:    false,
-      backgroundColor: '#ffffff',
-      windowWidth: 900,
-      onclone: (clonedDoc, clonedEl) => {
-        clonedDoc.documentElement.setAttribute('data-theme', 'light');
-        clonedEl.querySelectorAll('.del-btn, .edit-btn, .napi-ossz').forEach(x => x.remove());
-      }
+    const canvas = await html2canvas(wrap, {
+      scale, useCORS: true, allowTaint: true,
+      backgroundColor: bg || '#ffffff',
     });
+    document.body.removeChild(wrap);
 
-    const iw  = canvas.width;
-    const ih  = canvas.height;
-    const imgW = usableW;
+    const iw = canvas.width, ih = canvas.height;
     const imgH = ih * (usableW / iw);
 
     if (imgH <= usableH) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', MARGIN, MARGIN, imgW, imgH);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', MARGIN, MARGIN, usableW, imgH);
     } else {
       const pageHpx = Math.floor(iw * usableH / usableW);
       let sy = 0;
       while (sy < ih) {
         const sliceH = Math.min(pageHpx, ih - sy);
-        const tmp    = document.createElement('canvas');
+        const tmp = document.createElement('canvas');
         tmp.width = iw; tmp.height = sliceH;
         tmp.getContext('2d').drawImage(canvas, 0, sy, iw, sliceH, 0, 0, iw, sliceH);
         if (sy > 0) pdf.addPage();
         pdf.addImage(tmp.toDataURL('image/jpeg', 0.94), 'JPEG',
-          MARGIN, MARGIN, imgW, sliceH * (usableW / iw));
+          MARGIN, MARGIN, usableW, sliceH * (usableW / iw));
         sy += pageHpx;
       }
     }
     pdf.save(filename);
     msg('PDF mentve!');
-  } catch (err) { msg('PDF hiba: ' + err.message, 'error'); }
+  } catch (err) {
+    if (document.body.contains(wrap)) document.body.removeChild(wrap);
+    msg('PDF hiba: ' + err.message, 'error');
+  }
 }
 
 /* ── Nyomtatás ── */
