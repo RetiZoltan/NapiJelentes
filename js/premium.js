@@ -122,41 +122,44 @@ async function computePremium(year, month, reszlegFilter = '') {
   });
   if (reszlegFilter) entries = entries.filter(a => (a.reszleg || '') === reszlegFilter);
 
-  // Group: worker → material → { days: Set, totalKg }
-  const byWM = {};
+  // Group: worker → material → day → totalKg (napon belül összesítve)
+  const byWMD = {};
   entries.forEach(a => {
     const nev = a.nev;
     const mat = (a.anyag || '').trim();
     if (!mat) return;
     const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
     if (kg <= 0) return;
-    if (!byWM[nev]) byWM[nev] = {};
-    if (!byWM[nev][mat]) byWM[nev][mat] = { days: new Set(), totalKg: 0 };
-    byWM[nev][mat].days.add(a.datum);
-    byWM[nev][mat].totalKg += kg;
+    if (!byWMD[nev]) byWMD[nev] = {};
+    if (!byWMD[nev][mat]) byWMD[nev][mat] = {};
+    byWMD[nev][mat][a.datum] = (byWMD[nev][mat][a.datum] || 0) + kg;
   });
 
   const results = [];
-  Object.entries(byWM).forEach(([nev, mats]) => {
+  Object.entries(byWMD).forEach(([nev, mats]) => {
     let totalPremium = 0;
     const details = [];
 
-    Object.entries(mats).forEach(([mat, data]) => {
+    Object.entries(mats).forEach(([mat, dayMap]) => {
       const cfg        = premiumConfig[mat];
-      const activeDays = data.days.size;
-      const totalKg    = data.totalKg;
+      const activeDays = Object.keys(dayMap).length;
+      const totalKg    = Object.values(dayMap).reduce((s, v) => s + v, 0);
 
       if (!cfg?.napiAlap || !cfg?.arPerKg) {
-        details.push({ mat, activeDays, totalKg, threshold: 0, excess: 0, premium: 0, noConfig: true });
+        details.push({ mat, activeDays, totalKg, premium: 0, noConfig: true });
         return;
       }
 
-      const threshold   = cfg.napiAlap * activeDays;
-      const excess      = Math.max(0, totalKg - threshold);
-      const premiumBase = excess * (cfg.arany / 100);
-      const premium     = Math.round(premiumBase * cfg.arPerKg);
+      // Minden napot külön értékelünk: csak az adott napi alap feletti rész ad prémiumbázist
+      let totalExcess = 0;
+      let premiumDays = 0;
+      Object.values(dayMap).forEach(dayKg => {
+        const dayExcess = Math.max(0, dayKg - cfg.napiAlap);
+        if (dayExcess > 0) { totalExcess += dayExcess; premiumDays++; }
+      });
 
-      details.push({ mat, activeDays, totalKg, threshold, excess, premiumBase, premium, cfg });
+      const premium = Math.round(totalExcess * (cfg.arany / 100) * cfg.arPerKg);
+      details.push({ mat, activeDays, premiumDays, totalKg, totalExcess, premium, cfg });
       totalPremium += premium;
     });
 
@@ -192,24 +195,25 @@ function renderPremiumResults(results, label) {
       </div>
       <div class="prem-detail" id="pd_${idx}" style="display:none;">
         <table class="stbl">
-          <thead><tr><th>Anyag</th><th>Aktív napok × alap</th><th>Termelt</th><th>Küszöb</th><th>Felett</th><th>Prémium</th></tr></thead>
+          <thead><tr><th>Anyag</th><th>Aktív nap</th><th>Napi alap</th><th>Termelt össz.</th><th>Prémium nap</th><th>Túltelj. össz.</th><th>Prémium</th></tr></thead>
           <tbody>`;
 
     r.details.forEach(d => {
       if (d.noConfig) {
         html += `<tr>
           <td style="font-weight:600;">${esc(d.mat)}</td>
-          <td style="color:var(--text3);">${d.activeDays} nap</td>
+          <td>${d.activeDays}</td>
           <td class="v-bold">${d.totalKg.toFixed(0)} kg</td>
-          <td colspan="2" style="color:var(--text3);font-style:italic;">Nincs konfig</td>
+          <td colspan="3" style="color:var(--text3);font-style:italic;">Nincs konfig</td>
           <td class="prem-zero">—</td></tr>`;
       } else {
         html += `<tr>
           <td style="font-weight:600;">${esc(d.mat)}</td>
-          <td style="color:var(--text3);">${d.activeDays} × ${d.cfg.napiAlap} kg</td>
+          <td style="color:var(--text3);">${d.activeDays}</td>
+          <td style="color:var(--text3);">${d.cfg.napiAlap} kg</td>
           <td class="v-bold">${d.totalKg.toFixed(0)} kg</td>
-          <td style="color:var(--text3);">${d.threshold.toFixed(0)} kg</td>
-          <td style="color:${d.excess > 0 ? 'var(--green)' : 'var(--text3)'};">${d.excess.toFixed(0)} kg</td>
+          <td style="color:${d.premiumDays > 0 ? 'var(--green)' : 'var(--text3)'};">${d.premiumDays}</td>
+          <td style="color:${d.totalExcess > 0 ? 'var(--green)' : 'var(--text3)'};">${d.totalExcess.toFixed(0)} kg</td>
           <td class="${d.premium > 0 ? 'prem-pos' : 'prem-zero'}" style="font-weight:700;">${fmtFt(d.premium)}</td></tr>`;
       }
     });
@@ -264,12 +268,12 @@ function premiumNyomtat() {
     withPrem.forEach(r => {
       body += `<div style="break-inside:avoid;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;padding:5px 0 4px;border-bottom:1px solid #CBD5E1;margin-bottom:6px;">${esc(r.nev)}</div>
-        <table class="stbl"><thead><tr><th>Anyag</th><th>Aktív nap × alap</th><th>Termelt</th><th>Küszöb</th><th>Felett</th><th>Prémium</th></tr></thead><tbody>`;
+        <table class="stbl"><thead><tr><th>Anyag</th><th>Aktív nap</th><th>Napi alap</th><th>Termelt össz.</th><th>Prémium nap</th><th>Túltelj.</th><th>Prémium</th></tr></thead><tbody>`;
       r.details.forEach(d => {
         if (d.noConfig) {
-          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays} nap</td><td>${d.totalKg.toFixed(0)} kg</td><td colspan="2" style="color:#64748B;font-style:italic;">Nincs konfig</td><td>—</td></tr>`;
+          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays}</td><td>${d.totalKg.toFixed(0)} kg</td><td colspan="3" style="color:#64748B;font-style:italic;">Nincs konfig</td><td>—</td></tr>`;
         } else {
-          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays} × ${d.cfg.napiAlap} kg</td><td>${d.totalKg.toFixed(0)} kg</td><td>${d.threshold.toFixed(0)} kg</td><td>${d.excess.toFixed(0)} kg</td><td style="font-weight:700;">${fmtFt(d.premium)}</td></tr>`;
+          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays}</td><td>${d.cfg.napiAlap} kg</td><td>${d.totalKg.toFixed(0)} kg</td><td>${d.premiumDays}</td><td>${d.totalExcess.toFixed(0)} kg</td><td style="font-weight:700;">${fmtFt(d.premium)}</td></tr>`;
         }
       });
       body += `</tbody></table></div>`;
