@@ -349,26 +349,7 @@ async function _exportPdf(el, filename) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
   msg('PDF generálás…', 'info', 7000);
 
-  // Ugyanaz a megközelítés mint a képmentésnél: felszámított színek explicit <style>-ba
-  // → nincs CSS-változó, nincs color-mix() → html2canvas nem dob hibát
-  const cs = getComputedStyle(document.documentElement);
-  const g  = v => cs.getPropertyValue(v).trim();
-  const bg = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
-  const b  = g('--border'), b2 = g('--border2');
-  const t1 = g('--text'), t2 = g('--text2'), t3 = g('--text3');
-  const acc = g('--accent'), green = g('--green'), amber = g('--amber'),
-        amberl = g('--amberl'), red = g('--red');
-
-  const clone = el.cloneNode(true);
-  clone.querySelectorAll('.del-btn, .edit-btn, .napi-ossz').forEach(x => x.remove());
-
-  const wrap  = document.createElement('div');
-  wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:24px 28px 32px;box-sizing:border-box;`;
-  const inner = document.createElement('div');
-  inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:20px 22px 24px;`;
-  const style = document.createElement('style');
-  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${t1};background:${surf2};border:1px solid ${b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.del-btn,.edit-btn,.napi-ossz,.dlink{display:none!important;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.nossz{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}.nossz-item{flex:1;min-width:100px;text-align:center;padding:10px 12px;background:${surf};border:1px solid ${b};border-radius:8px;}.nossz-val{font-size:18px;font-weight:700;color:${t1};line-height:1.2;}.nossz-lbl{font-size:10px;color:${t3};text-transform:uppercase;letter-spacing:.6px;margin-top:3px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.card-title{font-size:14px;font-weight:700;color:${acc};border-bottom:1px solid ${b};padding-bottom:10px;margin-bottom:16px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
-  inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner);
+  const { wrap, bg } = _buildWrap(el);
   document.body.appendChild(wrap);
 
   try {
@@ -381,10 +362,7 @@ async function _exportPdf(el, filename) {
     const usableH = pdfH - MARGIN * 2;
     const scale   = wrap.scrollHeight > 4000 ? 1.5 : 2;
 
-    const canvas = await html2canvas(wrap, {
-      scale, useCORS: true, allowTaint: true,
-      backgroundColor: bg || '#ffffff',
-    });
+    const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg });
     document.body.removeChild(wrap);
 
     const iw = canvas.width, ih = canvas.height;
@@ -456,24 +434,42 @@ window.addEventListener('afterprint', () => {
   if (pf) pf.innerHTML = '';
 });
 
-function kepMentDiv(divId, suffix) {
-  const cs  = getComputedStyle(document.documentElement);
-  const g   = v => cs.getPropertyValue(v).trim();
-  const bg  = g('--bg'), surf = g('--surf'), surf2 = g('--surf2'), surf3 = g('--surf3');
-  const b   = g('--border'), b2 = g('--border2');
-  const t1  = g('--text'), t2 = g('--text2'), t3 = g('--text3');
-  const acc = g('--accent'), green = g('--green'), amber = g('--amber'), amberl = g('--amberl'), red = g('--red');
-  const clone = E(divId).cloneNode(true);
-  clone.querySelectorAll('.napi-ossz').forEach(x => x.remove());
-  clone.querySelectorAll('.del-btn').forEach(x => x.remove());
-  clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
-  const wrap = document.createElement('div');
-  wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${t1};background:${bg};padding:30px 32px 36px;box-sizing:border-box;`;
+/* ── Közös capture segédfüggvény (kép + PDF) ──
+   Mindig light mode színekkel dolgozik, hogy sötét téma esetén
+   is olvasható, nyomtatható legyen a kimenet.
+   CSS változó override-ok a wrap ID-jára → az inline var() is helyes értéket kap. */
+function _buildWrap(el) {
+  // Fix light-mode értékek (tokens.css light változatából)
+  const LM = {
+    bg:'#EFF2F7', surf:'#FFFFFF', surf2:'#F8FAFC', surf3:'#EEF2F8',
+    b:'#E2E8F0', b2:'#CBD5E1',
+    t1:'#1E293B', t2:'#475569', t3:'#94A3B8',
+    acc:'#1565C0', agl:'rgba(21,101,192,0.10)',
+    green:'#2E7D32', greenl:'#E8F5E9',
+    amber:'#E65100', amberl:'#FFF3E0',
+    red:'#C62828', redl:'#FFEBEE'
+  };
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
+
+  const wrap  = document.createElement('div');
+  wrap.id = 'rExport';
+  wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:800px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:${LM.t1};background:${LM.bg};padding:28px 30px 34px;box-sizing:border-box;`;
   const inner = document.createElement('div');
-  inner.style.cssText = `background:${surf};border:1px solid ${b};border-radius:11px;padding:24px 26px 28px;`;
+  inner.style.cssText = `background:${LM.surf};border:1px solid ${LM.b};border-radius:11px;padding:22px 24px 26px;`;
+
   const style = document.createElement('style');
-  style.textContent = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${acc};padding:6px 0 5px;border-bottom:1px solid ${b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${t1};background:${surf2};border:1px solid ${b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${acc};flex-shrink:0;}.worker-block{background:${surf};border:1px solid ${b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${surf2};border-bottom:1px solid ${b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${acc};}.worker-nm{font-size:14px;font-weight:600;color:${t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${b};background:${surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${b};color:${t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${b2};font-weight:600;font-size:12.5px;color:${t1};background:${surf3};}.v-teli{color:${red};font-weight:600;}.v-kezdett{color:${amber};font-weight:600;}.v-green{color:${green};font-weight:600;}.v-bold{color:${t1};font-weight:600;}.dtoggle{text-decoration:none;cursor:default;}.edit-btn{display:none;}.wnote{padding:8px 14px;border-top:1px solid ${b};background:${surf2};font-size:13px;color:${t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${amber};margin-bottom:5px;}.card{background:${surf};border:1px solid ${b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${b};background:${surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${b};color:${t2};}.stbl .tot td{font-weight:700;color:${t1};border-top:2px solid ${b2};background:${surf3};font-size:12.5px;}`;
-  inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner); document.body.appendChild(wrap);
+  // CSS változó override: a wrap-en belül minden var() light mode értékre oldódik fel
+  const vars = `#rExport{--bg:${LM.bg};--surf:${LM.surf};--surf2:${LM.surf2};--surf3:${LM.surf3};--border:${LM.b};--border2:${LM.b2};--text:${LM.t1};--text2:${LM.t2};--text3:${LM.t3};--accent:${LM.acc};--agl:${LM.agl};--green:${LM.green};--greenl:${LM.greenl};--amber:${LM.amber};--amberl:${LM.amberl};--red:${LM.red};--redl:${LM.redl};--r:8px;--rsm:5px;}`;
+  const css = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${LM.t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${LM.b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${LM.t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.acc};padding:6px 0 5px;border-bottom:1px solid ${LM.b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${LM.acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${LM.t1};background:${LM.surf2};border:1px solid ${LM.b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${LM.acc};flex-shrink:0;}.worker-block{background:${LM.surf};border:1px solid ${LM.b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${LM.surf2};border-bottom:1px solid ${LM.b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${LM.acc};}.worker-nm{font-size:14px;font-weight:600;color:${LM.t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${LM.t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${LM.b};background:${LM.surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${LM.b};color:${LM.t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${LM.b2};font-weight:600;font-size:12.5px;color:${LM.t1};background:${LM.surf3};}.v-teli{color:${LM.red};font-weight:600;}.v-kezdett{color:${LM.amber};font-weight:600;}.v-green{color:${LM.green};font-weight:600;}.v-bold{color:${LM.t1};font-weight:600;}.del-btn,.edit-btn,.napi-ossz{display:none!important;}.wnote{padding:8px 14px;border-top:1px solid ${LM.b};background:${LM.surf2};font-size:13px;color:${LM.t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${LM.amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${LM.t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.amber};margin-bottom:5px;}.nossz{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}.nossz-item{flex:1;min-width:100px;text-align:center;padding:10px 12px;background:${LM.surf};border:1px solid ${LM.b};border-radius:8px;}.nossz-val{font-size:18px;font-weight:700;color:${LM.t1};line-height:1.2;}.nossz-lbl{font-size:10px;color:${LM.t3};text-transform:uppercase;letter-spacing:.6px;margin-top:3px;}.sec-hd{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.t3};border-bottom:1px dashed ${LM.b2};padding-bottom:7px;margin-bottom:14px;}.sec-hd span{color:${LM.acc};margin-right:5px;}.card{background:${LM.surf};border:1px solid ${LM.b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.card-title{font-size:14px;font-weight:700;color:${LM.acc};border-bottom:1px solid ${LM.b};padding-bottom:10px;margin-bottom:16px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${LM.t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${LM.b};background:${LM.surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${LM.b};color:${LM.t2};}.stbl .tot td{font-weight:700;color:${LM.t1};border-top:2px solid ${LM.b2};background:${LM.surf3};font-size:12.5px;}`;
+  style.textContent = vars + css;
+  inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner);
+  return { wrap, bg: LM.bg };
+}
+
+function kepMentDiv(divId, suffix) {
+  const { wrap, bg } = _buildWrap(E(divId));
+  document.body.appendChild(wrap);
   html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
     document.body.removeChild(wrap);
     const a = document.createElement('a');
@@ -481,7 +477,7 @@ function kepMentDiv(divId, suffix) {
     a.href = canvas.toDataURL('image/jpeg', .93);
     a.click();
     msg('Kép mentve!');
-  }).catch(() => { document.body.removeChild(wrap); msg('Mentési hiba.', 'error'); });
+  }).catch(() => { if (document.body.contains(wrap)) document.body.removeChild(wrap); msg('Mentési hiba.', 'error'); });
 }
 
 /* ── Napi riport belső segédfüggvények ── */
