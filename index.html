@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/report.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
 
@@ -88,12 +89,17 @@
     </div>
   </div>
 
+  <div id="offlineBanner" class="offline-banner" style="display:none;">
+    <span>📡 Nincs internetkapcsolat — az adatok szinkronizálódnak visszatéréskor</span>
+    <span id="offlineCount" style="font-weight:700;margin-left:8px;"></span>
+  </div>
   <div class="outer">
     <div class="tabs" id="mainTabs">
       <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
       <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none">📋 Jelentések</button>
       <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
       <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
+      <button class="tab-btn" data-tab="feladatok" id="tabBtnFeladatok" style="display:none">📌 Feladatok</button>
       <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none">👷 Dolgozók</button>
       <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
       <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
@@ -219,8 +225,9 @@
       </div>
       <div id="napiRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz dátumot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost" style="flex:1;" id="napiKepMentBtn" disabled>⬇ Mentés képként</button>
-        <button class="btn btn-ghost" id="napiNyomtatBtn" disabled>🖨 Nyomtatás</button>
+        <button class="btn btn-ghost" style="flex:1;" id="napiKepMentBtn" disabled>⬇ Kép</button>
+        <button class="btn btn-ghost" id="napiPdfBtn" disabled>⬇ PDF</button>
+        <button class="btn btn-ghost" id="napiNyomtatBtn" disabled>🖨 Nyomtat</button>
       </div>
       </div><!-- /jstab-napi -->
 
@@ -289,8 +296,9 @@
       </div>
       <div id="idoszakosRiportDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
       <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Mentés képként</button>
-        <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtatás</button>
+        <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Kép</button>
+        <button class="btn btn-ghost" id="idoszakosPdfBtn" disabled>⬇ PDF</button>
+        <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtat</button>
       </div>
       </div><!-- /jstab-idoszakos -->
     </div>
@@ -355,6 +363,7 @@
       <div class="subtabs" id="dolgozokSubtabs">
         <button class="stab-btn active" data-dtab="adatlapok">👤 Adatlapok</button>
         <button class="stab-btn" data-dtab="hianyok">📅 Hiányzások</button>
+        <button class="stab-btn" data-dtab="beosztas">📋 Beosztás</button>
         <button class="stab-btn" data-dtab="naptar">🗓 Naptár</button>
         <button class="stab-btn" data-dtab="statisztika">📊 Statisztika</button>
       </div>
@@ -469,6 +478,23 @@
         <div id="hianyListDiv"><div class="empty-st"><div class="empty-ic">📅</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
       </div><!-- /dtab-hianyok -->
 
+      <!-- Beosztás -->
+      <div id="dtab-beosztas" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:155px;"><label class="lbl">Hét (bármely napja)</label><input type="date" id="beosztasHetF"></div>
+            <div class="field" style="min-width:130px;"><label class="lbl">Részleg</label>
+              <select id="beosztasReszlegF"><option value="">— Mind —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="beosztatsMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="beosztasDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz hetet és kattints a <strong>Mutat</strong> gombra</div></div>
+      </div><!-- /dtab-beosztas -->
+
       <!-- Naptár -->
       <div id="dtab-naptar" class="dtab-panel">
         <div class="card">
@@ -504,6 +530,47 @@
       </div><!-- /dtab-statisztika -->
 
     </div><!-- /tab-dolgozok -->
+
+    <!-- ══ FELADATOK ══ -->
+    <div id="tab-feladatok" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div class="field" style="min-width:130px;"><label class="lbl">Állapot</label>
+            <select id="feladatStatuszF">
+              <option value="nyitott">Nyitott</option>
+              <option value="kesz">Befejezett</option>
+              <option value="mind">Összes</option>
+            </select>
+          </div>
+          <div class="field" style="min-width:130px;"><label class="lbl">Részleg</label>
+            <select id="feladatReszlegF"><option value="">— Mind —</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-title-icon">➕</span>Új feladat</div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Cím</label><input type="text" id="feladatCim" placeholder="Feladat rövid leírása…"></div>
+          <div class="field"><label class="lbl">Prioritás</label>
+            <select id="feladatPrio">
+              <option value="normal">Normal</option>
+              <option value="fontos">⚡ Fontos</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label class="lbl">Részletes leírás (opcionális)</label>
+          <textarea id="feladatLeiras" placeholder="Részletek…"></textarea>
+        </div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Határidő (opcionális)</label><input type="date" id="feladatDatum"></div>
+          <div class="field"><label class="lbl">Részleg</label>
+            <input list="reszlegDL" id="feladatReszleg" autocomplete="off" placeholder="Opcionális…">
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary btn-sm" id="feladatMentBtn">＋ Hozzáad</button></div>
+      </div>
+      <div id="feladatListDiv"><div class="empty-st"><div class="empty-ic">📌</div>Betöltés…</div></div>
+    </div>
 
     <!-- ══ PRÉMIUM ══ -->
     <div id="tab-premium" class="tab-panel">

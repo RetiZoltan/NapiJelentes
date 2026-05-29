@@ -71,8 +71,7 @@ function renderNapi(rd, lista, napiNotes, szuro) {
   const hasNotes = Object.values(napiNotes).some(v => v);
   if (!lista.length && !hasNotes) {
     E('napiRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a(z) ${esc(fmtL(rd))} napra${szuro ? ' (' + esc(szuro) + ')' : ''}</div>`;
-    E('napiKepMentBtn').disabled = true;
-    E('napiNyomtatBtn').disabled = true;
+    E('napiKepMentBtn').disabled = E('napiPdfBtn').disabled = E('napiNyomtatBtn').disabled = true;
     return;
   }
   const allShifts = [...new Set(filtered.map(a => a.ido))].sort();
@@ -108,8 +107,7 @@ function renderNapi(rd, lista, napiNotes, szuro) {
       .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
   }
   E('napiRiportDiv').innerHTML = h;
-  E('napiKepMentBtn').disabled = false;
-  E('napiNyomtatBtn').disabled = false;
+  E('napiKepMentBtn').disabled = E('napiPdfBtn').disabled = E('napiNyomtatBtn').disabled = false;
 }
 
 function dayNoteHtml(key, note, rd, hideIdo = false) {
@@ -213,8 +211,7 @@ export async function haviRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = true;
-    E('idoszakosNyomtatBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -230,8 +227,7 @@ export async function haviRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = false;
-  E('idoszakosNyomtatBtn').disabled = false;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Éves riport ── */
@@ -246,8 +242,7 @@ export async function evesRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = true;
-    E('idoszakosNyomtatBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -264,8 +259,7 @@ export async function evesRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = false;
-  E('idoszakosNyomtatBtn').disabled = false;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Klikk handler (törlés + nap-link) ── */
@@ -337,6 +331,52 @@ export async function napTorol() {
 /* ── Mentés képként ── */
 export function napiKepMent()      { kepMentDiv('napiRiportDiv',      E('riportD').value || tod()); }
 export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', tod()); }
+
+/* ── PDF export ── */
+export async function napiPdfMent() {
+  const el = E('napiRiportDiv');
+  if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
+  await _exportPdf(el, `napi_riport_${E('riportD').value || tod()}.pdf`);
+}
+
+export async function idoszakosPdfMent() {
+  const el = E('idoszakosRiportDiv');
+  if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
+  await _exportPdf(el, `idoszakos_riport_${tod()}.pdf`);
+}
+
+async function _exportPdf(el, filename) {
+  if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
+  msg('PDF generálás…', 'info', 5000);
+  try {
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const iw   = canvas.width;
+    const ih   = canvas.height;
+    const ratio = pdfW / iw;
+    const totalH = ih * ratio;
+    if (totalH <= pdfH) {
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, totalH);
+    } else {
+      const pageHpx = Math.floor(pdfH / ratio);
+      let sy = 0;
+      while (sy < ih) {
+        const sliceH = Math.min(pageHpx, ih - sy);
+        const tmp = document.createElement('canvas');
+        tmp.width = iw; tmp.height = sliceH;
+        tmp.getContext('2d').drawImage(canvas, 0, sy, iw, sliceH, 0, 0, iw, sliceH);
+        if (sy > 0) pdf.addPage();
+        pdf.addImage(tmp.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * ratio);
+        sy += pageHpx;
+      }
+    }
+    pdf.save(filename);
+    msg('PDF mentve!');
+  } catch (err) { msg('PDF hiba: ' + err.message, 'error'); }
+}
 
 /* ── Nyomtatás ── */
 export function napiNyomtat()      { nyomtatDiv('napiRiportDiv'); }

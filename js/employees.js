@@ -637,6 +637,120 @@ export async function loadStatisztika() {
   }
 }
 
+/* ══════════════════════════════════════
+   MŰSZAK BEOSZTÁS
+══════════════════════════════════════ */
+
+function _weekDays(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  const diff = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diff);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate() + i);
+    return dd.toISOString().slice(0, 10);
+  });
+}
+
+export async function loadShifts() {
+  if (!_empLoaded) await loadEmployees();
+  const hetF     = E('beosztasHetF')?.value;
+  const reszlegF = E('beosztasReszlegF')?.value || '';
+  if (!hetF) { msg('Válassz egy dátumot!', 'error'); return; }
+
+  const days = _weekDays(hetF);
+  const from = days[0];
+  const to   = days[6];
+
+  E('beosztasDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'shifts'),
+      where('datum', '>=', from), where('datum', '<=', to), orderBy('datum')
+    ));
+    const shiftDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    let emps = _employees.filter(e => (e.statusz || 'aktiv') !== 'inaktiv');
+    if (reszlegF) emps = emps.filter(e => e.reszleg === reszlegF);
+
+    const shiftMap = {};
+    shiftDocs.forEach(s => {
+      if (!shiftMap[s.dolgozoNev]) shiftMap[s.dolgozoNev] = {};
+      if (!shiftMap[s.dolgozoNev][s.datum]) shiftMap[s.dolgozoNev][s.datum] = [];
+      shiftMap[s.dolgozoNev][s.datum].push(s);
+    });
+
+    const names = [...new Set([...emps.map(e => e.nev), ...Object.keys(shiftMap)])]
+      .sort((a, b) => a.localeCompare(b, 'hu'));
+
+    if (!names.length) {
+      E('beosztasDiv').innerHTML = '<div class="empty-st"><div class="empty-ic">📅</div>Nincs aktív dolgozó</div>';
+      return;
+    }
+
+    const NAP    = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
+    const ce     = canEditEmp();
+
+    let h = '<div style="overflow-x:auto;"><table class="abs-roster-table"><thead><tr>';
+    h += '<th class="abs-roster-name-cell">Dolgozó</th>';
+    days.forEach((d, i) => {
+      const isWe = i >= 5;
+      h += `<th class="abs-roster-day-cell${isWe ? ' abs-roster-we' : ''}">${NAP[i].slice(0,3)}<br><span style="font-weight:400;font-size:9px;">${d.slice(5)}</span></th>`;
+    });
+    h += '</tr></thead><tbody>';
+
+    names.forEach(nev => {
+      h += `<tr><td class="abs-roster-name-cell">${esc(nev)}</td>`;
+      days.forEach((d, i) => {
+        const isWe   = i >= 5;
+        const ds     = shiftMap[nev]?.[d] || [];
+        const hasDe  = ds.find(s => s.muszak === 'Délelőtt');
+        const haDu   = ds.find(s => s.muszak === 'Délután');
+        let inner = '';
+        if (hasDe) inner += `<span class="shift-chip shift-de"${ce ? ` data-del="${hasDe.id}"` : ''} title="Délelőtt — katt=töröl">D</span>`;
+        if (haDu)  inner += `<span class="shift-chip shift-du"${ce ? ` data-del="${haDu.id}"` : ''} title="Délután — katt=töröl">É</span>`;
+        if (ce && !hasDe) inner += `<span class="shift-add" data-nev="${esc(nev)}" data-datum="${d}" data-muszak="Délelőtt" title="Délelőtt hozzáadás">+D</span>`;
+        if (ce && !haDu)  inner += `<span class="shift-add shift-add-du" data-nev="${esc(nev)}" data-datum="${d}" data-muszak="Délután" title="Délután hozzáadás">+É</span>`;
+        h += `<td class="abs-roster-cell${isWe ? ' abs-roster-we' : ''}" style="padding:2px 1px;">
+          <div style="display:flex;flex-direction:column;gap:2px;align-items:center;">${inner}</div></td>`;
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div style="font-size:11px;color:var(--text3);margin-top:8px;">D = Délelőtt · É = Délután · kék/narancs gombra kattintva törlöd</div>';
+
+    E('beosztasDiv').innerHTML = h;
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); E('beosztasDiv').innerHTML = ''; }
+}
+
+export async function handleShiftClick(e) {
+  if (!canEditEmp()) return;
+  const addBtn = e.target.closest('.shift-add');
+  if (addBtn) {
+    try {
+      await addDoc(collection(db, 'shifts'), {
+        dolgozoNev: addBtn.dataset.nev,
+        datum:      addBtn.dataset.datum,
+        muszak:     addBtn.dataset.muszak,
+        reszleg:    _employees.find(x => x.nev === addBtn.dataset.nev)?.reszleg || '',
+        createdBy:  state.appUser.uid,
+        createdAt:  serverTimestamp()
+      });
+      loadShifts();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
+    return;
+  }
+  const chip = e.target.closest('.shift-chip[data-del]');
+  if (chip) {
+    try {
+      await deleteDoc(doc(db, 'shifts', chip.dataset.del));
+      loadShifts();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
+  }
+}
+
 export function exportCsv() {
   if (!_lastStatData) { msg('Először kattints a Mutat gombra!', 'error'); return; }
   const { ev, sorted } = _lastStatData;

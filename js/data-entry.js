@@ -3,6 +3,28 @@ import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
 import { saveNapiFor, loadNapiFor, autoAddToList } from './db.js';
 
+const OFFLINE_KEY = 'nj_offlineQueue';
+
+export function getOfflineCount() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]').length; } catch { return 0; }
+}
+
+export async function syncOfflineQueue() {
+  let queue;
+  try { queue = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]'); } catch { return; }
+  if (!queue.length) return;
+  let saved = 0;
+  const failed = [];
+  for (const { _ts, ...data } of queue) {
+    try {
+      await addDoc(collection(db, 'entries'), { ...data, createdAt: serverTimestamp() });
+      saved++;
+    } catch { failed.push({ _ts, ...data }); }
+  }
+  localStorage.setItem(OFFLINE_KEY, JSON.stringify(failed));
+  if (saved > 0) msg(`${saved} offline bejegyzés szinkronizálva!`, 'success', 5000);
+}
+
 export function addSuly(v = '', st = 'teli') {
   const d = document.createElement('div');
   d.className = 'wrow';
@@ -102,6 +124,14 @@ export async function rogzit() {
   }
 
   if (entry) {
+    if (!state.editingEntryId && !navigator.onLine) {
+      const queue = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+      queue.push({ ...entry, createdAt: null, _ts: Date.now() });
+      localStorage.setItem(OFFLINE_KEY, JSON.stringify(queue));
+      msg(`Offline — ${queue.length} bejegyzés várakozik szinkronra`, 'info', 4000);
+      clearF(false);
+      return;
+    }
     try {
       if (state.editingEntryId) {
         const { createdBy: _cb, createdAt: _ca, ...fields } = entry;

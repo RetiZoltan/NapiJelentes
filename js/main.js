@@ -7,11 +7,14 @@ import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from '.
 import { E, msg, ag, tod, initTheme, toggleTheme, showScreen } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, autoAddToList, delFromList, editItem } from './db.js';
-import { addSuly, addZsak, rogzit, clearF, startEditEntry } from './data-entry.js';
+import { addSuly, addZsak, rogzit, clearF, startEditEntry,
+         syncOfflineQueue, getOfflineCount } from './data-entry.js';
 import { napiRiport, haviRiport, evesRiport,
          napiKepMent, idoszakosKepMent,
+         napiPdfMent, idoszakosPdfMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
+import { loadTasks, saveTask, handleTaskClick } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, clearNotice } from './admin.js';
@@ -21,6 +24,7 @@ import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './prem
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv,
+         loadShifts, handleShiftClick,
          closeEmpDrawer, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
@@ -83,6 +87,7 @@ function buildAppUI() {
   E('tabBtnJelentesek').style.display  = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
   E('tabBtnElemzes').style.display     = (hasPerm('elemzes') || hasPerm('sajatJelentes') || canSeeAllReports())           ? '' : 'none';
+  E('tabBtnFeladatok').style.display   = (isMainAdmin() || state.userRole) ? '' : 'none';
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
@@ -119,7 +124,7 @@ function buildAppUI() {
   E('evesEvInput').value    = yr;
 
 
-  loadLists();
+  loadLists().then(() => { _updateFeladatReszlegF(); _updateBeosztasReszlegF(); });
   loadAndDisplayNotice();
   addSuly(); addZsak();
 
@@ -136,12 +141,13 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
-  if (name === 'admin')    loadAdminUsers();
+  if (name === 'admin')     loadAdminUsers();
   if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek') cleanupNapiListener();
-  if (name === 'naptar')   initNaptar();
-  if (name === 'dolgozok') { loadEmployees(); _setupDolgozokUI(); }
-  if (name === 'premium')  initPremiumTab();
+  if (name === 'naptar')    initNaptar();
+  if (name === 'feladatok') loadTasks();
+  if (name === 'dolgozok')  { loadEmployees(); _setupDolgozokUI(); }
+  if (name === 'premium')   initPremiumTab();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
@@ -177,6 +183,11 @@ function switchDolgozokSubtab(name) {
   document.querySelector(`#dolgozokSubtabs .stab-btn[data-dtab="${name}"]`).classList.add('active');
   document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
   E('dtab-' + name).classList.add('active');
+  if (name === 'beosztas') {
+    const now = new Date();
+    if (!E('beosztasHetF').value) E('beosztasHetF').value = now.toISOString().slice(0,10);
+    loadShifts();
+  }
   if (name === 'hianyok') loadAbsences();
 }
 
@@ -192,6 +203,35 @@ function _setupDolgozokUI() {
   if (!E('hianyHonapF').value)  E('hianyHonapF').value  = mo;
   if (!E('naptarHonapF').value) E('naptarHonapF').value = mo;
   if (!E('statEvF').value)      E('statEvF').value      = now.getFullYear();
+  if (!E('beosztasHetF').value) E('beosztasHetF').value = now.toISOString().slice(0,10);
+}
+
+function _updateOnlineStatus() {
+  const online = navigator.onLine;
+  E('offlineBanner').style.display = online ? 'none' : 'flex';
+  const cnt = getOfflineCount();
+  E('offlineCount').textContent = cnt > 0 ? `(${cnt} várakozó)` : '';
+  if (online && cnt > 0) syncOfflineQueue().then(() => {
+    E('offlineCount').textContent = '';
+  });
+}
+
+// Részleg szűrő feltöltése feladatoknál
+function _updateFeladatReszlegF() {
+  const sel = E('feladatReszlegF'); if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Mind —</option>' +
+    (state.reszlegek || []).sort((a,b) => a.localeCompare(b,'hu'))
+      .map(r => `<option value="${r}">${r}</option>`).join('');
+  if (prev) sel.value = prev;
+}
+function _updateBeosztasReszlegF() {
+  const sel = E('beosztasReszlegF'); if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Mind —</option>' +
+    (state.reszlegek || []).sort((a,b) => a.localeCompare(b,'hu'))
+      .map(r => `<option value="${r}">${r}</option>`).join('');
+  if (prev) sel.value = prev;
 }
 
 function switchAdminSubtab(name) {
@@ -362,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('mutatBtn').addEventListener('click',      napiRiport);
   E('napTorBtn').addEventListener('click',     napTorol);
   E('napiKepMentBtn').addEventListener('click', napiKepMent);
+  E('napiPdfBtn').addEventListener('click', napiPdfMent);
   E('napiNyomtatBtn').addEventListener('click', napiNyomtat);
   E('napiRiportDiv').addEventListener('click', riportKlikk);
   document.addEventListener('napi-goto', () => { switchTab('jelentesek', E('tabBtnJelentesek')); switchJelentesekSubtab('napi'); napiRiport(); });
@@ -384,6 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (E('idoszakTipus').value === 'havi') haviRiport(); else evesRiport();
   });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
+  E('idoszakosPdfBtn').addEventListener('click', idoszakosPdfMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
@@ -434,9 +476,22 @@ document.addEventListener('DOMContentLoaded', () => {
   E('empDrawerClose').addEventListener('click', closeEmpDrawer);
   E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEmpDrawer(); });
+  E('beosztatsMutatBtn').addEventListener('click', loadShifts);
+  E('beosztasDiv').addEventListener('click', handleShiftClick);
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);
+
+  // Feladatok
+  E('feladatStatuszF').addEventListener('change', loadTasks);
+  E('feladatReszlegF').addEventListener('change', loadTasks);
+  E('feladatMentBtn').addEventListener('click',   saveTask);
+  E('feladatListDiv').addEventListener('click',   handleTaskClick);
+
+  // Offline
+  window.addEventListener('online',  _updateOnlineStatus);
+  window.addEventListener('offline', _updateOnlineStatus);
+  _updateOnlineStatus();
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {
