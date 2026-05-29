@@ -347,35 +347,83 @@ export async function idoszakosPdfMent() {
 
 async function _exportPdf(el, filename) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
-  msg('PDF generálás…', 'info', 5000);
+  msg('PDF generálás…', 'info', 7000);
+
+  // 1. Ideiglenesen világos téma (sötét módban a szöveg fehér lenne fehér háttérre)
+  const htmlEl  = document.documentElement;
+  const wasDark = htmlEl.getAttribute('data-theme') === 'dark';
+  if (wasDark) {
+    htmlEl.setAttribute('data-theme', 'light');
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  // 2. Klón, amiből eltávolítjuk az akciógombokat
+  const clone = el.cloneNode(true);
+  clone.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + el.offsetWidth + 'px;';
+  ['.del-btn', '.edit-btn', '.napi-ossz'].forEach(sel =>
+    clone.querySelectorAll(sel).forEach(x => x.remove())
+  );
+  document.body.appendChild(clone);
+
   try {
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const MARGIN  = 10;
     const { jsPDF } = window.jspdf;
-    const pdf  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = pdf.internal.pageSize.getHeight();
-    const iw   = canvas.width;
-    const ih   = canvas.height;
-    const ratio = pdfW / iw;
-    const totalH = ih * ratio;
-    if (totalH <= pdfH) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, totalH);
+    const pdf     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfW    = pdf.internal.pageSize.getWidth();
+    const pdfH    = pdf.internal.pageSize.getHeight();
+    const usableW = pdfW - MARGIN * 2;
+    const usableH = pdfH - MARGIN * 2;
+
+    // Vászon méret korlát: nagyon hosszú riportnál csökkentjük a scale-t
+    const elH   = clone.scrollHeight;
+    const scale = elH > 4000 ? 1.5 : 2;
+
+    const canvas = await html2canvas(clone, {
+      scale,
+      useCORS:         true,
+      logging:         false,
+      backgroundColor: '#ffffff',
+      windowWidth:     Math.max(el.offsetWidth, 900),
+      scrollX:         0,
+      scrollY:         0,
+    });
+
+    document.body.removeChild(clone);
+
+    const iw = canvas.width;
+    const ih = canvas.height;
+
+    // Képszélesség = usableW mm, magasság arányosan
+    const imgW   = usableW;
+    const imgH   = ih * (usableW / iw);
+    const dataFn = () => canvas.toDataURL('image/jpeg', 0.94);
+
+    if (imgH <= usableH) {
+      pdf.addImage(dataFn(), 'JPEG', MARGIN, MARGIN, imgW, imgH);
     } else {
-      const pageHpx = Math.floor(pdfH / ratio);
+      // Laphasítás: hány canvas pixel fér egy oldalmagasságba
+      const pageHpx = Math.floor(iw * usableH / usableW);
       let sy = 0;
       while (sy < ih) {
         const sliceH = Math.min(pageHpx, ih - sy);
-        const tmp = document.createElement('canvas');
+        const tmp    = document.createElement('canvas');
         tmp.width = iw; tmp.height = sliceH;
         tmp.getContext('2d').drawImage(canvas, 0, sy, iw, sliceH, 0, 0, iw, sliceH);
         if (sy > 0) pdf.addPage();
-        pdf.addImage(tmp.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, sliceH * ratio);
+        pdf.addImage(tmp.toDataURL('image/jpeg', 0.94), 'JPEG',
+          MARGIN, MARGIN, imgW, sliceH * (usableW / iw));
         sy += pageHpx;
       }
     }
+
     pdf.save(filename);
     msg('PDF mentve!');
-  } catch (err) { msg('PDF hiba: ' + err.message, 'error'); }
+  } catch (err) {
+    if (document.body.contains(clone)) document.body.removeChild(clone);
+    msg('PDF hiba: ' + err.message, 'error');
+  } finally {
+    if (wasDark) htmlEl.setAttribute('data-theme', 'dark');
+  }
 }
 
 /* ── Nyomtatás ── */
