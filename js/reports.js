@@ -405,7 +405,7 @@ function nyomtatDiv(divId) {
   clone.querySelectorAll('.napi-ossz').forEach(x => x.remove());
   clone.querySelectorAll('.del-btn').forEach(x => x.remove());
   clone.querySelectorAll('.edit-btn').forEach(x => x.remove());
-  clone.querySelectorAll('.dlink').forEach(x => {
+  clone.querySelectorAll('.dlink, .dtoggle').forEach(x => {
     const sp = document.createElement('span');
     sp.textContent = x.textContent;
     x.replaceWith(sp);
@@ -451,7 +451,7 @@ function _buildWrap(el) {
   };
   const clone = el.cloneNode(true);
   clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
-  clone.querySelectorAll('.dlink').forEach(x => {
+  clone.querySelectorAll('.dlink, .dtoggle').forEach(x => {
     const sp = document.createElement('span');
     sp.textContent = x.textContent;
     x.replaceWith(sp);
