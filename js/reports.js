@@ -451,6 +451,11 @@ function _buildWrap(el) {
   };
   const clone = el.cloneNode(true);
   clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
+  clone.querySelectorAll('.dlink').forEach(x => {
+    const sp = document.createElement('span');
+    sp.textContent = x.textContent;
+    x.replaceWith(sp);
+  });
 
   const wrap  = document.createElement('div');
   wrap.id = 'rExport';
