@@ -133,14 +133,6 @@ service cloud.firestore {
       allow delete: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
     }
 
-    // ── shifts (beosztás) ──────────────────────────────────────
-    match /shifts/{shiftId} {
-      allow read: if isAuth() && (
-        isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')
-      );
-      allow write: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
-    }
-
     // ── config (nevek/anyagok/gépek listák) ────────────────────
     match /config/{doc} {
       allow read:  if isAuth();

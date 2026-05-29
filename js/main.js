@@ -24,7 +24,6 @@ import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './prem
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv,
-         loadShifts, handleShiftClick,
          closeEmpDrawer, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
@@ -124,7 +123,7 @@ function buildAppUI() {
   E('evesEvInput').value    = yr;
 
 
-  loadLists().then(() => { _updateFeladatReszlegF(); _updateBeosztasReszlegF(); });
+  loadLists().then(() => _updateFeladatReszlegF());
   loadAndDisplayNotice();
   addSuly(); addZsak();
 
@@ -183,11 +182,6 @@ function switchDolgozokSubtab(name) {
   document.querySelector(`#dolgozokSubtabs .stab-btn[data-dtab="${name}"]`).classList.add('active');
   document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
   E('dtab-' + name).classList.add('active');
-  if (name === 'beosztas') {
-    const now = new Date();
-    if (!E('beosztasHetF').value) E('beosztasHetF').value = now.toISOString().slice(0,10);
-    loadShifts();
-  }
   if (name === 'hianyok') loadAbsences();
 }
 
@@ -203,7 +197,6 @@ function _setupDolgozokUI() {
   if (!E('hianyHonapF').value)  E('hianyHonapF').value  = mo;
   if (!E('naptarHonapF').value) E('naptarHonapF').value = mo;
   if (!E('statEvF').value)      E('statEvF').value      = now.getFullYear();
-  if (!E('beosztasHetF').value) E('beosztasHetF').value = now.toISOString().slice(0,10);
 }
 
 function _updateOnlineStatus() {
@@ -219,14 +212,6 @@ function _updateOnlineStatus() {
 // Részleg szűrő feltöltése feladatoknál
 function _updateFeladatReszlegF() {
   const sel = E('feladatReszlegF'); if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">— Mind —</option>' +
-    (state.reszlegek || []).sort((a,b) => a.localeCompare(b,'hu'))
-      .map(r => `<option value="${r}">${r}</option>`).join('');
-  if (prev) sel.value = prev;
-}
-function _updateBeosztasReszlegF() {
-  const sel = E('beosztasReszlegF'); if (!sel) return;
   const prev = sel.value;
   sel.innerHTML = '<option value="">— Mind —</option>' +
     (state.reszlegek || []).sort((a,b) => a.localeCompare(b,'hu'))
@@ -476,8 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
   E('empDrawerClose').addEventListener('click', closeEmpDrawer);
   E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEmpDrawer(); });
-  E('beosztatsMutatBtn').addEventListener('click', loadShifts);
-  E('beosztasDiv').addEventListener('click', handleShiftClick);
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);

@@ -363,7 +363,6 @@
       <div class="subtabs" id="dolgozokSubtabs">
         <button class="stab-btn active" data-dtab="adatlapok">👤 Adatlapok</button>
         <button class="stab-btn" data-dtab="hianyok">📅 Hiányzások</button>
-        <button class="stab-btn" data-dtab="beosztas">📋 Beosztás</button>
         <button class="stab-btn" data-dtab="naptar">🗓 Naptár</button>
         <button class="stab-btn" data-dtab="statisztika">📊 Statisztika</button>
       </div>
@@ -477,23 +476,6 @@
         </div>
         <div id="hianyListDiv"><div class="empty-st"><div class="empty-ic">📅</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
       </div><!-- /dtab-hianyok -->
-
-      <!-- Beosztás -->
-      <div id="dtab-beosztas" class="dtab-panel">
-        <div class="card">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field" style="min-width:155px;"><label class="lbl">Hét (bármely napja)</label><input type="date" id="beosztasHetF"></div>
-            <div class="field" style="min-width:130px;"><label class="lbl">Részleg</label>
-              <select id="beosztasReszlegF"><option value="">— Mind —</option></select>
-            </div>
-            <div style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="beosztatsMutatBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="beosztasDiv"><div class="empty-st"><div class="empty-ic">📋</div>Válassz hetet és kattints a <strong>Mutat</strong> gombra</div></div>
-      </div><!-- /dtab-beosztas -->
 
       <!-- Naptár -->
       <div id="dtab-naptar" class="dtab-panel">
