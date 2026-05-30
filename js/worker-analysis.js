@@ -9,18 +9,26 @@ async function getEntries() {
 }
 
 function switchETab(name) {
-  ['Egyeni', 'AnyagRangsor', 'Rekordok'].forEach(t => {
-    E('eTab' + t).style.display = t === name ? '' : 'none';
-    E('eBtn' + t).classList.toggle('active', t === name);
+  ['Egyeni', 'AnyagRangsor', 'Rekordok', 'Osszehasonlit'].forEach(t => {
+    const panel = E('eTab' + t);
+    const btn   = E('eBtn' + t);
+    if (panel) panel.style.display = t === name ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t === name);
   });
 }
 
 async function populateWorkers() {
   const entries = await getEntries();
   const workers = [...new Set(entries.map(a => a.nev))].sort((a, b) => a.localeCompare(b, 'hu'));
-  E('egyeniDolgozo').innerHTML = workers.length
+  const opts = workers.length
     ? workers.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
     : '<option value="">Nincs adat</option>';
+  E('egyeniDolgozo').innerHTML = opts;
+  if (E('osszDolg1')) E('osszDolg1').innerHTML = opts;
+  if (E('osszDolg2')) {
+    E('osszDolg2').innerHTML = opts;
+    if (workers.length > 1) E('osszDolg2').value = workers[1];
+  }
   if (workers.length) filterMaterials(entries, workers[0]);
 }
 
@@ -39,9 +47,11 @@ async function populateAnyagSel() {
   const mats = [...new Set(
     entries.filter(a => (a.anyag || '').trim()).map(a => (a.anyag || '').trim())
   )].sort((a, b) => a.localeCompare(b, 'hu'));
-  E('anyagRangsorSel').innerHTML = mats.length
+  const opts = mats.length
     ? mats.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
     : '<option value="">Nincs adat</option>';
+  E('anyagRangsorSel').innerHTML = opts;
+  if (E('osszAnyag')) E('osszAnyag').innerHTML = opts;
 }
 
 /* ── 1. fül: Egyéni elemzés ── */
@@ -61,7 +71,6 @@ async function egyeniElemzes() {
     return;
   }
 
-  // Group by day: multiple entries on the same day count as one daily total
   const byDay = {};
   wa.forEach(a => {
     const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
@@ -82,7 +91,6 @@ async function egyeniElemzes() {
   const maxV     = count > 0 ? Math.max(...perEntry) : 0;
   const szoras   = count > 1 ? Math.sqrt(perEntry.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / count) : 0;
 
-  // Global comparison: also group by (worker+day) for consistency
   const globalByWD = {};
   allForAnyag.forEach(a => {
     const key = `${a.nev}__${a.datum}`;
@@ -136,7 +144,6 @@ async function anyagRangsor() {
   E('anyagRangsorDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   const entries = await getEntries();
 
-  // Group by (worker + day) so multiple entries on the same day count as one
   const byWorkerDay = {};
   entries.filter(a => (a.anyag || '').trim() === anyag).forEach(a => {
     const kg  = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
@@ -222,21 +229,137 @@ async function rekordok() {
   E('rekordokDiv').innerHTML = html;
 }
 
+/* ── 4. fül: Két dolgozó összehasonlítása ── */
+async function osszehasonlitas() {
+  const nev1  = E('osszDolg1').value;
+  const nev2  = E('osszDolg2').value;
+  const anyag = E('osszAnyag').value;
+  if (!nev1 || !nev2 || !anyag) { msg('Válassz két dolgozót és egy anyagot!', 'error'); return; }
+  if (nev1 === nev2) { msg('Válassz két különböző dolgozót!', 'error'); return; }
+
+  E('osszDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+
+  function getStats(nev) {
+    const wa = entries.filter(a => a.nev === nev && (a.anyag || '').trim() === anyag);
+    if (!wa.length) return null;
+    const byDay = {};
+    wa.forEach(a => {
+      const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+      byDay[a.datum] = (byDay[a.datum] || 0) + kg;
+    });
+    const perDay = Object.values(byDay).filter(v => v > 0);
+    if (!perDay.length) return null;
+    const total  = perDay.reduce((s, v) => s + v, 0);
+    const avg    = total / perDay.length;
+    const best   = Math.max(...perDay);
+    const worst  = Math.min(...perDay);
+    const szoras = perDay.length > 1
+      ? Math.sqrt(perDay.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / perDay.length)
+      : 0;
+    return { napok: perDay.length, total, avg, best, worst, szoras };
+  }
+
+  const s1 = getStats(nev1);
+  const s2 = getStats(nev2);
+
+  if (!s1 && !s2) {
+    E('osszDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Egyik dolgozónak sincs adata ehhez az anyaghoz</div>`;
+    return;
+  }
+
+  function statRow(label, v1, v2, fmt, higherBetter = true) {
+    if (v1 === null && v2 === null) return '';
+    const winner = (v1 !== null && v2 !== null)
+      ? (higherBetter ? (v1 > v2 ? 1 : v2 > v1 ? 2 : 0) : (v1 < v2 ? 1 : v2 < v1 ? 2 : 0))
+      : 0;
+    const c1 = winner === 1 ? 'color:var(--green);font-weight:700;' : 'color:var(--text2);';
+    const c2 = winner === 2 ? 'color:var(--green);font-weight:700;' : 'color:var(--text2);';
+    const w1 = winner === 1 ? ' ✓' : '';
+    const w2 = winner === 2 ? ' ✓' : '';
+    return `<tr>
+      <td style="color:var(--text2);font-size:13px;">${label}</td>
+      <td style="${c1}">${v1 !== null ? fmt(v1) + w1 : '—'}</td>
+      <td style="${c2}">${v2 !== null ? fmt(v2) + w2 : '—'}</td>
+    </tr>`;
+  }
+
+  const fKg = v => `${v.toFixed(0)} kg`;
+  const fN  = v => String(v);
+
+  let html = `<div class="r-head">Összehasonlítás <span class="r-shift">· ${esc(anyag)}</span></div>`;
+
+  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">⚖️</span>Statisztikai összehasonlítás</div>
+    <table class="stbl"><thead><tr>
+      <th>Mutató</th>
+      <th style="color:var(--accent);font-size:12px;">${esc(nev1)}</th>
+      <th style="color:var(--accent);font-size:12px;">${esc(nev2)}</th>
+    </tr></thead><tbody>`;
+  html += statRow('Aktív munkanapok', s1?.napok ?? null, s2?.napok ?? null, fN);
+  html += statRow('Össztermelés', s1?.total ?? null, s2?.total ?? null, fKg);
+  html += statRow('Napi átlag', s1?.avg ?? null, s2?.avg ?? null, fKg);
+  html += statRow('Legjobb nap', s1?.best ?? null, s2?.best ?? null, fKg);
+  html += statRow('Leggyengébb nap', s1?.worst ?? null, s2?.worst ?? null, fKg);
+  html += statRow('Szórás (alacsonyabb = egyenletesebb)', s1?.szoras ?? null, s2?.szoras ?? null, fKg, false);
+  html += `</tbody></table></div>`;
+
+  // Visual bar comparison
+  if (s1 && s2) {
+    const maxAvg  = Math.max(s1.avg, s2.avg);
+    const bar1W   = maxAvg > 0 ? Math.round(s1.avg / maxAvg * 100) : 0;
+    const bar2W   = maxAvg > 0 ? Math.round(s2.avg / maxAvg * 100) : 0;
+    const diffPct = s2.avg > 0 ? ((s1.avg - s2.avg) / s2.avg * 100) : 0;
+    const sign    = diffPct >= 0 ? '+' : '';
+    const diffCol = diffPct > 0 ? 'var(--green)' : diffPct < 0 ? 'var(--red)' : 'var(--text3)';
+    const diffTxt = diffPct >= 0 ? 'több' : 'kevesebb';
+
+    html += `<div class="card"><div class="card-title"><span class="card-title-icon">📊</span>Napi átlag vizuálisan</div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:600;">${esc(nev1)}</div>
+        <div style="height:22px;background:var(--surf2);border-radius:5px;overflow:hidden;">
+          <div style="height:100%;width:${bar1W}%;background:var(--accent);border-radius:5px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+            <span style="font-size:11px;color:#fff;font-weight:700;white-space:nowrap;">${s1.avg.toFixed(0)} kg</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:600;">${esc(nev2)}</div>
+        <div style="height:22px;background:var(--surf2);border-radius:5px;overflow:hidden;">
+          <div style="height:100%;width:${bar2W}%;background:var(--accent);border-radius:5px;opacity:.6;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+            <span style="font-size:11px;color:#fff;font-weight:700;white-space:nowrap;">${s2.avg.toFixed(0)} kg</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--text2);padding-top:8px;border-top:1px solid var(--border);">
+        <strong>${esc(nev1)}</strong> átlaga <span style="color:${diffCol};font-weight:700;">${sign}${diffPct.toFixed(1)}%</span> ${diffTxt} mint <strong>${esc(nev2)}</strong>-é
+      </div>
+    </div>`;
+  } else if (!s1) {
+    html += `<div class="empty-st" style="margin-top:8px;"><div class="empty-ic">📭</div>${esc(nev1)}-nek nincs adata ehhez az anyaghoz</div>`;
+  } else {
+    html += `<div class="empty-st" style="margin-top:8px;"><div class="empty-ic">📭</div>${esc(nev2)}-nek nincs adata ehhez az anyaghoz</div>`;
+  }
+
+  E('osszDiv').innerHTML = html;
+}
+
 /* ── Inicializálás — lazy, első Elemzés tab-nyitáskor ── */
 export async function initElemzes() {
   E('egyeniDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   await Promise.all([populateWorkers(), populateAnyagSel()]);
   E('egyeniDiv').innerHTML = '<div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot</div>';
 
-  E('eBtnEgyeni').addEventListener('click',       () => switchETab('Egyeni'));
-  E('eBtnAnyagRangsor').addEventListener('click', () => switchETab('AnyagRangsor'));
+  E('eBtnEgyeni').addEventListener('click',         () => switchETab('Egyeni'));
+  E('eBtnAnyagRangsor').addEventListener('click',   () => switchETab('AnyagRangsor'));
   E('eBtnRekordok').addEventListener('click', async () => { switchETab('Rekordok'); await rekordok(); });
+  E('eBtnOsszehasonlit').addEventListener('click',  () => switchETab('Osszehasonlit'));
 
   E('egyeniDolgozo').addEventListener('change', async () => {
     const entries = await getEntries();
     filterMaterials(entries, E('egyeniDolgozo').value);
   });
 
-  E('egyeniBtn').addEventListener('click',     egyeniElemzes);
+  E('egyeniBtn').addEventListener('click',      egyeniElemzes);
   E('anyagRangsorBtn').addEventListener('click', anyagRangsor);
+  E('osszBtn').addEventListener('click',         osszehasonlitas);
 }

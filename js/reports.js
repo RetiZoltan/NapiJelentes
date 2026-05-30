@@ -230,6 +230,38 @@ export async function haviRiport() {
   E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
+/* ── Egyéni tartomány riport ── */
+export async function egyeniRiport() {
+  const from = E('egyeniTolInput').value;
+  const to   = E('egyeniIgInput').value;
+  if (!from || !to) { msg('Add meg a kezdő és záró dátumot!', 'error'); return; }
+  if (from > to) { msg('A kezdő dátum nem lehet nagyobb a záró dátumnál!', 'error'); return; }
+  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
+
+  E('idoszakosRiportDiv').innerHTML = skelHtml('report');
+  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  if (!hA.length) {
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a megadott időszakra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+  }
+
+  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
+  let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${reszlegBadge}</div>`;
+  if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  html += reszlegOsszesitoHtml(hA);
+  if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
+  if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
+  if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
+  if (getRiportSet('muszak'))        html += muszakHtml(hA);
+  if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
+  if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
+  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
+  E('idoszakosRiportDiv').innerHTML = html;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+}
+
 /* ── Éves riport ── */
 export async function evesRiport() {
   const ev = parseInt(E('evesEvInput').value);

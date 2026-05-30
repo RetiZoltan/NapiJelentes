@@ -578,3 +578,34 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .filter-toggle{display:none;align-items:center;justify-content:center;gap:8px;background:var(--surf);border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);padding:10px 16px;font-family:'Source Sans 3',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:12px;transition:all var(--tr);}
 .filter-toggle:hover{border-color:var(--accent);color:var(--accent);}
 @media(max-width:768px){.filter-toggle{display:flex;}.js-filter-card{display:none!important;}}
+
+/* ══════════════════════════════════════
+   NAPTÁR PREVIEW POPUP
+══════════════════════════════════════ */
+.cal-preview{position:fixed;inset:0;z-index:460;display:flex;align-items:flex-end;justify-content:center;}
+.cal-preview-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);}
+.cal-preview-card{position:relative;z-index:1;background:var(--surf);border-radius:18px 18px 0 0;padding:24px 22px 32px;width:100%;max-width:520px;box-shadow:0 -4px 32px rgba(0,0,0,.18);}
+.cal-preview-close{position:absolute;top:14px;right:16px;background:var(--surf2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text3);cursor:pointer;transition:background var(--tr);}
+.cal-preview-close:hover{background:var(--surf3);color:var(--text);}
+.cprev-date{font-size:13px;color:var(--text3);margin-bottom:10px;text-transform:capitalize;}
+.cprev-kg{font-size:34px;font-weight:700;color:var(--text);font-family:'Lora',serif;line-height:1.2;}
+.cprev-kgsmall{font-size:16px;font-weight:400;color:var(--text3);}
+.cprev-diff{font-size:13px;font-weight:600;margin-top:5px;}
+.cprev-empty{color:var(--text3);font-size:15px;padding:8px 0;}
+
+/* ══════════════════════════════════════
+   ÉVES HŐTÉRKÉP
+══════════════════════════════════════ */
+.heat-month-row{position:relative;height:18px;margin-left:26px;margin-bottom:4px;overflow:visible;}
+.heat-month-lbl{position:absolute;top:0;font-size:10px;color:var(--text3);white-space:nowrap;}
+.heat-wrapper{display:flex;align-items:flex-start;gap:6px;overflow-x:auto;padding-bottom:8px;}
+.heat-days{display:flex;flex-direction:column;gap:3px;flex-shrink:0;width:20px;}
+.heat-days span{height:13px;line-height:13px;font-size:10px;color:var(--text3);}
+.heat-weeks{display:flex;gap:3px;}
+.heat-week{display:flex;flex-direction:column;gap:3px;}
+.heat-cell{width:13px;height:13px;border-radius:2px;background:var(--surf2);border:1px solid var(--border);cursor:pointer;flex-shrink:0;transition:transform .1s;}
+.heat-cell:hover{transform:scale(1.5);z-index:2;position:relative;}
+.heat-empty{background:transparent!important;border-color:transparent!important;cursor:default;pointer-events:none;}
+.heat-today{outline:2px solid var(--accent);outline-offset:1px;}
+.cal-view-btn{font-size:12px!important;}
+.cal-view-btn.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}

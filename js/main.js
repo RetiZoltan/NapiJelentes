@@ -11,7 +11,7 @@ import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, autoAddToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          syncOfflineQueue, getOfflineCount } from './data-entry.js';
-import { napiRiport, haviRiport, evesRiport,
+import { napiRiport, haviRiport, evesRiport, egyeniRiport,
          napiKepMent, idoszakosKepMent,
          napiPdfMent, idoszakosPdfMent,
          napiNyomtat, idoszakosNyomtat,
@@ -455,15 +455,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Időszakos jelentés
   function updateIdoszakInputs() {
-    const isHavi = E('idoszakTipus').value === 'havi';
-    E('haviInputWrap').style.display    = isHavi ? '' : 'none';
-    E('evesInputWrap').style.display    = isHavi ? 'none' : '';
-    E('setHaviAtlagWrap').style.display = isHavi ? 'none' : '';
+    const v = E('idoszakTipus').value;
+    E('haviInputWrap').style.display    = v === 'havi'   ? '' : 'none';
+    E('evesInputWrap').style.display    = v === 'eves'   ? '' : 'none';
+    E('egyeniTolWrap').style.display    = v === 'egyeni' ? '' : 'none';
+    E('egyeniIgWrap').style.display     = v === 'egyeni' ? '' : 'none';
+    E('setHaviAtlagWrap').style.display = v === 'eves'   ? '' : 'none';
   }
   E('idoszakTipus').addEventListener('change', updateIdoszakInputs);
   updateIdoszakInputs();
   E('idoszakosBtn').addEventListener('click', () => {
-    if (E('idoszakTipus').value === 'havi') haviRiport(); else evesRiport();
+    const v = E('idoszakTipus').value;
+    if (v === 'havi') haviRiport();
+    else if (v === 'eves') evesRiport();
+    else egyeniRiport();
   });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
   E('idoszakosPdfBtn').addEventListener('click', idoszakosPdfMent);
