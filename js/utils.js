@@ -39,6 +39,24 @@ export function initTheme() {
   E('themeBtn').textContent = t === 'dark' ? '☀️ Világos' : '🌙 Sötét';
 }
 
+export function applyLayout(name) {
+  const l = name || 'classic';
+  if (l === 'classic') {
+    document.documentElement.removeAttribute('data-layout');
+  } else {
+    document.documentElement.setAttribute('data-layout', l);
+  }
+  localStorage.setItem('napiJelentesLayout', l);
+  document.querySelectorAll('.layout-opt').forEach(b =>
+    b.classList.toggle('active', b.dataset.layout === l)
+  );
+}
+
+export function initLayout() {
+  const l = localStorage.getItem('napiJelentesLayout') || 'classic';
+  applyLayout(l);
+}
+
 export function applyColorTheme(name) {
   const c = name || 'blueprint';
   if (c === 'blueprint') {

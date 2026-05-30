@@ -81,6 +81,7 @@
       <div class="hdr-right">
         <button class="theme-btn" id="themeBtn">🌙 Sötét</button>
         <button class="color-theme-btn" id="colorThemeBtn" title="Dizájn téma">🎨</button>
+        <button class="hamburger-btn" id="hamburgerBtn" style="display:none" title="Menü">☰</button>
         <div class="user-chip">
           <div class="user-avatar" id="userAvatar"></div>
           <span id="userNameChip"></span>
@@ -114,23 +115,39 @@
         <span class="color-swatch-name">Viola</span>
       </div>
     </div>
+    <div class="color-picker-lbl" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">Elrendezés</div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="layout-opt" data-layout="classic" id="layoutOptClassic">⬛ Klasszikus</button>
+      <button class="layout-opt" data-layout="sidebar" id="layoutOptSidebar">◧ Sidebar</button>
+    </div>
   </div>
 
   <div id="offlineBanner" class="offline-banner" style="display:none;">
     <span>📡 Nincs internetkapcsolat — az adatok szinkronizálódnak visszatéréskor</span>
     <span id="offlineCount" style="font-weight:700;margin-left:8px;"></span>
   </div>
-  <div class="outer">
-    <div class="tabs" id="mainTabs">
-      <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
-      <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none">📋 Jelentések</button>
-      <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
-      <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
-      <button class="tab-btn" data-tab="feladatok" id="tabBtnFeladatok" style="display:none">📌 Feladatok</button>
-      <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none">👷 Dolgozók</button>
-      <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
-      <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
+
+  <div id="sidebarOverlay" class="sb-overlay"></div>
+
+  <nav class="tabs" id="mainTabs">
+    <div class="sb-brand">
+      <div class="brand-icon">📋</div>
+      <div>
+        <div class="brand-title">Napi Jelentés</div>
+        <div class="brand-sub">Termelési nyilvántartó</div>
+      </div>
     </div>
+    <button class="tab-btn active" data-tab="adatbevitel" id="tabBtnAdatbevitel">✏️ Adatbevitel</button>
+    <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none">📋 Jelentések</button>
+    <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none">📅 Naptár</button>
+    <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none">📈 Elemzés</button>
+    <button class="tab-btn" data-tab="feladatok" id="tabBtnFeladatok" style="display:none">📌 Feladatok</button>
+    <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none">👷 Dolgozók</button>
+    <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none">💰 Prémium</button>
+    <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none">⚙️ Admin</button>
+  </nav>
+
+  <div class="outer">
 
     <!-- ══ ADATBEVITEL ══ -->
     <div id="tab-adatbevitel" class="tab-panel active">

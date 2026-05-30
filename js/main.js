@@ -5,7 +5,8 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
          signOut, updateProfile } from './firebase.js';
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
 import { E, msg, ag, tod, initTheme, toggleTheme, showScreen,
-         applyColorTheme, initColorTheme } from './utils.js';
+         applyColorTheme, initColorTheme,
+         applyLayout, initLayout } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, autoAddToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
@@ -125,6 +126,7 @@ function buildAppUI() {
 
 
   applyColorTheme(state.userData.colorTheme || 'blueprint');
+  applyLayout(state.userData.layout || 'classic');
   loadLists().then(() => _updateFeladatReszlegF());
   loadAndDisplayNotice();
   addSuly(); addZsak();
@@ -273,6 +275,7 @@ function translateAuthErr(code) {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initColorTheme();
+  initLayout();
 
   // Auth screen
   E('googleBtn').addEventListener('click', doGoogleLogin);
@@ -297,14 +300,41 @@ document.addEventListener('DOMContentLoaded', () => {
     E('colorPickerPanel').classList.toggle('open');
   });
   E('colorPickerPanel').addEventListener('click', async e => {
-    const wrap = e.target.closest('.color-swatch-wrap');
-    if (!wrap) return;
-    const c = wrap.dataset.color;
-    applyColorTheme(c);
-    E('colorPickerPanel').classList.remove('open');
-    if (state.appUser) {
-      try { await updateDoc(doc(db, 'users', state.appUser.uid), { colorTheme: c }); }
-      catch {}
+    const swatchWrap = e.target.closest('.color-swatch-wrap');
+    const layoutBtn  = e.target.closest('.layout-opt');
+    if (swatchWrap) {
+      const c = swatchWrap.dataset.color;
+      applyColorTheme(c);
+      E('colorPickerPanel').classList.remove('open');
+      if (state.appUser) {
+        try { await updateDoc(doc(db, 'users', state.appUser.uid), { colorTheme: c }); }
+        catch {}
+      }
+    } else if (layoutBtn) {
+      const l = layoutBtn.dataset.layout;
+      applyLayout(l);
+      if (state.appUser) {
+        try { await updateDoc(doc(db, 'users', state.appUser.uid), { layout: l }); }
+        catch {}
+      }
+    }
+  });
+
+  // Hamburger (sidebar mobile)
+  E('hamburgerBtn').addEventListener('click', () => {
+    E('mainTabs').classList.toggle('open');
+    E('sidebarOverlay').classList.toggle('open');
+  });
+  E('sidebarOverlay').addEventListener('click', () => {
+    E('mainTabs').classList.remove('open');
+    E('sidebarOverlay').classList.remove('open');
+  });
+  // Sidebar: tab click → close on mobile
+  E('mainTabs').addEventListener('click', e => {
+    if (e.target.closest('.tab-btn') && window.innerWidth <= 800 &&
+        document.documentElement.hasAttribute('data-layout')) {
+      E('mainTabs').classList.remove('open');
+      E('sidebarOverlay').classList.remove('open');
     }
   });
   document.addEventListener('click', e => {
