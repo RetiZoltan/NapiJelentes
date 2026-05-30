@@ -4,7 +4,8 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
-import { E, msg, ag, tod, initTheme, toggleTheme, showScreen } from './utils.js';
+import { E, msg, ag, tod, initTheme, toggleTheme, showScreen,
+         applyColorTheme, initColorTheme } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, autoAddToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
@@ -123,6 +124,7 @@ function buildAppUI() {
   E('evesEvInput').value    = yr;
 
 
+  applyColorTheme(state.userData.colorTheme || 'blueprint');
   loadLists().then(() => _updateFeladatReszlegF());
   loadAndDisplayNotice();
   addSuly(); addZsak();
@@ -270,6 +272,7 @@ function translateAuthErr(code) {
 /* ── Event listeners ── */
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  initColorTheme();
 
   // Auth screen
   E('googleBtn').addEventListener('click', doGoogleLogin);
@@ -287,6 +290,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // App header
   E('themeBtn').addEventListener('click', toggleTheme);
   E('logoutBtn').addEventListener('click', () => { if (confirm('Biztosan kijelentkezel?')) signOut(auth); });
+
+  // Dizájn téma picker
+  E('colorThemeBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    E('colorPickerPanel').classList.toggle('open');
+  });
+  E('colorPickerPanel').addEventListener('click', async e => {
+    const wrap = e.target.closest('.color-swatch-wrap');
+    if (!wrap) return;
+    const c = wrap.dataset.color;
+    applyColorTheme(c);
+    E('colorPickerPanel').classList.remove('open');
+    if (state.appUser) {
+      try { await updateDoc(doc(db, 'users', state.appUser.uid), { colorTheme: c }); }
+      catch {}
+    }
+  });
+  document.addEventListener('click', e => {
+    if (!E('colorPickerPanel').contains(e.target) && e.target !== E('colorThemeBtn')) {
+      E('colorPickerPanel').classList.remove('open');
+    }
+  });
 
   // Main tabs
   E('mainTabs').addEventListener('click', e => {
