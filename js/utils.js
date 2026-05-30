@@ -84,6 +84,29 @@ export function fmtKg(kg) {
     : `${v.toFixed(0)} kg`;
 }
 
+export function skelHtml(type = 'report') {
+  const line = (w) => `<div class="sk sk-h ${w}" style="margin-bottom:9px;"></div>`;
+  if (type === 'report') {
+    const card = (lines) => `<div class="sk-card">
+      <div class="sk sk-title"></div>${lines.map(line).join('')}</div>`;
+    return `<div class="sk-wrap">
+      ${card(['w90','w70','w50'])}${card(['w90','w60','w40'])}</div>`;
+  }
+  if (type === 'tasks') {
+    const item = () => `<div class="sk-card" style="display:flex;gap:10px;align-items:flex-start;padding:13px 14px;">
+      <div class="sk sk-circ" style="width:10px;height:10px;margin-top:5px;flex-shrink:0;"></div>
+      <div style="flex:1;">${line('w70')}${line('w50')}</div></div>`;
+    return `<div class="sk-wrap">${item()}${item()}${item()}</div>`;
+  }
+  if (type === 'grid') {
+    const card = () => `<div class="sk-card" style="display:flex;gap:12px;align-items:flex-start;">
+      <div class="sk sk-circ" style="width:44px;height:44px;flex-shrink:0;"></div>
+      <div style="flex:1;">${line('w60')}${line('w40')}</div></div>`;
+    return `<div class="emp-grid">${card()}${card()}${card()}</div>`;
+  }
+  return `<div class="sk-wrap">${line('w90')}${line('w70')}${line('w50')}</div>`;
+}
+
 export function showScreen(name) {
   ['loading','login','pending','app'].forEach(s => {
     const el = E('screen-' + s);

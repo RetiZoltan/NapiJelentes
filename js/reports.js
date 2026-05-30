@@ -1,7 +1,7 @@
 import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
 import { state, canSeeAllReports, isMainAdmin } from './state.js';
-import { E, esc, msg, tod, fmtL, fmtS, fmtKg } from './utils.js';
+import { E, esc, msg, tod, fmtL, fmtS, fmtKg, skelHtml } from './utils.js';
 import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
 
 let unsubNapi = null;
@@ -27,7 +27,7 @@ export function napiRiport() {
   if (!rd) { msg('Válassz dátumot!', 'error'); return; }
   const szuro = canSeeAllReports() ? E('dolgSzuro').value : '';
 
-  E('napiRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('napiRiportDiv').innerHTML = skelHtml('report');
   cleanupNapiListener();
 
   const constraints = [where('datum', '==', rd)];
@@ -206,7 +206,7 @@ export async function haviRiport() {
   const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
   const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
-  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('idoszakosRiportDiv').innerHTML = skelHtml('report');
   let hA = await fetchEntries({ datumFrom: from, datumTo: to });
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
@@ -237,7 +237,7 @@ export async function evesRiport() {
   const from = `${ev}-01-01`, to = `${ev}-12-31`;
   const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
-  E('idoszakosRiportDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('idoszakosRiportDiv').innerHTML = skelHtml('report');
   let hA = await fetchEntries({ datumFrom: from, datumTo: to });
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {

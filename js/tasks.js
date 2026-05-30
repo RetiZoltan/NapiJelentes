@@ -1,12 +1,12 @@
 import { db, doc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin } from './state.js';
-import { E, esc, msg, tod } from './utils.js';
+import { E, esc, msg, tod, skelHtml } from './utils.js';
 
 export async function loadTasks() {
   const statuszF = E('feladatStatuszF')?.value || 'nyitott';
   const reszlegF = E('feladatReszlegF')?.value || '';
-  E('feladatListDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  E('feladatListDiv').innerHTML = skelHtml('tasks');
   try {
     const snap = await getDocs(query(collection(db, 'tasks'), orderBy('createdAt', 'desc')));
     let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));

@@ -144,6 +144,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   E('tab-' + name).classList.add('active');
   btn.classList.add('active');
+  if (typeof _updateFab === 'function') _updateFab();
   if (name === 'admin')     loadAdminUsers();
   if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek') cleanupNapiListener();
@@ -530,6 +531,95 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('online',  _updateOnlineStatus);
   window.addEventListener('offline', _updateOnlineStatus);
   _updateOnlineStatus();
+
+  // ── FAB ──────────────────────────────────────────────
+  E('fabBtn').addEventListener('click', () => {
+    switchTab('adatbevitel', E('tabBtnAdatbevitel'));
+  });
+  function _updateFab() {
+    const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    E('fabBtn').classList.toggle('fab-off', tab === 'adatbevitel');
+  }
+
+  // ── Bottom sheet szűrők ──────────────────────────────
+  function _openBS(filterCardId, title) {
+    const fc = E(filterCardId);
+    if (!fc) return;
+    E('bsTitle').textContent = title;
+    E('bsContent').innerHTML = '';
+    E('bsContent').appendChild(fc.cloneNode(true));
+    // Szinkronizálja az értékeket az eredeti elemekkel
+    E('bsContent').querySelectorAll('[id]').forEach(el => {
+      const orig = document.getElementById(el.id);
+      if (!orig || orig === el) return;
+      if (el.tagName === 'SELECT' || el.tagName === 'INPUT') el.value = orig.value;
+    });
+    E('bsOverlay').classList.add('open');
+    E('bottomSheet').classList.add('open');
+  }
+  function _closeBS() {
+    E('bsOverlay').classList.remove('open');
+    E('bottomSheet').classList.remove('open');
+  }
+  function _applyBS(filterCardId) {
+    E('bsContent').querySelectorAll('[id]').forEach(el => {
+      const orig = document.getElementById(el.id);
+      if (!orig || orig === el) return;
+      if ((el.tagName === 'SELECT' || el.tagName === 'INPUT') && el.value !== orig.value) {
+        orig.value = el.value;
+        orig.dispatchEvent(new Event('change'));
+      }
+    });
+    _closeBS();
+  }
+  E('napiFilterToggle').addEventListener('click',     () => _openBS('napiFilterCard',     'Szűrők & dátum'));
+  E('idoszakosFilterToggle').addEventListener('click',() => _openBS('idoszakosFilterCard','Időszak & beállítások'));
+  E('bsOverlay').addEventListener('click', _closeBS);
+  E('bsApplyBtn').addEventListener('click', () => {
+    const active = document.querySelector('.jstab-panel.active');
+    const id = active?.id;
+    if (id === 'jstab-napi') _applyBS('napiFilterCard');
+    else if (id === 'jstab-idoszakos') _applyBS('idoszakosFilterCard');
+    else _closeBS();
+  });
+
+  // ── Pull-to-refresh ──────────────────────────────────
+  let _ptStart = 0, _ptDelta = 0, _ptActive = false;
+  const PTR = E('ptrIndicator');
+  const PTR_THRESHOLD = 75;
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY < 5 && e.touches.length === 1) {
+      _ptStart = e.touches[0].clientY; _ptActive = true;
+    }
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!_ptActive) return;
+    _ptDelta = e.touches[0].clientY - _ptStart;
+    if (_ptDelta > 0 && _ptDelta < 130) {
+      const progress = Math.min(_ptDelta / PTR_THRESHOLD, 1);
+      PTR.style.top = `${-52 + _ptDelta * 0.65}px`;
+      PTR.style.opacity = progress;
+      PTR.textContent = _ptDelta >= PTR_THRESHOLD ? '↺' : '↓';
+      PTR.classList.toggle('ptr-visible', _ptDelta > 10);
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!_ptActive) return;
+    _ptActive = false;
+    if (_ptDelta >= PTR_THRESHOLD) {
+      PTR.classList.add('ptr-spin');
+      PTR.style.top = '12px';
+      const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
+      const done = () => { PTR.style.top = '-52px'; PTR.style.opacity = '0'; PTR.classList.remove('ptr-spin'); };
+      if (tab === 'jelentesek') { napiRiport(); setTimeout(done, 1200); }
+      else if (tab === 'feladatok') { loadTasks().then(done); }
+      else { setTimeout(done, 600); }
+    } else {
+      PTR.style.top = '-52px';
+      PTR.style.opacity = '0';
+    }
+    _ptDelta = 0;
+  });
 
   // Admin — felhasználók
   E('userTableBody').addEventListener('change', async e => {

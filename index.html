@@ -231,7 +231,8 @@
 
       <!-- Napi al-fül -->
       <div id="jstab-napi" class="jstab-panel active">
-      <div class="card">
+      <button class="filter-toggle" id="napiFilterToggle">🎚 Szűrők & dátum</button>
+      <div class="card js-filter-card" id="napiFilterCard">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
           <div class="field" style="min-width:150px;">
             <label class="lbl">Dátum</label>
@@ -277,7 +278,8 @@
 
       <!-- Időszakos al-fül -->
       <div id="jstab-idoszakos" class="jstab-panel">
-      <div class="card">
+      <button class="filter-toggle" id="idoszakosFilterToggle">🎚 Időszak & beállítások</button>
+      <div class="card js-filter-card" id="idoszakosFilterCard">
         <div style="display:flex;align-items:center;margin-bottom:14px;">
           <p class="sec-hd" style="margin:0;border:none;padding:0;flex:1;"><span>1.</span> Időszak kiválasztása</p>
           <button class="btn btn-ghost btn-sm" id="riportSettingsBtn" style="font-size:11.5px;">⚙ Szekciók beállítása</button>
@@ -738,6 +740,17 @@
     </div>
   </div>
 </div><!-- /screen-app -->
+
+<!-- ══ MOBIL UX ══ -->
+<button id="fabBtn" class="fab" title="Új bejegyzés">✏️</button>
+<div id="ptrIndicator" class="ptr-indicator">↓</div>
+<div id="bsOverlay" class="bs-overlay"></div>
+<div id="bottomSheet" class="bottom-sheet">
+  <div class="bs-drag"></div>
+  <div class="bs-sheet-title" id="bsTitle">Szűrők</div>
+  <div id="bsContent"></div>
+  <button class="btn btn-primary btn-sm bs-apply-btn" id="bsApplyBtn">Alkalmaz</button>
+</div>
 
 <!-- ══ DOLGOZÓ DRAWER ══ -->
 <div id="empDrawerOverlay" class="emp-drawer-overlay"></div>
