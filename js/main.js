@@ -22,7 +22,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, applyRoleTemplate } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
-import { initDashboard, reloadDashboard } from './dashboard.js';
+import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
@@ -737,6 +737,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Szerepkör sablonok
   document.querySelectorAll('.role-tpl-btn').forEach(btn => {
     btn.addEventListener('click', () => applyRoleTemplate(btn.dataset.tpl));
+  });
+
+  // Dashboard gyors műveletek
+  E('dashQuickActions').addEventListener('click', e => {
+    const btn = e.target.closest('.dash-qa-btn'); if (!btn) return;
+    const tab    = btn.dataset.tab;
+    const action = btn.dataset.action;
+    if (tab) {
+      const tabBtn = E('tabBtn' + tab.charAt(0).toUpperCase() + tab.slice(1));
+      if (tabBtn) switchTab(tab, tabBtn);
+      if (tab === 'feladatok') setTimeout(() => E('feladatCim')?.focus(), 250);
+    }
+    if (action === 'napi-report') {
+      E('riportD').value = tod();
+      document.dispatchEvent(new CustomEvent('napi-goto'));
+    }
+  });
+
+  // Dashboard auto-frissítés
+  E('dashAutoRefreshSel').addEventListener('change', e => {
+    setAutoRefresh(parseInt(e.target.value, 10));
   });
 
   // Admin — listák
