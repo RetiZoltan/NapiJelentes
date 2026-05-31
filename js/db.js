@@ -171,15 +171,38 @@ export async function deleteDailyNoteForReszleg(datum, key) {
 
 export async function fetchEntries(filters = {}) {
   try {
+    const ownOnly = !canSeeAllReports();
     const constraints = [];
-    if (filters.datum)     constraints.push(where('datum', '==',  filters.datum));
-    if (filters.datumFrom) constraints.push(where('datum', '>=',  filters.datumFrom));
-    if (filters.datumTo)   constraints.push(where('datum', '<=',  filters.datumTo));
-    if (!canSeeAllReports()) constraints.push(where('createdBy', '==', state.appUser.uid));
-    if (filters.nev)       constraints.push(where('nev', '==',   filters.nev));
-    constraints.push(orderBy('datum'), orderBy('createdAt'));
+
+    if (ownOnly) {
+      // sajatJelentes: csak createdBy egyenlőségi szűrő a Firestore-ban
+      // (where + orderBy kombinációhoz kompozit index kellene — ezt kerüljük)
+      // A dátum szűrés és rendezés kliens oldalon történik
+      constraints.push(where('createdBy', '==', state.appUser.uid));
+      if (filters.datum) constraints.push(where('datum', '==', filters.datum));
+      if (filters.nev)   constraints.push(where('nev',   '==', filters.nev));
+    } else {
+      if (filters.datum)     constraints.push(where('datum', '==',  filters.datum));
+      if (filters.datumFrom) constraints.push(where('datum', '>=',  filters.datumFrom));
+      if (filters.datumTo)   constraints.push(where('datum', '<=',  filters.datumTo));
+      if (filters.nev)       constraints.push(where('nev',   '==',  filters.nev));
+      constraints.push(orderBy('datum'), orderBy('createdAt'));
+    }
+
     const snap = await getDocs(query(collection(db, 'entries'), ...constraints));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let result = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (ownOnly) {
+      // Kliens oldali dátum szűrés és rendezés
+      if (filters.datumFrom) result = result.filter(e => e.datum >= filters.datumFrom);
+      if (filters.datumTo)   result = result.filter(e => e.datum <= filters.datumTo);
+      result.sort((a, b) => {
+        const dc = (a.datum || '').localeCompare(b.datum || '');
+        return dc !== 0 ? dc : ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      });
+    }
+
+    return result;
   } catch (e) {
     msg('Lekérdezési hiba: ' + e.message, 'error', 5000);
     return [];
