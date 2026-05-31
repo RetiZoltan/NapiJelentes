@@ -25,6 +25,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          loadAuditLogAdmin } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
+import { initHelp } from './help.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
@@ -100,6 +101,7 @@ function buildAppUI() {
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'))  ? '' : 'none';
   E('tabBtnAdmin').style.display       = (isMainAdmin() || canManageUsers() || hasPerm('kozlemenyIras'))                ? '' : 'none';
+  E('tabBtnSugo').style.display        = '';
 
   E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
   E('stab-kozlemeny-btn').style.display    = (canManageUsers() || hasPerm('kozlemenyIras')) ? '' : 'none';
@@ -174,6 +176,7 @@ function switchTab(name, btn) {
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
   if (name === 'dashboard')   { initDashboard(); loadAndDisplayNotice(); }
+  if (name === 'sugo')        initHelp();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
