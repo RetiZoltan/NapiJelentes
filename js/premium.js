@@ -1,11 +1,13 @@
-import { db, doc, getDoc, setDoc } from './firebase.js';
+import { db, doc, getDoc, setDoc, addDoc, deleteDoc,
+         collection, query, getDocs, orderBy, limit, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, esc, msg } from './utils.js';
 import { fetchEntries } from './db.js';
 
-let premiumConfig = {};  // { matNev: { napiAlap, arany, arPerKg } }
-let lastResults   = null;
-let lastLabel     = '';
+let premiumConfig  = {};
+let lastResults    = null;
+let lastLabel      = '';
+let _historyCache  = [];
 
 /* ═══ Config helpers ═══ */
 
@@ -93,8 +95,102 @@ export function initPremiumTab() {
   _tabInited = true;
   const now = new Date();
   E('premiumHonapInput').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  E('premiumSzamolBtn').addEventListener('click',   calcAndRender);
-  E('premiumNyomtatBtn').addEventListener('click',  premiumNyomtat);
+  E('premiumSzamolBtn').addEventListener('click',  calcAndRender);
+  E('premiumNyomtatBtn').addEventListener('click', premiumNyomtat);
+}
+
+export function switchPremiumTab(name) {
+  document.querySelectorAll('#premiumSubtabs .stab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.ptab === name)
+  );
+  document.querySelectorAll('#tab-premium .pstab-panel').forEach(p => p.classList.remove('active'));
+  E('pstab-' + name)?.classList.add('active');
+  if (name === 'elozmeny') _loadAndRenderHistory();
+}
+
+export async function savePremiumHistory() {
+  if (!lastResults?.length) { msg('Nincs menthető eredmény!', 'error'); return; }
+  const raw = E('premiumHonapInput').value;
+  const [ev, honap] = raw.split('-').map(Number);
+  const reszleg     = E('premiumReszlegSzuro')?.value || '';
+  const grandTotal  = lastResults.reduce((s, r) => s + r.totalPremium, 0);
+
+  // Csak a szükséges adatokat tároljuk (cfg nélkül)
+  const cleanResults = lastResults.map(r => ({
+    nev: r.nev, totalPremium: r.totalPremium,
+    details: r.details.map(d => ({
+      mat: d.mat, activeDays: d.activeDays,
+      premiumDays: d.premiumDays || 0,
+      totalKg: d.totalKg, totalExcess: d.totalExcess || 0,
+      premium: d.premium, noConfig: d.noConfig || false,
+      napiAlap: d.cfg?.napiAlap || null
+    }))
+  }));
+
+  try {
+    await addDoc(collection(db, 'premiumHistory'), {
+      ev, honap, reszleg, honapNev: lastLabel,
+      results: cleanResults, grandTotal,
+      savedBy:     state.appUser.uid,
+      savedByName: state.userData?.displayName || state.appUser.email || 'Ismeretlen',
+      savedAt:     serverTimestamp()
+    });
+    msg('Prémium előzmény elmentve!');
+    if (E('pstab-elozmeny')?.classList.contains('active')) _loadAndRenderHistory();
+  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+}
+
+async function _loadAndRenderHistory() {
+  const div = E('premiumHistoryDiv'); if (!div) return;
+  div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);">Betöltés…</div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'premiumHistory'), orderBy('savedAt', 'desc'), limit(36)
+    ));
+    if (snap.empty) {
+      div.innerHTML = `<div class="empty-st"><div class="empty-ic">📋</div><div class="empty-title">Nincs mentett prémium</div><div class="empty-sub">Számíts prémiumot és kattints a 💾 Mentés gombra.</div></div>`;
+      return;
+    }
+    _historyCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    div.innerHTML = _historyCache.map(h => {
+      const saved    = h.savedAt?.toDate ? h.savedAt.toDate().toLocaleDateString('hu-HU', { year:'numeric', month:'long', day:'numeric' }) : '—';
+      const reszlegB = h.reszleg ? `<span class="notice-meta-badge">📍 ${esc(h.reszleg)}</span>` : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(h.honapNev || `${h.ev}/${h.honap}`)} ${reszlegB}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">${esc(h.savedByName)} · ${saved} · ${h.results?.length || 0} dolgozó</div>
+        </div>
+        <div style="font-weight:700;font-size:13px;color:var(--green);white-space:nowrap;">${fmtFt(h.grandTotal || 0)}</div>
+        <button class="btn btn-ghost btn-xs prem-hist-load" data-id="${h.id}">Betölt</button>
+        <button class="btn btn-danger btn-xs prem-hist-del" data-id="${h.id}">✕</button>
+      </div>`;
+    }).join('');
+
+    div.querySelectorAll('.prem-hist-load').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const h = _historyCache.find(x => x.id === btn.dataset.id); if (!h) return;
+        const results = (h.results || []).map(r => ({
+          ...r,
+          details: r.details.map(d => ({ ...d, cfg: d.napiAlap ? { napiAlap: d.napiAlap } : null }))
+        }));
+        lastResults = results;
+        lastLabel   = h.honapNev || `${h.ev}/${h.honap}`;
+        switchPremiumTab('szamitas');
+        renderPremiumResults(results, lastLabel);
+        E('premiumHonapInput').value = `${h.ev}-${String(h.honap).padStart(2,'0')}`;
+        if (h.reszleg && E('premiumReszlegSzuro')) E('premiumReszlegSzuro').value = h.reszleg;
+      });
+    });
+
+    div.querySelectorAll('.prem-hist-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Törlöd ezt a mentett prémiumot?')) return;
+        try { await deleteDoc(doc(db, 'premiumHistory', btn.dataset.id)); msg('Törölve.'); _loadAndRenderHistory(); }
+        catch (e) { msg('Hiba: ' + e.message, 'error'); }
+      });
+    });
+  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
 }
 
 async function calcAndRender() {
@@ -107,6 +203,7 @@ async function calcAndRender() {
 
   E('premiumResultDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
   E('premiumNyomtatBtn').disabled = true;
+  if (E('premiumMentBtn')) E('premiumMentBtn').disabled = true;
 
   await loadPremiumConfig();
   lastResults = await computePremium(year, mon, reszlegF);
@@ -229,6 +326,7 @@ function renderPremiumResults(results, label) {
 
   E('premiumResultDiv').innerHTML = html;
   E('premiumNyomtatBtn').disabled = false;
+  if (E('premiumMentBtn')) E('premiumMentBtn').disabled = false;
 
   E('premiumResultDiv').querySelectorAll('.prem-row').forEach(row => {
     row.addEventListener('click', () => {

@@ -764,22 +764,36 @@
 
     <!-- ══ PRÉMIUM ══ -->
     <div id="tab-premium" class="tab-panel">
-      <div class="card">
-        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-          <div class="field"><label class="lbl">Hónap</label><input type="month" id="premiumHonapInput"></div>
-          <div class="field" style="min-width:130px;">
-            <label class="lbl">Részleg</label>
-            <select id="premiumReszlegSzuro"><option value="">— Mind —</option></select>
-          </div>
-          <div class="field" style="margin-bottom:13px;">
-            <label class="lbl" style="visibility:hidden;">–</label>
-            <button class="btn btn-primary btn-sm" id="premiumSzamolBtn">Számol</button>
+      <div class="subtabs" id="premiumSubtabs">
+        <button class="stab-btn active" data-ptab="szamitas">📊 Számítás</button>
+        <button class="stab-btn" data-ptab="elozmeny">📋 Előzmények</button>
+      </div>
+
+      <!-- Számítás al-fül -->
+      <div id="pstab-szamitas" class="pstab-panel active">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">Hónap</label><input type="month" id="premiumHonapInput"></div>
+            <div class="field" style="min-width:130px;">
+              <label class="lbl">Részleg</label>
+              <select id="premiumReszlegSzuro"><option value="">— Mind —</option></select>
+            </div>
+            <div class="field" style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="premiumSzamolBtn">Számol</button>
+            </div>
           </div>
         </div>
+        <div id="premiumResultDiv"><div class="empty-st"><div class="empty-ic">💰</div>Válassz hónapot és kattints a <strong>Számol</strong> gombra</div></div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-ghost" id="premiumNyomtatBtn" disabled>🖨 Nyomtatás</button>
+          <button class="btn btn-ghost" id="premiumMentBtn" disabled>💾 Mentés</button>
+        </div>
       </div>
-      <div id="premiumResultDiv"><div class="empty-st"><div class="empty-ic">💰</div>Válassz hónapot és kattints a <strong>Számol</strong> gombra</div></div>
-      <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-ghost" id="premiumNyomtatBtn" disabled>🖨 Nyomtatás</button>
+
+      <!-- Előzmények al-fül -->
+      <div id="pstab-elozmeny" class="pstab-panel">
+        <div id="premiumHistoryDiv"><div class="empty-st"><div class="empty-ic">📋</div><div class="empty-title">Betöltés…</div></div></div>
       </div>
     </div>
 

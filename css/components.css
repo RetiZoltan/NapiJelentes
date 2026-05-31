@@ -139,6 +139,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .stab-btn.active{background:var(--accent);color:#fff;font-weight:600;}
 .stab-panel{display:none;}
 .stab-panel.active{display:block;}
+.pstab-panel{display:none;}
+.pstab-panel.active{display:block;}
 .jstab-panel{display:none;}
 .jstab-panel.active{display:block;}
 

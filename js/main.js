@@ -27,7 +27,8 @@ import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initHelp } from './help.js';
 import { initNaptar } from './calendar.js';
-import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
+import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
+         savePremiumHistory, switchPremiumTab } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
@@ -829,6 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Admin — közlemény
   E('noticeSaveBtn').addEventListener('click', saveNotice);
+
+  // Prémium al-fülek
+  E('premiumSubtabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.ptab) return;
+    switchPremiumTab(btn.dataset.ptab);
+  });
+  E('premiumMentBtn').addEventListener('click', savePremiumHistory);
 
   // Admin — prémium konfig
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);
