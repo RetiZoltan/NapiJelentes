@@ -10,7 +10,6 @@ const ALL_WIDGETS = [
   { id: 'topDolg',    label: 'Havi legjobb',       icon: '🏅', def: false },
   { id: 'nyitottF',   label: 'Nyitott feladatok',  icon: '📌', def: true  },
   { id: 'aktivDolg',  label: 'Aktív dolgozók',     icon: '👷', def: true  },
-  { id: 'probaidok',  label: 'Közelgő próbaidők',  icon: '⏳', def: true  },
   { id: 'utobbiBeir', label: 'Utóbbi bejegyzések', icon: '📋', def: false },
 ];
 
@@ -21,7 +20,7 @@ function _empPerm() {
 }
 
 function _canSeeWidget(id) {
-  if (id === 'aktivDolg' || id === 'probaidok') return _empPerm();
+  if (id === 'aktivDolg') return _empPerm();
   if (id === 'topDolg') return canSeeAllReports();
   return true;
 }
@@ -91,7 +90,7 @@ async function _loadWidgets() {
 
   // Determine what data is needed
   const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','topDolg','utobbiBeir'].includes(id));
-  const needsEmps    = enabled.some(id => ['aktivDolg','probaidok'].includes(id)) && _empPerm();
+  const needsEmps    = enabled.includes('aktivDolg') && _empPerm();
   const needsTasks   = enabled.includes('nyitottF');
 
   const today      = tod();
@@ -210,26 +209,6 @@ function _buildWidget(id, ctx) {
     const aktiv = empSnap.docs.filter(d => d.data().statusz === 'aktiv').length;
     const ossz  = empSnap.docs.length;
     return _card('👷', 'Aktív dolgozók', String(aktiv), `${ossz} dolgozó összesen`);
-  }
-
-  if (id === 'probaidok') {
-    if (!empSnap) return _card('⏳', 'Közelgő próbaidők', '—', 'Nincs jogosultság');
-    const soon = addD(today, 30);
-    const list = empSnap.docs
-      .map(d => d.data())
-      .filter(e => e.probaidoVege && e.probaidoVege >= today && e.probaidoVege <= soon)
-      .sort((a, b) => a.probaidoVege.localeCompare(b.probaidoVege));
-    if (!list.length) {
-      return _card('⏳', 'Közelgő próbaidők', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)');
-    }
-    const rows = list.slice(0, 3).map(e =>
-      `<div style="font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
-        <span>${esc(e.nev)}</span>
-        <span style="color:var(--amber);font-weight:600;">${e.probaidoVege}</span>
-      </div>`
-    ).join('');
-    const more = list.length > 3 ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">+${list.length - 3} további</div>` : '';
-    return _card('⏳', 'Közelgő próbaidők', String(list.length), '', `<div style="margin-top:8px;">${rows}${more}</div>`);
   }
 
   if (id === 'utobbiBeir') {

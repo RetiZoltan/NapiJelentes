@@ -138,16 +138,12 @@ export function renderEmployeeGrid() {
     szabadsag: { label: 'Szabadságon', cls: 'emp-szab' }
   };
   const today = tod();
-  const in30  = new Date(); in30.setDate(in30.getDate() + 30);
-  const in30S = in30.toISOString().slice(0, 10);
 
   grid.innerHTML = '<div class="emp-grid">' + list.map(emp => {
     const st    = STATUSZ[emp.statusz || 'aktiv'] || STATUSZ.aktiv;
     const keret = emp.szabadsagKeret ?? 20;
     const felh  = _szabadsagMap[emp.nev] || 0;
     const marad = Math.max(0, keret - felh);
-    const probaWarn = emp.probaidoVege && emp.probaidoVege >= today && emp.probaidoVege <= in30S
-      ? `<div class="emp-proba-warn">⚠️ Próbaidő vége: ${esc(emp.probaidoVege)}</div>` : '';
     const komps = (emp.kompetenciak || []).slice(0, 3);
     const moreK = (emp.kompetenciak || []).length > 3
       ? `<span class="komp-chip komp-chip-sm" style="opacity:.5;">+${emp.kompetenciak.length - 3}</span>` : '';
@@ -167,7 +163,6 @@ export function renderEmployeeGrid() {
         </div>
       </div>
       <div class="emp-szab-badge${marad < 5 ? ' emp-szab-low' : ''}">🌴 ${felh}/${keret} nap · <strong>${marad} maradt</strong></div>
-      ${probaWarn}
     </div>`;
   }).join('') + '</div>';
 }
@@ -183,7 +178,6 @@ export function openEmpForm(emp = null) {
   E('empFormTelefon').value        = emp?.telefon        || '';
   E('empFormEmail').value          = emp?.email          || '';
   E('empFormSzulDatum').value      = emp?.szulDatum      || '';
-  E('empFormProbaidoVege').value   = emp?.probaidoVege   || '';
   E('empFormSzerzodesT').value     = emp?.szerzodesTipus || 'hatarozatlan';
   E('empFormSzabadsagKeret').value = emp?.szabadsagKeret ?? 20;
   E('empFormTitle').textContent    = emp ? 'Dolgozó szerkesztése' : 'Új dolgozó';
@@ -225,7 +219,6 @@ export async function saveEmployee() {
     telefon:        E('empFormTelefon').value.trim(),
     email:          E('empFormEmail').value.trim(),
     szulDatum:      E('empFormSzulDatum').value        || null,
-    probaidoVege:   E('empFormProbaidoVege').value     || null,
     szerzodesTipus: E('empFormSzerzodesT').value       || 'hatarozatlan',
     szabadsagKeret: Number(E('empFormSzabadsagKeret').value) || 20,
     kompetenciak:   [..._kompList]
@@ -262,9 +255,6 @@ export function openEmpDrawer(emp) {
   const felh  = _szabadsagMap[emp.nev] || 0;
   const marad = Math.max(0, keret - felh);
   const today = tod();
-  const in30  = new Date(); in30.setDate(in30.getDate() + 30);
-  const in30S = in30.toISOString().slice(0, 10);
-
   E('empDrawerAvatar').textContent      = initials(emp.nev);
   E('empDrawerAvatar').style.background = avatarColor(emp.nev);
   E('empDrawerName').textContent        = emp.nev;
@@ -281,18 +271,6 @@ export function openEmpDrawer(emp) {
     emp.szerzodesTipus ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📋</span><span>${esc(SZERZODES[emp.szerzodesTipus] || emp.szerzodesTipus)}</span></div>` : '',
   ].filter(Boolean);
   if (rows.length) body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Alapadatok</div>${rows.join('')}</div>`;
-
-  if (emp.probaidoVege) {
-    const isWarn = emp.probaidoVege >= today && emp.probaidoVege <= in30S;
-    const isOver = emp.probaidoVege < today;
-    body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Próbaidő</div>
-      <div class="emp-drawer-row">
-        <span class="emp-drawer-row-icon">${isWarn ? '⚠️' : isOver ? '✅' : '⏳'}</span>
-        <span style="${isWarn ? 'color:var(--amber);font-weight:600;' : ''}">
-          ${isOver ? 'Lejárt: ' : 'Vége: '}<strong>${esc(emp.probaidoVege)}</strong>${isWarn ? ' — hamarosan!' : ''}
-        </span>
-      </div></div>`;
-  }
 
   body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Szabadság — ${new Date().getFullYear()}</div>
     <div class="nossz">
@@ -394,7 +372,6 @@ export async function exportEmpPdf(emp) {
           ${row('📅','Belépett',emp.belepet)}
           ${row('🎂','Születési dátum',emp.szulDatum)}
           ${row('📋','Szerződés',SZERZODES[emp.szerzodesTipus])}
-          ${row('⏳','Próbaidő vége',emp.probaidoVege)}
         </table>
       </div>
       <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;">
