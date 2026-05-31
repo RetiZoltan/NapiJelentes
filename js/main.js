@@ -28,8 +28,8 @@ import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initHelp } from './help.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadMozgasok,
          loadImportFromProduction, executeImport, saveManualisMozgas,
-         onManTipusChange, saveLocation, renderLocations,
-         canViewStock, canManageStock } from './stock.js';
+         saveAtmozgatas, onManTipusChange, saveLocation, renderLocations,
+         saveStockConfig, canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
@@ -850,6 +850,10 @@ document.addEventListener('DOMContentLoaded', () => {
   E('manTipus').addEventListener('change', onManTipusChange);
   E('manMozgasSaveBtn').addEventListener('click', saveManualisMozgas);
   E('helyszinSaveBtn').addEventListener('click', saveLocation);
+  E('stockKamionSaveBtn').addEventListener('click', saveStockConfig);
+  E('atMozgasSaveBtn').addEventListener('click', saveAtmozgatas);
+  // Átmozgatás dátum alapértelmezés
+  const atDatum = E('atDatum'); if (atDatum) atDatum.value = tod();
   // Manuális form toggle
   E('manualMozgasToggle').addEventListener('click', () => {
     const body = E('manualMozgasBody'), chevron = E('manualMozgasChevron');

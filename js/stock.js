@@ -1,11 +1,29 @@
-import { db, doc, addDoc, updateDoc, deleteDoc, collection, query,
+import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query,
          where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { fetchEntries } from './db.js';
 
-/* ── Konstansok ── */
-const KAMION_MAX = 22;
+/* ── Konfiguráció ── */
+let _stockConfig = { kamionMax: 22 };
+
+async function _loadStockConfig() {
+  try {
+    const s = await getDoc(doc(db, 'config', 'stockConfig'));
+    if (s.exists()) _stockConfig = { kamionMax: 22, ...s.data() };
+  } catch {}
+}
+
+export async function saveStockConfig() {
+  const val = parseInt(E('stockKamionMax')?.value, 10);
+  if (!val || val < 1 || val > 100) { msg('Érvénytelen érték! (1–100 közé kell esnie)', 'error'); return; }
+  try {
+    await setDoc(doc(db, 'config', 'stockConfig'), { kamionMax: val });
+    _stockConfig.kamionMax = val;
+    msg(`Beállítva: ${val} zsák/kamion`);
+    loadKeszlet();
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+}
 const MOZGAS_META = {
   bevitel:      { label: 'Bevételezés',  icon: '⬇️',  cls: 'mozg-bevitel'     },
   kivitel:      { label: 'Kivitel',      icon: '⬆️',  cls: 'mozg-kivitel'     },
@@ -23,11 +41,20 @@ export function canManageStock() { return isMainAdmin() || hasPerm('keszletKezel
 
 /* ── Kamion segéd ── */
 function _kamionStr(zsakSzam) {
+  const max = _stockConfig.kamionMax || 22;
   if (!zsakSzam || zsakSzam <= 0) return '';
-  const k = Math.floor(zsakSzam / KAMION_MAX);
-  const m = zsakSzam % KAMION_MAX;
-  if (k === 0) return `<1 kamion`;
+  const k = Math.floor(zsakSzam / max);
+  const m = zsakSzam % max;
+  if (k === 0) return `<1 kamion (max ${max} zsák)`;
   return m > 0 ? `~${k} kamion + ${m} zsák` : `${k} kamion`;
+}
+
+/* ── Zsák chip-ek HTML ── */
+function _zsakChips(sulyok) {
+  if (!sulyok?.length) return '';
+  return `<div class="stock-zsak-chips">${sulyok.map(s =>
+    `<span class="stock-zsak-chip">${s.toFixed(0)} kg</span>`
+  ).join('')}</div>`;
 }
 
 function _fmtKg(kg) {
@@ -53,7 +80,7 @@ function _fillLocSelects() {
   const allOpts  = '<option value="">— Mind —</option>' + locOpts;
   const selOpts  = '<option value="">— Válassz —</option>' + locOpts;
   const allIds   = ['keszletHelyF','mozgasHelyF'];
-  const selIds   = ['importHelyF','manForrasHely','manCelHely'];
+  const selIds   = ['importHelyF','manForrasHely','manCelHely','atForrasHely','atCelHely'];
   [...allIds, ...selIds].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value;
@@ -227,24 +254,27 @@ export async function loadMozgasok() {
         ? `${locName(m.forrasHely)} → ${locName(m.celHely)}`
         : locName(m.forrasHely);
       const canDel  = canManageStock();
-      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:20px;flex-shrink:0;">${meta.icon}</span>
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(m.anyag)}</span>
-            <span class="notice-meta-badge ${meta.cls}">${meta.label}</span>
+      return `<div style="border-bottom:1px solid var(--border);padding:8px 0 6px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <span style="font-size:20px;flex-shrink:0;">${meta.icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(m.anyag)}</span>
+              <span class="notice-meta-badge ${meta.cls}">${meta.label}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px;">
+              ${esc(m.datum)} · 📍 ${irany}
+              ${m.forrás === 'termelés' ? ' · <em style="color:var(--green)">termelésből</em>' : ''}
+            </div>
+            ${m.megjegyzes ? `<div style="font-size:12px;color:var(--text2);margin-top:2px;">${esc(m.megjegyzes)}</div>` : ''}
           </div>
-          <div style="font-size:12px;color:var(--text3);margin-top:3px;">
-            ${esc(m.datum)} · 📍 ${irany}
-            ${m.forrás === 'termelés' ? ' · <em style="color:var(--green)">termelésből importálva</em>' : ''}
+          <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+            <span class="stock-badge-zsak">${m.zsakSzam || 0} db</span>
+            <span style="font-size:11px;color:var(--text3);">${m.mennyisegKg ? (m.mennyisegKg/1000).toFixed(2) + ' t' : ''}</span>
           </div>
-          ${m.megjegyzes ? `<div style="font-size:12px;color:var(--text2);margin-top:2px;">${esc(m.megjegyzes)}</div>` : ''}
+          ${canDel ? `<button class="btn btn-danger btn-xs mozg-del-btn" data-id="${m.id}" style="flex-shrink:0;">✕</button>` : ''}
         </div>
-        <div style="text-align:right;flex-shrink:0;">
-          <div><span class="stock-badge-zsak">${m.zsakSzam || 0} db</span></div>
-          <div style="font-size:11px;color:var(--text3);margin-top:3px;">${m.mennyisegKg ? (m.mennyisegKg/1000).toFixed(2) + ' t' : ''}</div>
-        </div>
-        ${canDel ? `<button class="btn btn-danger btn-xs mozg-del-btn" data-id="${m.id}" style="flex-shrink:0;margin-top:2px;">✕</button>` : ''}
+        ${m.zsakSulyok?.length ? `<div style="padding:5px 0 0 30px;">${_zsakChips(m.zsakSulyok)}</div>` : ''}
       </div>`;
     }).join('');
 
@@ -318,14 +348,14 @@ export async function loadImportFromProduction() {
         ${entries.sort((a,b)=>a.datum.localeCompare(b.datum)).map(e => {
           const zsak = e.zsakSulyok.length;
           const kg   = e.zsakSulyok.reduce((s,v)=>s+v,0);
-          const avg  = zsak > 0 ? (kg/zsak).toFixed(1) : '—';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 20px;border-bottom:1px solid var(--border);">
-            <input type="checkbox" class="import-entry-chk" data-id="${e.id}" data-mat="${esc(mat)}" checked style="accent-color:var(--accent);">
-            <div style="flex:1;min-width:0;">
-              <span style="font-size:13px;color:var(--text);">${esc(e.datum)}</span>
-              <span style="font-size:12px;color:var(--text3);margin-left:8px;">${esc(e.nev)}</span>
+          return `<div style="padding:6px 0 8px 20px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+              <input type="checkbox" class="import-entry-chk" data-id="${e.id}" data-mat="${esc(mat)}" checked style="accent-color:var(--accent);flex-shrink:0;">
+              <span style="font-size:13px;color:var(--text);font-weight:600;">${esc(e.datum)}</span>
+              <span style="font-size:12px;color:var(--text3);">${esc(e.nev)}</span>
+              <span style="margin-left:auto;font-size:12px;color:var(--text2);">${zsak} zsák · ${(kg/1000).toFixed(2)} t</span>
             </div>
-            <span style="font-size:12px;color:var(--text2);">${zsak} zsák · ${(kg/1000).toFixed(2)} t · átlag ${avg} kg</span>
+            ${_zsakChips(e.zsakSulyok)}
           </div>`;
         }).join('')}
       </div>`;
@@ -371,10 +401,11 @@ export async function executeImport() {
     const mat = cb.dataset.mat;
     const e   = _importCache.find(x => x.id === id);
     if (!e) return;
-    if (!byMat[mat]) byMat[mat] = { zsakSzam: 0, mennyisegKg: 0, refs: [] };
+    if (!byMat[mat]) byMat[mat] = { zsakSzam: 0, mennyisegKg: 0, refs: [], zsakSulyok: [] };
     byMat[mat].zsakSzam    += e.zsakSulyok.length;
     byMat[mat].mennyisegKg += e.zsakSulyok.reduce((s,v)=>s+v,0);
     byMat[mat].refs.push(e.id);
+    byMat[mat].zsakSulyok.push(...e.zsakSulyok);
   });
 
   try {
@@ -387,6 +418,7 @@ export async function executeImport() {
         celHely:     null,
         zsakSzam:    data.zsakSzam,
         mennyisegKg: parseFloat(data.mennyisegKg.toFixed(2)),
+        zsakSulyok:  data.zsakSulyok,
         datum,
         megjegyzes:  `Import: ${E('importHonapF').value}`,
         forrás:      'termelés',
@@ -446,6 +478,36 @@ export async function saveManualisMozgas() {
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
 
+/* ══════════════════════════════════════
+   GYORS ÁTMOZGATÁS
+══════════════════════════════════════ */
+export async function saveAtmozgatas() {
+  const anyag      = E('atAnyag')?.value?.trim();
+  const zsakSzam   = parseInt(E('atZsakSzam')?.value, 10);
+  const forrasHely = E('atForrasHely')?.value;
+  const celHely    = E('atCelHely')?.value;
+  const datum      = E('atDatum')?.value || tod();
+  const megjegyzes = E('atMegjegyzes')?.value?.trim() || '';
+
+  if (!anyag)        { msg('Add meg az anyag nevét!', 'error'); return; }
+  if (!zsakSzam || zsakSzam <= 0) { msg('Add meg a zsák darabszámot!', 'error'); return; }
+  if (!forrasHely)   { msg('Válassz forrás helyszínt!', 'error'); return; }
+  if (!celHely)      { msg('Válassz cél helyszínt!', 'error'); return; }
+  if (forrasHely === celHely) { msg('A forrás és cél helyszín nem lehet ugyanaz!', 'error'); return; }
+
+  try {
+    await addDoc(collection(db, 'stockMovements'), {
+      tipus: 'atadas', anyag, forrasHely, celHely,
+      zsakSzam, mennyisegKg: null, zsakSulyok: [],
+      datum, megjegyzes, forrás: 'manuális', termelesRef: [],
+      createdBy: state.appUser.uid, createdAt: serverTimestamp()
+    });
+    msg(`✅ ${zsakSzam} zsák átmozgatva`);
+    E('atZsakSzam').value = E('atMegjegyzes').value = '';
+    loadKeszlet();
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+}
+
 /* ── Dinamikus cél helyszín megjelenítés ── */
 export function onManTipusChange() {
   const tipus = E('manTipus')?.value;
@@ -471,6 +533,9 @@ export function switchKeszletTab(name) {
 }
 
 export async function initKeszletTab() {
-  await loadLocations();
+  await Promise.all([loadLocations(), _loadStockConfig()]);
+  // Kamion max megjelenítése a beállítás mezőben
+  const inp = E('stockKamionMax');
+  if (inp) inp.value = _stockConfig.kamionMax || 22;
   loadKeszlet();
 }

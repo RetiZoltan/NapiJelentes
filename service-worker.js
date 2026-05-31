@@ -1,4 +1,4 @@
-const CACHE    = 'napi-jelentes-v54';
+const CACHE    = 'napi-jelentes-v55';
 const PRECACHE = [
   '/', '/index.html',
   '/css/tokens.css', '/css/components.css', '/css/report.css',
