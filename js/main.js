@@ -4,7 +4,7 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
-import { E, msg, ag, tod, initTheme, toggleTheme, showScreen,
+import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
