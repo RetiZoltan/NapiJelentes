@@ -18,7 +18,14 @@ let _autoRefreshTimer  = null;
 
 /* ── Jogosultságok ── */
 function _empPerm()       { return isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'); }
-function _canSeeWidget(id){ if (id === 'aktivDolg') return _empPerm(); if (id === 'topDolg') return canSeeAllReports(); return true; }
+function _canSeeWidget(id) {
+  const canReadEntries = isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
+  if (['maiOssz','haviOssz','hetiTrend','utobbiBeir'].includes(id)) return canReadEntries;
+  if (id === 'topDolg')   return canSeeAllReports();
+  if (id === 'aktivDolg') return _empPerm();
+  if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
+  return true;
+}
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
 
 /* ── Widget beállítások ── */
@@ -181,9 +188,9 @@ async function _loadWidgets() {
   const fetchFrom  = prevWeekS < monthStart ? prevWeekS : monthStart;
 
   const [entries, empSnap, tasksSnap] = await Promise.all([
-    needsEntries ? fetchEntries({ datumFrom: fetchFrom, datumTo: today }) : Promise.resolve([]),
-    needsEmps    ? getDocs(collection(db, 'employees'))                   : Promise.resolve(null),
-    needsTasks   ? getDocs(collection(db, 'tasks'))                       : Promise.resolve(null),
+    needsEntries ? fetchEntries({ datumFrom: fetchFrom, datumTo: today }).catch(() => [])   : Promise.resolve([]),
+    needsEmps    ? getDocs(collection(db, 'employees')).catch(() => null)                   : Promise.resolve(null),
+    needsTasks   ? getDocs(collection(db, 'tasks')).catch(() => null)                       : Promise.resolve(null),
   ]);
 
   const kgOf  = e => (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
