@@ -125,6 +125,19 @@ service cloud.firestore {
       );
     }
 
+    // ── notices (közlemények) ──────────────────────────────────
+    match /notices/{noticeId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && (isMainAdmin() || hasPerm('felhasznalokKezelese'));
+      allow update: if isAuth() && (
+        isMainAdmin() ||
+        hasPerm('felhasznalokKezelese') ||
+        // Bárki frissítheti a readBy mezőt (elolvasás jelzése)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+      );
+      allow delete: if isAuth() && (isMainAdmin() || hasPerm('felhasznalokKezelese'));
+    }
+
     // ── tasks (feladatok) ──────────────────────────────────────
     match /tasks/{taskId} {
       allow read:   if isAuth();
