@@ -684,3 +684,32 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .notice-card-hir         {border-left-color:var(--green);}
 .notice-expired          {opacity:.6;}
 #noticeCards:empty       {display:none;}
+
+/* ══════════════════════════════════════
+   SZEREPKÖR FORM — CSOPORTOS JOGOK
+══════════════════════════════════════ */
+.perm-groups{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+@media(max-width:640px){.perm-groups{grid-template-columns:1fr;}}
+.perm-group{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;}
+.perm-group-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--accent);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.perm-chk{display:flex;flex-direction:column;padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+.perm-chk:last-child{border-bottom:none;padding-bottom:0;}
+.perm-chk-row{display:flex;align-items:center;gap:7px;}
+.perm-chk input{accent-color:var(--accent);flex-shrink:0;cursor:pointer;}
+.perm-chk-lbl{font-size:12.5px;color:var(--text2);font-weight:500;}
+.perm-chk-desc{font-size:11px;color:var(--text3);margin-top:2px;margin-left:20px;line-height:1.4;}
+
+/* Szerepkör sablon gombok */
+.role-tpl-btn{background:var(--surf2);border:1px solid var(--border2);color:var(--text2);border-radius:var(--rsm);padding:5px 12px;font-size:12.5px;font-family:'Source Sans 3',sans-serif;cursor:pointer;transition:all var(--tr);}
+.role-tpl-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--agl);}
+
+/* Vizuális szerepkör kártyák */
+.role-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;margin-bottom:10px;box-shadow:var(--sh);}
+.role-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.role-card-name{font-size:15px;font-weight:700;color:var(--text);}
+.role-card-perms{display:flex;flex-wrap:wrap;gap:5px;}
+.role-perm-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.role-perm-termel {background:var(--agl);   color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);}
+.role-perm-szervez{background:var(--greenl);color:var(--green); border:1px solid color-mix(in srgb,var(--green)  22%,transparent);}
+.role-perm-penzugy{background:var(--amberl);color:var(--amber); border:1px solid color-mix(in srgb,var(--amber)  22%,transparent);}
+.role-perm-admin  {background:var(--redl);  color:var(--red);   border:1px solid color-mix(in srgb,var(--red)    22%,transparent);}

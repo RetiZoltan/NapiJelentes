@@ -20,7 +20,7 @@ import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
-         loadNoticeAdmin, saveNotice } from './admin.js';
+         loadNoticeAdmin, saveNotice, applyRoleTemplate } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard } from './dashboard.js';
 import { initNaptar } from './calendar.js';
@@ -99,7 +99,7 @@ function buildAppUI() {
   E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
 
   E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
-  E('stab-kozlemeny-btn').style.display    = canManageUsers() ? '' : 'none';
+  E('stab-kozlemeny-btn').style.display    = (canManageUsers() || hasPerm('kozlemenyIras')) ? '' : 'none';
   E('stab-premium-cfg-btn').style.display  = (isMainAdmin() || hasPerm('premiumKezeles')) ? '' : 'none';
   E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
@@ -738,6 +738,10 @@ document.addEventListener('DOMContentLoaded', () => {
   E('saveRoleBtn').addEventListener('click', saveRole);
   E('cancelRoleBtn').addEventListener('click', cancelRoleForm);
   E('roleListDiv').addEventListener('click', handleRoleListClick);
+  // Szerepkör sablonok
+  document.querySelectorAll('.role-tpl-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyRoleTemplate(btn.dataset.tpl));
+  });
 
   // Admin — listák
   E('nevLista').addEventListener('dblclick',    e => editItem(e, state.nevek));

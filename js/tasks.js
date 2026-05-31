@@ -1,6 +1,6 @@
 import { db, doc, getDoc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp } from './firebase.js';
-import { state, isMainAdmin } from './state.js';
+import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod, addD, ag, skelHtml } from './utils.js';
 
 let _viewMode   = 'list';  // 'list' | 'kanban'
@@ -18,6 +18,11 @@ const STATUS_NEXT  = { nyitott: 'folyamatban', folyamatban: 'kesz' };
 export function initTasksUI() {
   if (_uiInited) return;
   _uiInited = true;
+  // Feladat létrehozó form: csak ha van feladatokKezeles jog
+  const canCreate = isMainAdmin() || hasPerm('feladatokKezeles');
+  const formCard = E('ujFeladatCard');
+  if (formCard) formCard.style.display = canCreate ? '' : 'none';
+
   E('taskViewList').addEventListener('click', () => {
     _viewMode = 'list';
     E('taskViewList').classList.add('active');
@@ -164,6 +169,9 @@ function _renderKanban(list) {
    Feladat létrehozása
 ──────────────────────────────────────── */
 export async function saveTask() {
+  if (!isMainAdmin() && !hasPerm('feladatokKezeles')) {
+    msg('Nincs jogosultságod feladat létrehozásához!', 'error'); return;
+  }
   const cim = E('feladatCim').value.trim();
   if (!cim) { msg('Add meg a feladat címét!', 'error'); E('feladatCim').focus(); return; }
   try {

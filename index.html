@@ -747,21 +747,50 @@
         <div id="stab-roles" class="stab-panel">
           <button class="btn btn-primary btn-sm" id="ujSzerepkorBtn" style="margin-bottom:12px;">＋ Új szerepkör</button>
           <div class="new-role-form" id="newRoleForm">
-            <div class="field"><label class="lbl">Szerepkör neve</label><input type="text" id="newRoleNev" placeholder="pl. Raktáros, Vezető…"></div>
-            <p style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Jogosultságok</p>
-            <div class="perm-grid">
-              <label class="perm-check"><input type="checkbox" id="pAdatbevitel"><span>Adatbevitel</span></label>
-              <label class="perm-check"><input type="checkbox" id="pSajatJelentes"><span>Saját jelentés</span></label>
-              <label class="perm-check"><input type="checkbox" id="pMindenJelentes"><span>Mindenki jelentése</span></label>
-              <label class="perm-check"><input type="checkbox" id="pNaptar"><span>Naptár</span></label>
-              <label class="perm-check"><input type="checkbox" id="pElemzes"><span>Elemzés</span></label>
-              <label class="perm-check"><input type="checkbox" id="pFelhasznalok"><span>Felhasználók kezelése</span></label>
-              <label class="perm-check"><input type="checkbox" id="pPremiumMegtekintes"><span>Prémium megtekintés</span></label>
-              <label class="perm-check"><input type="checkbox" id="pPremiumKezeles"><span>Prémium kezelés (konfig)</span></label>
-              <label class="perm-check"><input type="checkbox" id="pDolgozokMegtekintes"><span>Dolgozók megtekintés</span></label>
-              <label class="perm-check"><input type="checkbox" id="pDolgozokKezeles"><span>Dolgozók kezelése</span></label>
+            <div class="field" style="margin-bottom:12px;">
+              <label class="lbl">Szerepkör neve</label>
+              <input type="text" id="newRoleNev" placeholder="pl. Raktáros, Vezető…">
             </div>
-            <div class="btn-row" style="margin-top:10px;">
+            <!-- Sablonok -->
+            <div style="margin-bottom:14px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px;">Sablon alapján indulj el</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                <button class="role-tpl-btn" type="button" data-tpl="dolgozo">👷 Dolgozó</button>
+                <button class="role-tpl-btn" type="button" data-tpl="csoportvezeto">👨‍💼 Csoportvezető</button>
+                <button class="role-tpl-btn" type="button" data-tpl="hr">📋 HR</button>
+                <button class="role-tpl-btn" type="button" data-tpl="konyvelő">📊 Könyvelő</button>
+              </div>
+            </div>
+            <!-- Jogosultság csoportok -->
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px;">Jogosultságok</div>
+            <div class="perm-groups">
+              <div class="perm-group">
+                <div class="perm-group-hdr">⚙️ Termelés</div>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pAdatbevitel"><span class="perm-chk-lbl">Adatbevitel</span></span><span class="perm-chk-desc">Termelési adatok felvitele</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pSajatJelentes"><span class="perm-chk-lbl">Saját jelentés</span></span><span class="perm-chk-desc">Csak saját bejegyzések megtekintése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pMindenJelentes"><span class="perm-chk-lbl">Mindenki jelentése</span></span><span class="perm-chk-desc">Minden dolgozó adatának megtekintése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pNaptar"><span class="perm-chk-lbl">Naptár</span></span><span class="perm-chk-desc">Termelési naptár megtekintése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pElemzes"><span class="perm-chk-lbl">Elemzés</span></span><span class="perm-chk-desc">Teljesítmény-elemzők és rangsorok</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pAdatExport"><span class="perm-chk-lbl">Adat export</span></span><span class="perm-chk-desc">PDF, kép és CSV letöltése</span></label>
+              </div>
+              <div class="perm-group">
+                <div class="perm-group-hdr">👥 Szervezet</div>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pDolgozokMegtekintes"><span class="perm-chk-lbl">Dolgozók megtekintés</span></span><span class="perm-chk-desc">Dolgozói adatlapok és hiányzások olvasása</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pDolgozokKezeles"><span class="perm-chk-lbl">Dolgozók kezelése</span></span><span class="perm-chk-desc">Adatok módosítása, hiányzás rögzítése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pFeladatokKezeles"><span class="perm-chk-lbl">Feladatok kezelése</span></span><span class="perm-chk-desc">Feladatok létrehozása, lezárása, törlése</span></label>
+              </div>
+              <div class="perm-group">
+                <div class="perm-group-hdr">💰 Pénzügyi</div>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pPremiumMegtekintes"><span class="perm-chk-lbl">Prémium megtekintés</span></span><span class="perm-chk-desc">Prémium számítások és eredmények</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pPremiumKezeles"><span class="perm-chk-lbl">Prémium kezelés</span></span><span class="perm-chk-desc">Prémium konfiguráció módosítása</span></label>
+              </div>
+              <div class="perm-group">
+                <div class="perm-group-hdr">🔧 Adminisztráció</div>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pKozlemenyIras"><span class="perm-chk-lbl">Közlemény írás</span></span><span class="perm-chk-desc">Közlemények közzététele az áttekintő oldalon</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pFelhasznalok"><span class="perm-chk-lbl">Felhasználók kezelése</span></span><span class="perm-chk-desc">Fiókok és szerepkörök módosítása</span></label>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:14px;">
               <button class="btn btn-primary btn-sm" id="saveRoleBtn">Mentés</button>
               <button class="btn btn-ghost btn-sm" id="cancelRoleBtn">Mégse</button>
             </div>

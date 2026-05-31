@@ -128,21 +128,29 @@ service cloud.firestore {
     // ── notices (közlemények) ──────────────────────────────────
     match /notices/{noticeId} {
       allow read: if isAuth();
-      allow create: if isAuth() && (isMainAdmin() || hasPerm('felhasznalokKezelese'));
+      allow create: if isAuth() && (
+        isMainAdmin() || hasPerm('kozlemenyIras') || hasPerm('felhasznalokKezelese')
+      );
       allow update: if isAuth() && (
         isMainAdmin() ||
+        hasPerm('kozlemenyIras') ||
         hasPerm('felhasznalokKezelese') ||
-        // Bárki frissítheti a readBy mezőt (elolvasás jelzése)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
       );
-      allow delete: if isAuth() && (isMainAdmin() || hasPerm('felhasznalokKezelese'));
+      allow delete: if isAuth() && (
+        isMainAdmin() || hasPerm('kozlemenyIras') || hasPerm('felhasznalokKezelese')
+      );
     }
 
     // ── tasks (feladatok) ──────────────────────────────────────
     match /tasks/{taskId} {
       allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
+      allow create: if isAuth() && (isMainAdmin() || hasPerm('feladatokKezeles'));
+      allow update: if isAuth() && (
+        isMainAdmin() ||
+        resource.data.createdBy == request.auth.uid ||
+        resource.data.assignedTo == request.auth.uid
+      );
       allow delete: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
     }
 
