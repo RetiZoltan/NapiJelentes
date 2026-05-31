@@ -609,3 +609,28 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .heat-today{outline:2px solid var(--accent);outline-offset:1px;}
 .cal-view-btn{font-size:12px!important;}
 .cal-view-btn.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}
+
+/* ══════════════════════════════════════
+   TAB-VÁLTÁS ANIMÁCIÓ
+══════════════════════════════════════ */
+@keyframes tabSlideIn     { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
+@keyframes tabSlideInBack { from { opacity:0; transform:translateX(-18px); } to { opacity:1; transform:none; } }
+.tab-panel.active           { animation: tabSlideIn     .22s ease both; }
+.tab-panel.active.anim-back { animation: tabSlideInBack .22s ease both; }
+
+/* ══════════════════════════════════════
+   DASHBOARD / ÁTTEKINTÉS
+══════════════════════════════════════ */
+.dash-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
+.dash-widget { background:var(--surf); border:1px solid var(--border); border-radius:var(--rlg); padding:18px 20px; box-shadow:var(--sh); animation:fu .2s ease both; }
+.dash-w-hdr { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.dash-w-icon { font-size:22px; line-height:1; }
+.dash-w-title { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text3); }
+.dash-w-value { font-size:30px; font-weight:700; color:var(--text); font-family:'Lora',serif; line-height:1.2; margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.dash-w-sub { font-size:12px; color:var(--text3); }
+.dash-cfg-panel { border-top:1px solid var(--border); margin-top:14px; padding-top:14px; }
+.dash-cfg-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.dash-cfg-lbl { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text2); cursor:pointer; background:var(--surf2); border:1px solid var(--border); border-radius:var(--rsm); padding:5px 10px; transition:all var(--tr); user-select:none; }
+.dash-cfg-lbl:hover { border-color:var(--accent); color:var(--accent); }
+.dash-cfg-lbl input { accent-color:var(--accent); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
+.dash-last-update { font-size:11px; color:var(--text3); text-align:right; margin-top:8px; font-style:italic; }

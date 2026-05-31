@@ -21,6 +21,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, clearNotice } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
+import { initDashboard, reloadDashboard } from './dashboard.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
@@ -30,6 +31,8 @@ import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmplo
 
 let _prevReszleg = '';
 let _prevIdo = '';
+let _prevTab = '';
+const TAB_ORDER = ['dashboard','adatbevitel','jelentesek','naptar','elemzes','feladatok','dolgozok','premium','admin'];
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -84,6 +87,7 @@ function buildAppUI() {
   E('userNameChip').textContent = name;
   E('userAvatar').textContent   = (name[0] || '?').toUpperCase();
 
+  E('tabBtnDashboard').style.display   = '';
   E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
   E('tabBtnJelentesek').style.display  = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
   E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
@@ -140,18 +144,28 @@ function buildAppUI() {
 
 /* ── Tab navigation ── */
 function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const prevIdx = TAB_ORDER.indexOf(_prevTab);
+  const newIdx  = TAB_ORDER.indexOf(name);
+  const goBack  = _prevTab && newIdx < prevIdx;
+
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active', 'anim-back'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  E('tab-' + name).classList.add('active');
+
+  const panel = E('tab-' + name);
+  panel.classList.add('active');
+  if (goBack) panel.classList.add('anim-back');
   btn.classList.add('active');
+  _prevTab = name;
+
   if (typeof _updateFab === 'function') _updateFab();
-  if (name === 'admin')     loadAdminUsers();
+  if (name === 'admin')       loadAdminUsers();
   if (name === 'adatbevitel') loadAndDisplayNotice();
-  if (name !== 'jelentesek') cleanupNapiListener();
-  if (name === 'naptar')    initNaptar();
-  if (name === 'feladatok') loadTasks();
-  if (name === 'dolgozok')  { loadEmployees(); _setupDolgozokUI(); }
-  if (name === 'premium')   initPremiumTab();
+  if (name !== 'jelentesek')  cleanupNapiListener();
+  if (name === 'naptar')      initNaptar();
+  if (name === 'feladatok')   loadTasks();
+  if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
+  if (name === 'premium')     initPremiumTab();
+  if (name === 'dashboard')   initDashboard();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
@@ -616,8 +630,9 @@ document.addEventListener('DOMContentLoaded', () => {
       PTR.style.top = '12px';
       const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
       const done = () => { PTR.style.top = '-52px'; PTR.style.opacity = '0'; PTR.classList.remove('ptr-spin'); };
-      if (tab === 'jelentesek') { napiRiport(); setTimeout(done, 1200); }
-      else if (tab === 'feladatok') { loadTasks().then(done); }
+      if (tab === 'jelentesek')  { napiRiport(); setTimeout(done, 1200); }
+      else if (tab === 'feladatok')  { loadTasks().then(done); }
+      else if (tab === 'dashboard')  { reloadDashboard().then(done); }
       else { setTimeout(done, 600); }
     } else {
       PTR.style.top = '-52px';

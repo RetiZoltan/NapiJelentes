@@ -84,6 +84,10 @@ export function fmtKg(kg) {
     : `${v.toFixed(0)} kg`;
 }
 
+export function emptyHtml(icon, title, subtitle = '') {
+  return `<div class="empty-st"><div class="empty-ic">${icon}</div><div class="empty-title">${esc(title)}</div>${subtitle ? `<div class="empty-sub">${esc(subtitle)}</div>` : ''}</div>`;
+}
+
 export function skelHtml(type = 'report') {
   const line = (w) => `<div class="sk sk-h ${w}" style="margin-bottom:9px;"></div>`;
   if (type === 'report') {
