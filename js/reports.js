@@ -194,6 +194,14 @@ function reszlegHtml(lista, rd, napiNotes, muszakF) {
   return h;
 }
 
+function _setIdoszakBtns(disabled) {
+  ['idoszakosKepMentBtn','idoszakosPdfBtn','idoszakosNyomtatBtn'].forEach(id => {
+    const el = E(id); if (el) el.disabled = disabled;
+  });
+  const xlsx = E('idoszakosXlsxBtn');
+  if (xlsx) xlsx.disabled = disabled;
+}
+
 /* ── Havi riport ── */
 export async function haviRiport() {
   const raw = E('haviHonapInput').value;
@@ -211,7 +219,7 @@ export async function haviRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+    _setIdoszakBtns(true); return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -227,7 +235,7 @@ export async function haviRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  _setIdoszakBtns(false);
 }
 
 /* ── Egyéni tartomány riport ── */
@@ -243,7 +251,7 @@ export async function egyeniRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a megadott időszakra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+    _setIdoszakBtns(true); return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -259,7 +267,7 @@ export async function egyeniRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  _setIdoszakBtns(false);
 }
 
 /* ── Éves riport ── */
@@ -274,7 +282,7 @@ export async function evesRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+    _setIdoszakBtns(true); return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -291,7 +299,7 @@ export async function evesRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  _setIdoszakBtns(false);
 }
 
 /* ── Klikk handler (törlés + nap-link) ── */
