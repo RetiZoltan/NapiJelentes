@@ -32,7 +32,7 @@ import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmplo
 
 let _prevReszleg = '';
 let _prevIdo = '';
-let _prevTab = '';
+let _prevTab = 'dashboard';
 const TAB_ORDER = ['dashboard','adatbevitel','jelentesek','naptar','elemzes','feladatok','dolgozok','premium','admin'];
 
 /* ── Bootstrap / user setup ── */
@@ -133,23 +133,10 @@ function buildAppUI() {
   applyColorTheme(state.userData.colorTheme || 'blueprint');
   applyLayout(state.userData.layout || 'classic');
   loadLists().then(() => _updateFeladatReszlegF());
-  loadAndDisplayNotice();
   addSuly(); addZsak();
-
-  if (!isMainAdmin() && !hasPerm('adatbevitel')) {
-    // Nincs adatbevitel jog → irányítás az első elérhető tabra
-    if (hasPerm('sajatJelentes') || hasPerm('mindenJelentes')) {
-      switchTab('jelentesek', E('tabBtnJelentesek'));
-    } else if (hasPerm('feladatokKezeles')) {
-      switchTab('feladatok', E('tabBtnFeladatok'));
-    } else if (hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) {
-      switchTab('dolgozok', E('tabBtnDolgozok'));
-    } else if (canManageUsers() || hasPerm('kozlemenyIras')) {
-      switchTab('admin', E('tabBtnAdmin'));
-    } else {
-      switchTab('dashboard', E('tabBtnDashboard'));
-    }
-  }
+  // Dashboard mindig betölt alapértelmezetten
+  initDashboard();
+  loadAndDisplayNotice();
 }
 
 /* ── Tab navigation ── */
