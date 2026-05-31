@@ -189,6 +189,10 @@ export async function saveTask() {
     msg('Feladat hozzáadva.');
     E('feladatCim').value = E('feladatLeiras').value = E('feladatDatum').value = '';
     if (E('feladatFelelos')) E('feladatFelelos').value = '';
+    // Form visszacsukása mentés után
+    const body = E('ujFeladatBody'), chevron = E('ujFeladatChevron');
+    if (body) { body.style.display = 'none'; }
+    if (chevron) { chevron.style.transform = ''; }
     loadTasks();
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }

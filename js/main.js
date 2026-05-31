@@ -624,11 +624,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── FAB ──────────────────────────────────────────────
   E('fabBtn').addEventListener('click', () => {
-    switchTab('adatbevitel', E('tabBtnAdatbevitel'));
+    const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    if (tab === 'feladatok') {
+      // Feladatok tabon: nyissa ki az Új feladat formt
+      const body = E('ujFeladatBody'), chevron = E('ujFeladatChevron');
+      if (body && body.style.display === 'none') {
+        body.style.display = '';
+        if (chevron) chevron.style.transform = 'rotate(90deg)';
+      }
+      setTimeout(() => E('feladatCim')?.focus(), 50);
+    } else {
+      switchTab('adatbevitel', E('tabBtnAdatbevitel'));
+    }
   });
   function _updateFab() {
     const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
-    E('fabBtn').classList.toggle('fab-off', tab === 'adatbevitel');
+    E('fabBtn').classList.toggle('fab-off', tab === 'adatbevitel' || tab === 'dashboard');
   }
 
   // ── Bottom sheet szűrők ──────────────────────────────
@@ -737,6 +748,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Szerepkör sablonok
   document.querySelectorAll('.role-tpl-btn').forEach(btn => {
     btn.addEventListener('click', () => applyRoleTemplate(btn.dataset.tpl));
+  });
+
+  // Feladatok – Új feladat lenyitható form
+  E('ujFeladatToggle').addEventListener('click', () => {
+    const body    = E('ujFeladatBody');
+    const chevron = E('ujFeladatChevron');
+    const open    = body.style.display !== 'none';
+    body.style.display    = open ? 'none' : '';
+    chevron.style.transform = open ? '' : 'rotate(90deg)';
+    if (!open) setTimeout(() => E('feladatCim')?.focus(), 50);
   });
 
   // Dashboard gyors műveletek

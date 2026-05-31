@@ -682,30 +682,35 @@
           </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="card-title-icon">➕</span>Új feladat</div>
-        <div class="g2">
-          <div class="field"><label class="lbl">Cím</label><input type="text" id="feladatCim" placeholder="Feladat rövid leírása…"></div>
-          <div class="field"><label class="lbl">Prioritás</label>
-            <select id="feladatPrio">
-              <option value="normal">Normal</option>
-              <option value="fontos">⚡ Fontos</option>
-            </select>
+      <div class="card" id="ujFeladatCard">
+        <button class="card-title collapsible-toggle" id="ujFeladatToggle" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;font:inherit;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.1px;padding:0;">
+          <span class="card-title-icon">➕</span>Új feladat
+          <span id="ujFeladatChevron" style="margin-left:auto;font-size:16px;transition:transform .2s;color:var(--text3);">›</span>
+        </button>
+        <div id="ujFeladatBody" style="display:none;margin-top:16px;">
+          <div class="g2">
+            <div class="field"><label class="lbl">Cím</label><input type="text" id="feladatCim" placeholder="Feladat rövid leírása…"></div>
+            <div class="field"><label class="lbl">Prioritás</label>
+              <select id="feladatPrio">
+                <option value="normal">Normal</option>
+                <option value="fontos">⚡ Fontos</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="field"><label class="lbl">Részletes leírás (opcionális)</label>
-          <textarea id="feladatLeiras" placeholder="Részletek…"></textarea>
-        </div>
-        <div class="g2">
-          <div class="field"><label class="lbl">Határidő (opcionális)</label><input type="date" id="feladatDatum"></div>
-          <div class="field"><label class="lbl">Részleg</label>
-            <input list="reszlegDL" id="feladatReszleg" autocomplete="off" placeholder="Opcionális…">
+          <div class="field"><label class="lbl">Részletes leírás (opcionális)</label>
+            <textarea id="feladatLeiras" placeholder="Részletek…"></textarea>
           </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Határidő (opcionális)</label><input type="date" id="feladatDatum"></div>
+            <div class="field"><label class="lbl">Részleg</label>
+              <input list="reszlegDL" id="feladatReszleg" autocomplete="off" placeholder="Opcionális…">
+            </div>
+          </div>
+          <div class="field"><label class="lbl">Felelős (opcionális)</label>
+            <select id="feladatFelelos"><option value="">— Senki —</option></select>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary btn-sm" id="feladatMentBtn">＋ Hozzáad</button></div>
         </div>
-        <div class="field"><label class="lbl">Felelős (opcionális)</label>
-          <select id="feladatFelelos"><option value="">— Senki —</option></select>
-        </div>
-        <div class="btn-row"><button class="btn btn-primary btn-sm" id="feladatMentBtn">＋ Hozzáad</button></div>
       </div>
       <div id="feladatListDiv"><div class="empty-st"><div class="empty-ic">📌</div><div class="empty-title">Betöltés…</div></div></div>
     </div>
