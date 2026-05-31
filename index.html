@@ -612,12 +612,18 @@
           <div class="field" style="min-width:130px;"><label class="lbl">Állapot</label>
             <select id="feladatStatuszF">
               <option value="nyitott">Nyitott</option>
+              <option value="folyamatban">Folyamatban</option>
               <option value="kesz">Befejezett</option>
               <option value="mind">Összes</option>
             </select>
           </div>
           <div class="field" style="min-width:130px;"><label class="lbl">Részleg</label>
             <select id="feladatReszlegF"><option value="">— Mind —</option></select>
+          </div>
+          <div style="margin-bottom:13px;display:flex;gap:6px;align-items:flex-end;">
+            <label class="lbl" style="visibility:hidden;">–</label>
+            <button class="btn btn-ghost btn-sm cal-view-btn active" id="taskViewList" title="Lista nézet">☰ Lista</button>
+            <button class="btn btn-ghost btn-sm cal-view-btn" id="taskViewKanban" title="Kanban nézet">⬛ Kanban</button>
           </div>
         </div>
       </div>
@@ -641,9 +647,12 @@
             <input list="reszlegDL" id="feladatReszleg" autocomplete="off" placeholder="Opcionális…">
           </div>
         </div>
+        <div class="field"><label class="lbl">Felelős (opcionális)</label>
+          <select id="feladatFelelos"><option value="">— Senki —</option></select>
+        </div>
         <div class="btn-row"><button class="btn btn-primary btn-sm" id="feladatMentBtn">＋ Hozzáad</button></div>
       </div>
-      <div id="feladatListDiv"><div class="empty-st"><div class="empty-ic">📌</div>Betöltés…</div></div>
+      <div id="feladatListDiv"><div class="empty-st"><div class="empty-ic">📌</div><div class="empty-title">Betöltés…</div></div></div>
     </div>
 
     <!-- ══ PRÉMIUM ══ -->
@@ -809,6 +818,18 @@
     <div id="empDrawerStatus" style="margin-top:8px;"></div>
   </div>
   <div id="empDrawerBody" class="emp-drawer-body"></div>
+</div>
+
+<!-- ══ FELADAT DRAWER ══ -->
+<div id="taskDrawerOverlay" class="emp-drawer-overlay"></div>
+<div id="taskDrawer" class="emp-drawer">
+  <div class="emp-drawer-header">
+    <button id="taskDrawerClose" class="emp-drawer-close">✕</button>
+    <div id="taskDrawerPrioIcon" class="emp-drawer-avatar" style="font-size:20px;"></div>
+    <div id="taskDrawerTitle" class="emp-drawer-name" style="font-size:15px;padding:0 16px;word-break:break-word;text-align:center;"></div>
+    <div id="taskDrawerStatus" class="emp-drawer-dept"></div>
+  </div>
+  <div id="taskDrawerBody" class="emp-drawer-body"></div>
 </div>
 
 <!-- ══ NAPTÁR PREVIEW POPUP ══ -->

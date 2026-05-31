@@ -16,7 +16,8 @@ import { napiRiport, haviRiport, evesRiport, egyeniRiport,
          napiPdfMent, idoszakosPdfMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
-import { loadTasks, saveTask, handleTaskClick } from './tasks.js';
+import { loadTasks, saveTask, handleTaskClick,
+         initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, clearNotice } from './admin.js';
@@ -162,7 +163,7 @@ function switchTab(name, btn) {
   if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek')  cleanupNapiListener();
   if (name === 'naptar')      initNaptar();
-  if (name === 'feladatok')   loadTasks();
+  if (name === 'feladatok')   { initTasksUI(); loadTasks(); }
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
   if (name === 'dashboard')   initDashboard();
@@ -535,7 +536,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
   E('empDrawerClose').addEventListener('click', closeEmpDrawer);
   E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEmpDrawer(); });
+  E('taskDrawerClose').addEventListener('click', closeTaskDrawer);
+  E('taskDrawerOverlay').addEventListener('click', closeTaskDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEmpDrawer(); closeTaskDrawer(); } });
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);
