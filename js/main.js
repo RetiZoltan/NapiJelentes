@@ -251,7 +251,10 @@ async function loadAndDisplayNotice() {
         }
       });
     });
-  } catch {}
+  } catch (err) {
+    console.error('loadAndDisplayNotice error:', err);
+    container.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--red);background:var(--redl);border-radius:8px;margin-bottom:12px;">⚠️ Közlemény betöltési hiba: ${err.message}</div>`;
+  }
 }
 
 function switchJelentesekSubtab(name) {
