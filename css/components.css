@@ -649,3 +649,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .kanban-task-meta { font-size:11px; color:var(--text3); display:flex; flex-wrap:wrap; gap:5px; }
 .kanban-task-fontos { border-left:3px solid var(--red); }
 @media(max-width:680px) { .kanban-board { grid-template-columns:repeat(3,240px); overflow-x:auto; padding-bottom:8px; gap:10px; } }
+
+/* ══════════════════════════════════════
+   KOMPETENCIA CHIP INPUT
+══════════════════════════════════════ */
+.komp-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--rsm);background:var(--surf2);cursor:text;min-height:42px;align-items:center;transition:border-color var(--tr),box-shadow var(--tr),background var(--tr);}
+.komp-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--agl);background:var(--surf);}
+.komp-chip{display:inline-flex;align-items:center;gap:4px;background:var(--agl);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:20px;padding:2px 9px;font-size:12px;font-weight:600;white-space:nowrap;}
+.komp-chip-del{cursor:pointer;font-size:14px;line-height:1;opacity:.5;margin-left:2px;}
+.komp-chip-del:hover{opacity:1;}
+.komp-chip-sm{font-size:11px;padding:1px 7px;}

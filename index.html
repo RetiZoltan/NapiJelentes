@@ -463,6 +463,10 @@
       <div id="dtab-adatlapok" class="dtab-panel active">
         <div class="card">
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:180px;">
+              <label class="lbl">Keresés</label>
+              <input type="search" id="dolgNevKeres" placeholder="Név, részleg, pozíció, kompetencia…" autocomplete="off">
+            </div>
             <div class="field" style="min-width:130px;">
               <label class="lbl">Részleg</label>
               <select id="dolgReszlegF"><option value="">— Mind —</option></select>
@@ -474,6 +478,14 @@
                 <option value="aktiv">Aktív</option>
                 <option value="inaktiv">Inaktív</option>
                 <option value="szabadsag">Szabadságon</option>
+              </select>
+            </div>
+            <div class="field" style="min-width:130px;">
+              <label class="lbl">Rendezés</label>
+              <select id="dolgRendezes">
+                <option value="nev">Névsor</option>
+                <option value="belepet">Belépési dátum</option>
+                <option value="reszleg">Részleg</option>
               </select>
             </div>
             <div id="ujDolgozoWrap" style="margin-bottom:13px;display:none;">
@@ -492,7 +504,10 @@
             </div>
           </div>
           <div class="g2">
+            <div class="field"><label class="lbl">Pozíció / Beosztás</label><input type="text" id="empFormPozicio" placeholder="pl. Darálógép kezelő…"></div>
             <div class="field"><label class="lbl">Belépési dátum</label><input type="date" id="empFormBelepet"></div>
+          </div>
+          <div class="g2">
             <div class="field"><label class="lbl">Státusz</label>
               <select id="empFormStatusz">
                 <option value="aktiv">Aktív</option>
@@ -500,6 +515,7 @@
                 <option value="szabadsag">Szabadságon</option>
               </select>
             </div>
+            <div class="field"><label class="lbl">Éves szabadságkeret (nap)</label><input type="number" id="empFormSzabadsagKeret" min="0" max="365" value="20"></div>
           </div>
           <div class="g2">
             <div class="field"><label class="lbl">Telefon</label><input type="tel" id="empFormTelefon" placeholder="+36 20 …"></div>
@@ -507,6 +523,9 @@
           </div>
           <div class="g2">
             <div class="field"><label class="lbl">Születési dátum</label><input type="date" id="empFormSzulDatum"></div>
+            <div class="field"><label class="lbl">Próbaidő vége</label><input type="date" id="empFormProbaidoVege"></div>
+          </div>
+          <div class="g2">
             <div class="field"><label class="lbl">Szerződés típusa</label>
               <select id="empFormSzerzodesT">
                 <option value="hatarozatlan">Határozatlan</option>
@@ -515,9 +534,11 @@
               </select>
             </div>
           </div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Próbaidő vége</label><input type="date" id="empFormProbaidoVege"></div>
-            <div class="field"><label class="lbl">Éves szabadságkeret (nap)</label><input type="number" id="empFormSzabadsagKeret" min="0" max="365" value="20"></div>
+          <div class="field"><label class="lbl">Kompetenciák</label>
+            <div id="kompInputWrap" class="komp-input-wrap">
+              <div id="kompChips"></div>
+              <input type="text" id="kompTyping" placeholder="Gépelj és nyomj Entert…" autocomplete="off" style="border:none;background:none;outline:none;font-size:14px;flex:1;min-width:100px;padding:2px 4px;color:var(--text);font-family:inherit;">
+            </div>
           </div>
           <div class="field"><label class="lbl">Megjegyzés</label><textarea id="empFormMegj" placeholder="Opcionális…"></textarea></div>
           <div class="btn-row">
@@ -584,6 +605,32 @@
           </div>
         </div>
         <div id="naptarDiv"><div class="empty-st"><div class="empty-ic">🗓</div>Válassz hónapot és kattints a <strong>Mutat</strong> gombra</div></div>
+        <!-- Gyors hiányzás-rögzítés naptárból -->
+        <div id="calQuickAddPanel" class="card" style="display:none;margin-top:12px;">
+          <div class="card-title"><span class="card-title-icon">➕</span>Hiányzás rögzítése</div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Dolgozó</label>
+              <select id="calQaNev"><option value="">— Válassz —</option></select>
+            </div>
+            <div class="field"><label class="lbl">Típus</label>
+              <select id="calQaTipus">
+                <option value="szabadsag">🌴 Szabadság</option>
+                <option value="betegseg">🤒 Betegszabadság</option>
+                <option value="fizetesnelkuli">📋 Fizetés nélküli</option>
+                <option value="egyeb">❓ Egyéb</option>
+              </select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Kezdő dátum</label><input type="date" id="calQaDatum"></div>
+            <div class="field"><label class="lbl">Záró dátum (opcionális)</label><input type="date" id="calQaIg"></div>
+          </div>
+          <div class="field"><label class="lbl">Megjegyzés (opcionális)</label><input type="text" id="calQaMegj" placeholder="Opcionális…"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" id="calQaSaveBtn">✓ Rögzít</button>
+            <button class="btn btn-ghost btn-sm" id="calQaCancelBtn">Mégse</button>
+          </div>
+        </div>
       </div><!-- /dtab-naptar -->
 
       <!-- Statisztika -->

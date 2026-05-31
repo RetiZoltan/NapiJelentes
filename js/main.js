@@ -27,7 +27,7 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './premium.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
-         loadCalendar, loadStatisztika, exportCsv,
+         loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
          closeEmpDrawer, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
@@ -529,8 +529,12 @@ document.addEventListener('DOMContentLoaded', () => {
   E('empSaveBtn').addEventListener('click',    saveEmployee);
   E('empCancelBtn').addEventListener('click',  closeEmpForm);
   E('dolgozoGrid').addEventListener('click',   handleEmpGridClick);
-  E('dolgReszlegF').addEventListener('change', renderEmployeeGrid);
-  E('dolgStatuszF').addEventListener('change', renderEmployeeGrid);
+  E('dolgReszlegF').addEventListener('change',  renderEmployeeGrid);
+  E('dolgStatuszF').addEventListener('change',  renderEmployeeGrid);
+  E('dolgNevKeres').addEventListener('input',   renderEmployeeGrid);
+  E('dolgRendezes').addEventListener('change',  renderEmployeeGrid);
+  E('calQaSaveBtn').addEventListener('click',   saveCalQuickAdd);
+  E('calQaCancelBtn').addEventListener('click', () => E('calQuickAddPanel').style.display = 'none');
   E('hianyMutatBtn').addEventListener('click', loadAbsences);
   E('absSaveBtn').addEventListener('click',    saveAbsence);
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
