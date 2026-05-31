@@ -4,13 +4,15 @@ import { E, esc, tod, monday, addD, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
 
 const ALL_WIDGETS = [
-  { id: 'maiOssz',    label: 'Mai össztermelés',   icon: '⚖️', def: true  },
-  { id: 'haviOssz',   label: 'Havi összesítő',     icon: '📊', def: true  },
-  { id: 'hetiTrend',  label: 'Heti trend',         icon: '📈', def: true  },
-  { id: 'topDolg',    label: 'Havi legjobb',       icon: '🏅', def: false },
-  { id: 'nyitottF',   label: 'Nyitott feladatok',  icon: '📌', def: true  },
-  { id: 'aktivDolg',  label: 'Aktív dolgozók',     icon: '👷', def: true  },
-  { id: 'utobbiBeir', label: 'Utóbbi bejegyzések', icon: '📋', def: false },
+  { id: 'maiOssz',      label: 'Mai össztermelés',   icon: '⚖️', def: true  },
+  { id: 'haviOssz',     label: 'Havi összesítő',     icon: '📊', def: true  },
+  { id: 'hetiGrafikon', label: 'Heti grafikon',       icon: '📉', def: true  },
+  { id: 'hetiTrend',    label: 'Heti trend',          icon: '📈', def: false },
+  { id: 'anyagRangsor', label: 'Anyag rangsor',       icon: '📦', def: true  },
+  { id: 'topDolg',      label: 'Havi legjobb',        icon: '🏅', def: false },
+  { id: 'nyitottF',     label: 'Nyitott feladatok',   icon: '📌', def: true  },
+  { id: 'aktivDolg',    label: 'Aktív dolgozók',      icon: '👷', def: true  },
+  { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',  icon: '📋', def: false },
 ];
 
 let _inited            = false;
@@ -20,7 +22,7 @@ let _autoRefreshTimer  = null;
 function _empPerm()       { return isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'); }
 function _canSeeWidget(id) {
   const canReadEntries = isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
-  if (['maiOssz','haviOssz','hetiTrend','utobbiBeir'].includes(id)) return canReadEntries;
+  if (['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','utobbiBeir'].includes(id)) return canReadEntries;
   if (id === 'topDolg')   return canSeeAllReports();
   if (id === 'aktivDolg') return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
@@ -295,6 +297,64 @@ function _buildWidget(id, ctx, large = false) {
       </div>`;
     }).join('');
     return _card('📋', 'Utóbbi bejegyzések', '', '', `<div style="margin-top:4px;">${rows}</div>`, large);
+  }
+
+  /* ── Anyag rangsor ── */
+  if (id === 'anyagRangsor') {
+    const byMat = {};
+    monthEntries.forEach(e => {
+      const mat = (e.anyag || '').trim();
+      if (mat) byMat[mat] = (byMat[mat] || 0) + kgOf(e);
+    });
+    const rank = Object.entries(byMat).sort((a, b) => b[1] - a[1]).slice(0, large ? 6 : 4);
+    if (!rank.length) return _card('📦', 'Anyag rangsor', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    const maxKg = rank[0][1];
+    const rows  = rank.map(([mat, kg], i) => {
+      const barW = Math.round(kg / maxKg * 70);
+      return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--text3);width:14px;flex-shrink:0;">${i+1}.</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(mat)}">${esc(mat)}</span>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          <div style="height:5px;width:${barW}px;background:var(--accent);border-radius:3px;opacity:.6;"></div>
+          <span style="font-size:11px;color:var(--text2);white-space:nowrap;">${(kg/1000).toFixed(2)} t</span>
+        </div>
+      </div>`;
+    }).join('');
+    return _card('📦', 'Anyag rangsor', '', `Havi top ${rank.length} anyag`, `<div style="margin-top:6px;">${rows}</div>`, large);
+  }
+
+  /* ── Heti mini-grafikon ── */
+  if (id === 'hetiGrafikon') {
+    const HU_DAYS = ['H','K','Sze','Cs','P','Szo','V'];
+    const days    = Array.from({length:7}, (_, i) => addD(weekStart, i));
+    const byDay   = {};
+    thisWeekEntries.forEach(e => { byDay[e.datum] = (byDay[e.datum] || 0) + kgOf(e); });
+    const vals    = days.map(d => byDay[d] || 0);
+    const maxV    = Math.max(...vals, 1);
+    const totalKg = vals.reduce((s, v) => s + v, 0);
+
+    const BAR_H = 52, BAR_W = 28, GAP = 5;
+    const svgW  = 7 * (BAR_W + GAP) - GAP;
+
+    const bars = days.map((d, i) => {
+      const v       = vals[i];
+      const h       = v > 0 ? Math.max(4, Math.round(v / maxV * BAR_H)) : 0;
+      const x       = i * (BAR_W + GAP);
+      const isToday  = d === today;
+      const isFuture = d > today;
+      const barFill  = `style="fill:var(--accent);opacity:${isFuture ? '0.18' : isToday ? '1' : '0.52'}"`;
+      const lblFill  = `style="fill:${isToday ? 'var(--accent)' : 'var(--text3)'};font-weight:${isToday ? '700' : '400'}"`;
+      const valFill  = `style="fill:${isToday ? 'var(--accent)' : 'var(--text3)'}"`;
+      return [
+        h > 0 ? `<rect x="${x}" y="${BAR_H - h}" width="${BAR_W}" height="${h}" rx="3" ${barFill}/>` : '',
+        `<text x="${x + BAR_W/2}" y="${BAR_H + 12}" text-anchor="middle" font-size="9.5" font-family="Source Sans 3,sans-serif" ${lblFill}>${HU_DAYS[i]}</text>`,
+        v > 0 && !isFuture ? `<text x="${x + BAR_W/2}" y="${BAR_H - h - 3}" text-anchor="middle" font-size="8.5" font-family="Source Sans 3,sans-serif" ${valFill}>${(v/1000).toFixed(1)}t</text>` : ''
+      ].join('');
+    }).join('');
+
+    const svg = `<svg viewBox="0 0 ${svgW} ${BAR_H + 16}" style="width:100%;margin-top:10px;overflow:visible;">${bars}</svg>`;
+    const sub = totalKg > 0 ? `${(totalKg/1000).toFixed(2)} t ezen a héten` : 'Még nincs adat ezen a héten';
+    return _card('📉', 'Heti bontás', '', sub, svg, large);
   }
 
   return '';
