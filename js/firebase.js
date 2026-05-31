@@ -5,7 +5,7 @@ import { getAuth, onAuthStateChanged, signInWithPopup,
 import { getFirestore, doc, getDoc, setDoc, addDoc,
          updateDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, limit, serverTimestamp,
-         writeBatch, onSnapshot }                             from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+         writeBatch, onSnapshot, arrayUnion }                 from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyAPv7gztZ-5q3C0WGrjsmu8cIYVOaLEgIg',
@@ -26,5 +26,5 @@ export {
   signOut, updateProfile,
   doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, getDocs, orderBy, limit,
-  serverTimestamp, writeBatch, onSnapshot
+  serverTimestamp, writeBatch, onSnapshot, arrayUnion
 };

@@ -162,10 +162,7 @@
           <div id="dashConfigWidgets" class="dash-cfg-grid"></div>
         </div>
       </div>
-      <div id="noticeBanner" class="notice-banner">
-        <span class="notice-banner-icon" id="noticeBannerIcon">ℹ️</span>
-        <span class="notice-banner-txt" id="noticeBannerMsg"></span>
-      </div>
+      <div id="noticeCards" style="margin-bottom:14px;"></div>
       <div id="dashWidgets" class="dash-grid"></div>
     </div>
 
@@ -798,24 +795,42 @@
 
         <!-- Közlemény -->
         <div id="stab-kozlemeny" class="stab-panel">
-          <p style="font-size:12.5px;color:var(--text3);margin-bottom:14px;">Az itt megadott üzenet az adatbeviteli oldalon jelenik meg minden bejelentkezett felhasználónak.</p>
-          <div class="field">
-            <label class="lbl">Üzenet típusa</label>
-            <select id="noticeTypeSelect" style="max-width:220px;">
-              <option value="info">ℹ️ Tájékoztatás</option>
-              <option value="warning">⚠️ Figyelmeztetés</option>
-              <option value="success">✅ Jó hír</option>
-            </select>
+          <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:16px;">
+            <div class="card-title" style="margin-bottom:14px;padding-bottom:10px;"><span class="card-title-icon">➕</span>Új közlemény</div>
+            <div class="field">
+              <label class="lbl">Szöveg</label>
+              <textarea id="noticeInput" placeholder="A közlemény szövege…"></textarea>
+            </div>
+            <div class="g2">
+              <div class="field">
+                <label class="lbl">Típus</label>
+                <select id="noticeTypeSelect">
+                  <option value="info">ℹ️ Tájékoztatás</option>
+                  <option value="warning">⚠️ Figyelmeztetés</option>
+                  <option value="success">✅ Jó hír</option>
+                  <option value="urgent">🔴 Sürgős</option>
+                  <option value="esemeny">📅 Esemény</option>
+                  <option value="karbantartas">🔧 Karbantartás</option>
+                  <option value="hir">🎉 Hír</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="lbl">Lejárat (opcionális)</label>
+                <input type="date" id="noticeLejarat">
+              </div>
+            </div>
+            <div class="field">
+              <label class="lbl">Látható</label>
+              <select id="noticeCelSel">
+                <option value="mindenki">👥 Mindenki</option>
+                <option value="admin">🔐 Csak adminok</option>
+              </select>
+            </div>
+            <div class="btn-row" style="margin-top:0;">
+              <button class="btn btn-primary btn-sm" id="noticeSaveBtn">📢 Közzétesz</button>
+            </div>
           </div>
-          <div class="field" style="margin-top:10px;">
-            <label class="lbl">Üzenet szövege</label>
-            <textarea id="noticeInput" placeholder="Pl.: Ma délutáni műszak kezdete 14:00-ra változik…" rows="3"></textarea>
-          </div>
-          <div class="btn-row" style="margin-top:10px;">
-            <button class="btn btn-primary btn-sm" id="noticeSaveBtn">📢 Közzétesz</button>
-            <button class="btn btn-danger btn-sm" id="noticeClearBtn">Visszavon</button>
-          </div>
-          <div id="noticePreviewDiv" style="margin-top:18px;"></div>
+          <div id="noticeListDiv"></div>
         </div>
 
         <!-- Prémium konfig (főadmin) -->

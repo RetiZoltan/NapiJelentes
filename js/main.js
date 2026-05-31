@@ -1,5 +1,5 @@
 import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
-         collection, query, limit, getDocs, serverTimestamp,
+         collection, query, limit, getDocs, orderBy, arrayUnion, serverTimestamp,
          onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
@@ -20,7 +20,7 @@ import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
-         loadNoticeAdmin, saveNotice, clearNotice } from './admin.js';
+         loadNoticeAdmin, saveNotice } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard } from './dashboard.js';
 import { initNaptar } from './calendar.js';
@@ -172,19 +172,85 @@ function switchTab(name, btn) {
   }
 }
 
+const _NOTICE_TYPES = {
+  info:         { icon: 'ℹ️'  },
+  warning:      { icon: '⚠️'  },
+  success:      { icon: '✅'  },
+  urgent:       { icon: '🔴'  },
+  esemeny:      { icon: '📅'  },
+  karbantartas: { icon: '🔧'  },
+  hir:          { icon: '🎉'  },
+};
+
+function _getDismissed() {
+  try { return JSON.parse(localStorage.getItem(`nj_dis_${state.appUser?.uid}`) || '[]'); }
+  catch { return []; }
+}
+function _setDismissed(ids) {
+  localStorage.setItem(`nj_dis_${state.appUser?.uid}`, JSON.stringify(ids));
+}
+function _timeAgo(date) {
+  if (!date) return '';
+  const diff = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diff < 1)  return 'épp most';
+  if (diff < 60) return `${diff} perce`;
+  const h = Math.floor(diff / 60);
+  if (h < 24)    return `${h} órája`;
+  const d = Math.floor(h / 24);
+  return d < 7 ? `${d} napja` : date.toLocaleDateString('hu-HU');
+}
+
 async function loadAndDisplayNotice() {
+  const container = E('noticeCards'); if (!container) return;
   try {
-    const s = await getDoc(doc(db, 'config', 'notice'));
-    const banner = E('noticeBanner');
-    if (s.exists() && s.data().text) {
-      const d = s.data();
-      const icons = { info: 'ℹ️', warning: '⚠️', success: '✅' };
-      E('noticeBannerIcon').textContent = icons[d.type] || 'ℹ️';
-      E('noticeBannerMsg').textContent  = d.text;
-      banner.className = `notice-banner active ${d.type || 'info'}`;
-    } else {
-      banner.className = 'notice-banner';
-    }
+    const today     = tod();
+    const dismissed = _getDismissed();
+    const snap      = await getDocs(query(collection(db, 'notices'), orderBy('createdAt', 'desc')));
+
+    const visible = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(n => {
+        if (dismissed.includes(n.id)) return false;
+        if (n.lejarat && n.lejarat < today) return false;
+        if (n.cel === 'admin' && !canManageUsers()) return false;
+        return true;
+      });
+
+    if (!visible.length) { container.innerHTML = ''; return; }
+
+    container.innerHTML = visible.map(n => {
+      const icon    = _NOTICE_TYPES[n.tipus]?.icon || 'ℹ️';
+      const timeAgo = n.createdAt ? _timeAgo(n.createdAt.toDate()) : '';
+      const byLine  = [n.createdByName, timeAgo].filter(Boolean).join(' · ');
+      const cel     = n.cel;
+      const celBadge = (cel && cel !== 'mindenki')
+        ? `<span class="notice-meta-badge">${cel === 'admin' ? '🔐 Csak admin' : '📍 ' + esc(cel.replace('reszleg:',''))}</span>`
+        : '';
+      const lejBadge = n.lejarat
+        ? `<span class="notice-meta-badge">⏱ ${esc(n.lejarat)}-ig</span>`
+        : '';
+      return `<div class="notice-card notice-card-${esc(n.tipus || 'info')}">
+        <div class="notice-card-icon">${icon}</div>
+        <div class="notice-card-body">
+          <div class="notice-card-text">${esc(n.szoveg)}</div>
+          <div class="notice-card-meta">${esc(byLine)}${celBadge}${lejBadge}</div>
+        </div>
+        <button class="notice-card-close" data-nid="${n.id}" title="Bezár">×</button>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.notice-card-close').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.nid;
+        const dismissed = _getDismissed();
+        if (!dismissed.includes(id)) _setDismissed([...dismissed, id]);
+        btn.closest('.notice-card').remove();
+        if (state.appUser) {
+          try { await updateDoc(doc(db, 'notices', id), { readBy: arrayUnion(state.appUser.uid) }); }
+          catch {}
+        }
+      });
+    });
   } catch {}
 }
 
@@ -680,7 +746,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Admin — közlemény
   E('noticeSaveBtn').addEventListener('click', saveNotice);
-  E('noticeClearBtn').addEventListener('click', clearNotice);
 
   // Admin — prémium konfig
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);

@@ -661,3 +661,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .komp-chip-del{cursor:pointer;font-size:14px;line-height:1;opacity:.5;margin-left:2px;}
 .komp-chip-del:hover{opacity:1;}
 .komp-chip-sm{font-size:11px;padding:1px 7px;}
+
+/* ══════════════════════════════════════
+   KÖZLEMÉNY KÁRTYÁK
+══════════════════════════════════════ */
+.notice-card{display:flex;align-items:flex-start;gap:12px;background:var(--surf);border:1px solid var(--border);border-left-width:4px;border-radius:var(--rlg);padding:14px 48px 14px 16px;position:relative;box-shadow:var(--sh);animation:fu .2s ease both;}
+.notice-card+.notice-card{margin-top:8px;}
+.notice-card-icon{font-size:22px;line-height:1.2;flex-shrink:0;}
+.notice-card-body{flex:1;min-width:0;}
+.notice-card-text{font-size:13.5px;color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;}
+.notice-card-meta{font-size:11.5px;color:var(--text3);margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.notice-meta-badge{background:var(--surf2);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--text3);}
+.notice-meta-expired{background:var(--redl);color:var(--red);border-color:color-mix(in srgb,var(--red) 25%,transparent);}
+.notice-card-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;line-height:1;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px;transition:color var(--tr),background var(--tr);}
+.notice-card-close:hover{color:var(--text);background:var(--surf2);}
+.notice-card-info        {border-left-color:var(--accent);}
+.notice-card-warning     {border-left-color:var(--amber);}
+.notice-card-success     {border-left-color:var(--green);}
+.notice-card-urgent      {border-left-color:var(--red);background:color-mix(in srgb,var(--redl) 40%,var(--surf));}
+.notice-card-esemeny     {border-left-color:var(--accent);}
+.notice-card-karbantartas{border-left-color:var(--amber);}
+.notice-card-hir         {border-left-color:var(--green);}
+.notice-expired          {opacity:.6;}
+#noticeCards:empty       {display:none;}

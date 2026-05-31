@@ -1,5 +1,5 @@
 import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-         collection, getDocs, serverTimestamp, writeBatch } from './firebase.js';
+         collection, query, getDocs, orderBy, serverTimestamp, writeBatch } from './firebase.js';
 import { state, isMainAdmin, canManageUsers } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { loadLists } from './db.js';
@@ -123,48 +123,93 @@ export async function handleRoleListClick(e) {
 }
 
 /* ── Közlemény ── */
-const NOTICE_ICONS = { info: 'ℹ️', warning: '⚠️', success: '✅' };
+const NOTICE_TYPES = {
+  info:         { label: 'Tájékoztatás',   icon: 'ℹ️'  },
+  warning:      { label: 'Figyelmeztetés', icon: '⚠️'  },
+  success:      { label: 'Jó hír',         icon: '✅'  },
+  urgent:       { label: 'Sürgős',         icon: '🔴'  },
+  esemeny:      { label: 'Esemény',        icon: '📅'  },
+  karbantartas: { label: 'Karbantartás',   icon: '🔧'  },
+  hir:          { label: 'Hír',            icon: '🎉'  },
+};
 
 export async function loadNoticeAdmin() {
+  const celSel = E('noticeCelSel');
+  if (celSel) {
+    const prev = celSel.value;
+    celSel.innerHTML =
+      '<option value="mindenki">👥 Mindenki</option>' +
+      '<option value="admin">🔐 Csak adminok</option>' +
+      (state.reszlegek || []).map(r => `<option value="reszleg:${esc(r)}">📍 ${esc(r)} részleg</option>`).join('');
+    if (prev) celSel.value = prev;
+  }
+  const div = E('noticeListDiv'); if (!div) return;
+  div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">Betöltés…</div>';
   try {
-    const s = await getDoc(doc(db, 'config', 'notice'));
-    const preview = E('noticePreviewDiv');
-    if (s.exists() && s.data().text) {
-      const d = s.data();
-      E('noticeTypeSelect').value = d.type || 'info';
-      E('noticeInput').value = d.text;
-      preview.innerHTML = `<p style="font-size:11.5px;font-weight:600;color:var(--text3);margin-bottom:6px;">Aktív közlemény előnézete:</p>
-        <div class="notice-banner active ${d.type || 'info'}">
-          <span class="notice-banner-icon">${NOTICE_ICONS[d.type] || 'ℹ️'}</span>
-          <span class="notice-banner-txt">${esc(d.text)}</span>
-        </div>`;
-    } else {
-      E('noticeInput').value = '';
-      preview.innerHTML = '<p style="font-size:12.5px;color:var(--text3);">Jelenleg nincs aktív közlemény.</p>';
-    }
-  } catch { msg('Betöltési hiba', 'error'); }
+    const snap = await getDocs(query(collection(db, 'notices'), orderBy('createdAt', 'desc')));
+    _renderAdminNotices(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
+}
+
+function _renderAdminNotices(list) {
+  const today = tod();
+  if (!list.length) {
+    E('noticeListDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📢</div><div class="empty-title">Nincsenek közlemények</div><div class="empty-sub">Adj hozzá egyet a fenti formmal.</div></div>`;
+    return;
+  }
+  E('noticeListDiv').innerHTML = list.map(n => {
+    const tip     = NOTICE_TYPES[n.tipus] || NOTICE_TYPES.info;
+    const expired = n.lejarat && n.lejarat < today;
+    const readCnt = (n.readBy || []).length;
+    const celLabel = n.cel === 'admin' ? '🔐 Csak admin'
+                   : n.cel?.startsWith('reszleg:') ? '📍 ' + n.cel.replace('reszleg:', '')
+                   : '👥 Mindenki';
+    return `<div class="notice-card notice-card-${esc(n.tipus)}${expired ? ' notice-expired' : ''}" style="position:relative;padding-right:44px;margin-bottom:8px;">
+      <div class="notice-card-icon">${tip.icon}</div>
+      <div class="notice-card-body">
+        <div class="notice-card-text">${esc(n.szoveg)}</div>
+        <div class="notice-card-meta">
+          <span class="notice-meta-badge">${esc(tip.label)}</span>
+          <span class="notice-meta-badge">${celLabel}</span>
+          ${n.lejarat ? `<span class="notice-meta-badge${expired ? ' notice-meta-expired' : ''}">⏱ ${esc(n.lejarat)}${expired ? ' (lejárt)' : ''}</span>` : ''}
+          ${readCnt > 0 ? `<span class="notice-meta-badge">👁 ${readCnt} elolvasva</span>` : ''}
+          ${n.createdByName ? `<span style="color:var(--text3);">— ${esc(n.createdByName)}</span>` : ''}
+        </div>
+      </div>
+      <button class="btn btn-danger btn-xs notice-adm-del" data-id="${n.id}" style="position:absolute;top:12px;right:12px;">✕</button>
+    </div>`;
+  }).join('');
+  E('noticeListDiv').querySelectorAll('.notice-adm-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Törlöd ezt a közleményt?')) return;
+      try { await deleteDoc(doc(db, 'notices', btn.dataset.id)); msg('Közlemény törölve.'); loadNoticeAdmin(); }
+      catch (err) { msg('Hiba: ' + err.message, 'error'); }
+    });
+  });
 }
 
 export async function saveNotice() {
-  const text = E('noticeInput').value.trim();
-  if (!text) { msg('Írj be üzenetet!', 'error'); return; }
-  const type = E('noticeTypeSelect').value;
+  const szoveg = E('noticeInput').value.trim();
+  if (!szoveg) { msg('Írj be szöveget!', 'error'); E('noticeInput').focus(); return; }
   try {
-    await setDoc(doc(db, 'config', 'notice'), { text, type, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+    await addDoc(collection(db, 'notices'), {
+      szoveg,
+      tipus:        E('noticeTypeSelect').value  || 'info',
+      cel:          E('noticeCelSel')?.value      || 'mindenki',
+      lejarat:      E('noticeLejarat')?.value     || null,
+      readBy:       [],
+      createdBy:    state.appUser.uid,
+      createdByName: state.userData?.displayName || state.appUser.email || 'Admin',
+      createdAt:    serverTimestamp()
+    });
     msg('Közlemény közzétéve.');
+    E('noticeInput').value = '';
+    if (E('noticeLejarat')) E('noticeLejarat').value = '';
     loadNoticeAdmin();
-  } catch { msg('Mentési hiba', 'error'); }
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
 
-export async function clearNotice() {
-  if (!confirm('Visszavonod az aktív közleményt?')) return;
-  try {
-    await deleteDoc(doc(db, 'config', 'notice'));
-    msg('Közlemény visszavonva.');
-    E('noticeInput').value = '';
-    E('noticePreviewDiv').innerHTML = '<p style="font-size:12.5px;color:var(--text3);">Jelenleg nincs aktív közlemény.</p>';
-  } catch { msg('Törlési hiba', 'error'); }
-}
+export function clearNotice() {}
 
 /* ── Fájl export / import ── */
 export async function mentFajl() {
