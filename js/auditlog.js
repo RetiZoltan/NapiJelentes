@@ -39,7 +39,7 @@ export async function logAction(action, detail = {}) {
       detail,
       ts: serverTimestamp()
     });
-  } catch {}
+  } catch (e) { console.warn('logAction failed:', e.message); }
 }
 
 export async function loadAuditLog(limitN = 100) {

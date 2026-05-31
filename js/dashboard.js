@@ -41,7 +41,7 @@ function _getEnabled() {
 async function _saveConfig(ids) {
   if (state.userData) state.userData.dashboardWidgets = ids;
   if (state.appUser) {
-    try { await updateDoc(doc(db, 'users', state.appUser.uid), { dashboardWidgets: ids }); } catch {}
+    try { await updateDoc(doc(db, 'users', state.appUser.uid), { dashboardWidgets: ids }); } catch (e) { console.warn('dashConfig save:', e.message); }
   }
 }
 

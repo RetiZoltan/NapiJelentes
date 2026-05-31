@@ -1,5 +1,6 @@
 import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
+import { logAction } from './auditlog.js';
 import { state, canSeeAllReports, isMainAdmin } from './state.js';
 import { E, esc, msg, tod, fmtL, fmtS, fmtKg, skelHtml } from './utils.js';
 import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
@@ -341,6 +342,7 @@ export async function riportKlikk(e) {
     if (!confirm('Törlöd a napi megjegyzést?')) return;
     const reszleg = btn.dataset.reszleg ?? '';
     await deleteDailyNoteForReszleg(datum, reszleg);
+    logAction('dailyNote.delete', { datum, reszleg });
     napiRiport();
   } else if (ids) {
     const arr = ids.split(',');
@@ -348,6 +350,7 @@ export async function riportKlikk(e) {
     const batch = writeBatch(db);
     arr.forEach(id => batch.delete(doc(db, 'entries', id)));
     await batch.commit();
+    logAction('entry.delete', { count: arr.length, datum });
     msg('Bejegyzés törölve.');
   }
 }
@@ -363,6 +366,7 @@ export async function napTorol() {
     snap.docs.forEach(dc => batch.delete(dc.ref));
     await batch.commit();
     await deleteDoc(doc(db, 'dailyNotes', d));
+    logAction('entry.delete_day', { datum: d, count: snap.docs.length });
     msg('Napi adatok törölve.');
     napiRiport();
   } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }

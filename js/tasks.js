@@ -47,7 +47,7 @@ async function _loadUsers() {
       .filter(u => u.name)
       .sort((a, b) => a.name.localeCompare(b.name, 'hu'));
     _fillFelelosSelects();
-  } catch {}
+  } catch (e) { console.warn('loadUsers failed:', e.message); }
 }
 
 function _fillFelelosSelects() {
@@ -298,8 +298,11 @@ export function openTaskDrawer(task) {
   if (canDel) {
     E('dtDelBtn').addEventListener('click', async () => {
       if (!confirm('Törlöd ezt a feladatot?')) return;
-      try { await deleteDoc(doc(db, 'tasks', _currentTask.id)); msg('Feladat törölve.'); closeTaskDrawer(); loadTasks(); }
-      catch (err) { msg('Hiba: ' + err.message, 'error'); }
+      try {
+        await deleteDoc(doc(db, 'tasks', _currentTask.id));
+        logAction('task.delete', { cim: _currentTask.cim });
+        msg('Feladat törölve.'); closeTaskDrawer(); loadTasks();
+      } catch (err) { msg('Hiba: ' + err.message, 'error'); }
     });
   }
 
@@ -360,8 +363,11 @@ export async function handleTaskClick(e) {
   const delBtn = e.target.closest('.task-del-btn');
   if (delBtn) {
     if (!confirm('Törlöd ezt a feladatot?')) return;
-    try { await deleteDoc(doc(db, 'tasks', delBtn.dataset.id)); msg('Feladat törölve.'); loadTasks(); }
-    catch (err) { msg('Hiba: ' + err.message, 'error'); }
+    try {
+      await deleteDoc(doc(db, 'tasks', delBtn.dataset.id));
+      logAction('task.delete', { id: delBtn.dataset.id });
+      msg('Feladat törölve.'); loadTasks();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
     return;
   }
 

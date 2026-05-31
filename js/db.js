@@ -56,7 +56,7 @@ export async function updDolgSzuro() {
     const prev = E('dolgSzuro').value;
     E('dolgSzuro').innerHTML = '<option value="">— Mindenki —</option>' +
       nn.map(n => `<option value="${esc(n)}"${n === prev ? ' selected' : ''}>${esc(n)}</option>`).join('');
-  } catch {}
+  } catch (e) { console.warn('updDolgSzuro:', e.message); }
 }
 
 export function updReszlegSzuro() {

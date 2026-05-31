@@ -208,6 +208,7 @@ export function closeEmpForm() {
 }
 
 export async function saveEmployee() {
+  if (!canEditEmp()) { msg('Nincs jogosultságod dolgozó módosításához!', 'error'); return; }
   const nev = E('empFormNev').value.trim();
   if (!nev) { msg('A név kötelező!', 'error'); return; }
   const data = {
@@ -776,12 +777,12 @@ export async function loadStatisztika() {
 export async function loadTulora() {
   if (!_empLoaded) await loadEmployees();
   const honapF = E('tuloraHonapF')?.value || tod().slice(0, 7);
-  const nevF   = E('tucloraNevF')?.value  || '';
+  const nevF   = E('tuloraNevF')?.value  || '';
 
   // Feltölti a dolgozó selecteket
   const aktiv = _employees.filter(e => e.statusz !== 'inaktiv').sort((a,b)=>a.nev.localeCompare(b.nev,'hu'));
   const nevOpts = '<option value="">— Mindenki —</option>' + aktiv.map(e=>`<option value="${esc(e.nev)}">${esc(e.nev)}</option>`).join('');
-  if (E('tucloraNevF')) E('tucloraNevF').innerHTML = nevOpts;
+  if (E('tuloraNevF')) E('tuloraNevF').innerHTML = nevOpts;
   if (E('tuloraFormNev')) E('tuloraFormNev').innerHTML = '<option value="">— Válassz —</option>' + aktiv.map(e=>`<option value="${esc(e.nev)}">${esc(e.nev)}</option>`).join('');
 
   E('tuloraListDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';

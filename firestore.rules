@@ -20,7 +20,11 @@ service cloud.firestore {
     }
 
     function hasPerm(p) {
-      return isMainAdmin() || getRole().permissions[p] == true;
+      let u = getUser();
+      return isMainAdmin() || (
+        u.get('roleId', null) != null &&
+        get(/databases/$(database)/documents/roles/$(u.roleId)).data.permissions[p] == true
+      );
     }
 
     // ── users ──────────────────────────────────────────────────
