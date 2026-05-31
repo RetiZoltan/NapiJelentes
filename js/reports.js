@@ -434,24 +434,38 @@ async function _exportPdf(el, filename) {
 
 /* ── XLSX export ── */
 export function idoszakosXlsxMent() {
-  if (!window.XLSX) { msg('Az Excel könyvtár nem töltődött be!', 'error'); return; }
+  if (!window.XLSX) {
+    msg('Az Excel könyvtár nem töltődött be — frissítsd az oldalt!', 'error', 5000);
+    return;
+  }
   const raw = E('idoszakosRiportDiv');
-  if (!raw.children.length || raw.querySelector('.empty-st')) { msg('Nincs riport az exporthoz!', 'error'); return; }
+  if (!raw.children.length || raw.querySelector('.empty-st')) {
+    msg('Nincs riport az exporthoz!', 'error'); return;
+  }
+  try {
+    const wb     = window.XLSX.utils.book_new();
+    const tables = raw.querySelectorAll('table.stbl');
+    if (!tables.length) { msg('A riportban nincs exportálható táblázat.', 'error'); return; }
 
-  const wb = window.XLSX.utils.book_new();
+    tables.forEach((tbl, i) => {
+      const titleEl = tbl.closest('.card')?.querySelector('.card-title');
+      const title   = (titleEl?.textContent?.replace(/[*?:/\\[\]]/g, '').trim() || `Lap ${i+1}`).slice(0, 31) || `Lap${i+1}`;
+      window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.table_to_sheet(tbl), title);
+    });
 
-  // Minden táblázatot külön munkalapra
-  raw.querySelectorAll('table.stbl').forEach((tbl, i) => {
-    const title = tbl.closest('.card')?.querySelector('.card-title')?.textContent?.trim() || `Lap ${i+1}`;
-    const ws    = window.XLSX.utils.table_to_sheet(tbl);
-    window.XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31));
-  });
-
-  if (!wb.SheetNames.length) { msg('Nincs exportálható táblázat!', 'error'); return; }
-
-  const filename = `riport_${window.XLSX?.version ? '' : ''}${new Date().toISOString().slice(0,10)}.xlsx`;
-  window.XLSX.writeFile(wb, filename);
-  msg('Excel mentve!');
+    const out  = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `riport_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    msg('Excel mentve!');
+  } catch (err) {
+    msg('Excel hiba: ' + err.message, 'error', 6000);
+    console.error('XLSX export error:', err);
+  }
 }
 
 /* ── Nyomtatás ── */
