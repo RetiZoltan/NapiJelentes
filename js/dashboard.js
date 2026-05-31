@@ -157,6 +157,21 @@ export async function initDashboard() {
       E('dashCfgBtn').textContent = open ? '⚙ Testreszab' : '✕ Bezár';
     });
     _startAutoRefresh(parseInt(localStorage.getItem('nj_autorefresh') || '0', 10));
+
+    // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
+    E('dashWidgets').addEventListener('click', async e => {
+      const btn = e.target.closest('.dash-move-btn');
+      if (!btn || btn.disabled) return;
+      e.stopPropagation();
+      const order = [..._getEnabled()];
+      const idx   = order.indexOf(btn.dataset.wid);
+      if (idx < 0) return;
+      const ni = btn.dataset.dir === 'left' ? idx - 1 : idx + 1;
+      if (ni < 0 || ni >= order.length) return;
+      [order[idx], order[ni]] = [order[ni], order[idx]];
+      await _saveConfig(order);
+      await _loadWidgets();
+    });
   }
   _renderGreeting();
   _renderQuickActions();
@@ -218,7 +233,17 @@ async function _loadWidgets() {
     `<div class="dash-last-update">Frissítve: ${now.toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })}${nextHint}</div>`
   );
 
-  _initDragDrop(grid);
+  // Nyíl gombok injektálása minden widgetbe
+  const wNodes = [...grid.querySelectorAll('.dash-widget')];
+  wNodes.forEach((w, i) => {
+    const hdr = w.querySelector('.dash-w-hdr'); if (!hdr) return;
+    const mv  = document.createElement('div');
+    mv.className = 'dash-w-move';
+    mv.innerHTML = `
+      <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
+      <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
+    hdr.appendChild(mv);
+  });
   _animateCounters(grid);
 }
 
@@ -244,111 +269,14 @@ function _animateCounters(grid) {
   });
 }
 
-/* ── Drag & Drop sorrend ── */
-let _dragSrcIdx = null;
-
-function _initDragDrop(grid) {
-  let touchClone  = null;
-  let touchSrcIdx = null;
-  let touchOffX   = 0, touchOffY = 0;
-
-  const getWidgets = () => [...grid.querySelectorAll('.dash-widget')];
-  const getIdx     = el => getWidgets().findIndex(w => w === el || w.contains(el));
-  const clearHL    = () => getWidgets().forEach(w => w.classList.remove('drag-over', 'drag-dragging'));
-
-  /* Desktop */
-  grid.addEventListener('dragstart', e => {
-    const w = e.target.closest('.dash-widget'); if (!w) return;
-    _dragSrcIdx = getIdx(w);
-    e.dataTransfer.effectAllowed = 'move';
-    requestAnimationFrame(() => w.classList.add('drag-dragging'));
-  });
-
-  grid.addEventListener('dragend', () => { clearHL(); _dragSrcIdx = null; });
-
-  grid.addEventListener('dragover', e => {
-    e.preventDefault();
-    const w = e.target.closest('.dash-widget'); if (!w) return;
-    clearHL();
-    if (getIdx(w) !== _dragSrcIdx) w.classList.add('drag-over');
-    if (_dragSrcIdx !== null) getWidgets()[_dragSrcIdx]?.classList.add('drag-dragging');
-  });
-
-  grid.addEventListener('dragleave', e => {
-    if (!grid.contains(e.relatedTarget)) clearHL();
-  });
-
-  grid.addEventListener('drop', async e => {
-    e.preventDefault();
-    const w = e.target.closest('.dash-widget'); clearHL();
-    if (!w || _dragSrcIdx === null) return;
-    const dest = getIdx(w);
-    if (dest >= 0 && dest !== _dragSrcIdx) await _reorderWidgets(_dragSrcIdx, dest);
-    _dragSrcIdx = null;
-  });
-
-  /* Touch (mobil) */
-  grid.addEventListener('touchstart', e => {
-    const w = e.target.closest('.dash-widget'); if (!w) return;
-    touchSrcIdx = getIdx(w);
-    const t = e.touches[0], r = w.getBoundingClientRect();
-    touchOffX = t.clientX - r.left; touchOffY = t.clientY - r.top;
-    touchClone = w.cloneNode(true);
-    Object.assign(touchClone.style, {
-      position:'fixed', zIndex:'9999', width:`${r.width}px`,
-      opacity:'.82', pointerEvents:'none',
-      boxShadow:'0 8px 32px rgba(0,0,0,.22)',
-      borderRadius:'12px', left:`${r.left}px`, top:`${r.top}px`,
-      transition:'none', margin:'0'
-    });
-    document.body.appendChild(touchClone);
-    w.classList.add('drag-dragging');
-  }, { passive: true });
-
-  grid.addEventListener('touchmove', e => {
-    if (!touchClone) return;
-    e.preventDefault();
-    const t = e.touches[0];
-    touchClone.style.left = `${t.clientX - touchOffX}px`;
-    touchClone.style.top  = `${t.clientY - touchOffY}px`;
-    touchClone.style.display = 'none';
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    touchClone.style.display = '';
-    clearHL();
-    getWidgets()[touchSrcIdx]?.classList.add('drag-dragging');
-    const tgt = under?.closest('.dash-widget');
-    if (tgt && getIdx(tgt) !== touchSrcIdx) tgt.classList.add('drag-over');
-  }, { passive: false });
-
-  grid.addEventListener('touchend', async e => {
-    if (!touchClone) return;
-    const t = e.changedTouches[0];
-    touchClone.style.display = 'none';
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    document.body.removeChild(touchClone);
-    touchClone = null; clearHL();
-    const tgt  = under?.closest('.dash-widget');
-    const dest = tgt ? getIdx(tgt) : -1;
-    if (dest >= 0 && dest !== touchSrcIdx) await _reorderWidgets(touchSrcIdx, dest);
-    touchSrcIdx = null;
-  });
-}
-
-async function _reorderWidgets(srcIdx, destIdx) {
-  const order = [..._getEnabled()];
-  const [moved] = order.splice(srcIdx, 1);
-  order.splice(destIdx, 0, moved);
-  await _saveConfig(order);
-  await _loadWidgets();
-}
+/* ── Widget sorrend (nyíl gombok) ── */
 
 /* ── Widget builder ── */
 function _card(icon, title, value, sub = '', extra = '', large = false) {
-  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}" draggable="true">
+  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}">
     <div class="dash-w-hdr">
       <span class="dash-w-icon">${icon}</span>
       <span class="dash-w-title">${title}</span>
-      <span class="dash-drag-handle" title="Húzd át a pozíció változtatásához">⠿</span>
     </div>
     <div class="dash-w-value">${value}</div>
     ${sub   ? `<div class="dash-w-sub">${sub}</div>` : ''}

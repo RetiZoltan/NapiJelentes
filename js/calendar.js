@@ -10,6 +10,23 @@ let heatYear;
 let calView = 'monthly'; // 'monthly' | 'yearly'
 let _inited = false;
 
+/* Kék → Türkiz → Zöld → Sárgazöld → Narancs gradiens a termelési szint szerint */
+function _productionColor(ratio) {
+  if (ratio <= 0) return { bg: '', text: 'inherit' };
+  const hue   = Math.round(212 - ratio * 182); // 212 (kék) → 30 (narancs)
+  const sat   = Math.round(58  + ratio * 22);  // 58 → 80%
+  const light = Math.round(74  - ratio * 30);  // 74 → 44%
+  return { bg: `hsl(${hue},${sat}%,${light}%)`, text: light < 58 ? '#fff' : 'inherit' };
+}
+
+const LEGEND_HTML = `<div class="cal-legend">
+  <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--surf2);border:1px solid var(--border);"></div><span>Nincs adat</span></div>
+  <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(200,60%,70%);"></div><span>Alacsony</span></div>
+  <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(155,62%,55%);"></div><span>Közepes</span></div>
+  <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(88,68%,50%);"></div><span>Jó</span></div>
+  <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(30,80%,52%);"></div><span>Magas</span></div>
+</div>`;
+
 export async function initNaptar() {
   if (!_inited) {
     _inited = true;
@@ -132,11 +149,8 @@ async function renderCalendar() {
     let style = '', kgHtml = '';
 
     if (kg > 0) {
-      const ratio = kg / maxKg;
-      const sat   = Math.round(42 + ratio * 28);
-      const light = Math.round(82 - ratio * 47);
-      const textC = light < 54 ? '#fff' : 'inherit';
-      style  = `background:hsl(142,${sat}%,${light}%);color:${textC};`;
+      const c = _productionColor(kg / maxKg);
+      style  = `background:${c.bg};color:${c.text};`;
       kgHtml = `<div class="cal-kg">${(kg / 1000).toFixed(2)} t</div>`;
     }
 
@@ -154,12 +168,7 @@ async function renderCalendar() {
     </div>`;
   }
 
-  html += `<div class="cal-legend">
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--surf2);border:1px solid var(--border);"></div><span>Nincs adat</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,52%,73%);"></div><span>Alacsony</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,62%,55%);"></div><span>Közepes</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,70%,35%);"></div><span>Magas</span></div>
-  </div>`;
+  html += LEGEND_HTML;
 
   E('naptarGrid').innerHTML = html;
 
@@ -229,10 +238,8 @@ async function renderHeatmap() {
       const kg    = byDay[datum] || 0;
       let style = '';
       if (kg > 0) {
-        const ratio = kg / maxKg;
-        const sat   = Math.round(42 + ratio * 28);
-        const light = Math.round(82 - ratio * 47);
-        style = `background:hsl(142,${sat}%,${light}%)`;
+        const c = _productionColor(kg / maxKg);
+        style = `background:${c.bg}`;
       }
       const isToday = datum === today ? ' heat-today' : '';
       const title   = kg > 0 ? `${datum}: ${(kg / 1000).toFixed(2)} t` : datum;
@@ -252,12 +259,7 @@ async function renderHeatmap() {
     html += `<div class="empty-st" style="margin-top:16px;"><div class="empty-ic">📭</div>Nincs adat ${heatYear}. évre</div>`;
   }
 
-  html += `<div class="cal-legend" style="margin-top:10px;">
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--surf2);border:1px solid var(--border);"></div><span>Nincs adat</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,52%,73%);"></div><span>Alacsony</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,62%,55%);"></div><span>Közepes</span></div>
-    <div class="cal-leg-item"><div class="cal-leg-dot" style="background:hsl(142,70%,35%);"></div><span>Magas</span></div>
-  </div>`;
+  html += LEGEND_HTML;
 
   E('naptarGrid').innerHTML = html;
 
