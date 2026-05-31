@@ -447,10 +447,17 @@ export function idoszakosXlsxMent() {
     const tables = raw.querySelectorAll('table.stbl');
     if (!tables.length) { msg('A riportban nincs exportálható táblázat.', 'error'); return; }
 
+    const usedNames = new Set();
     tables.forEach((tbl, i) => {
-      const titleEl = tbl.closest('.card')?.querySelector('.card-title');
-      const title   = (titleEl?.textContent?.replace(/[*?:/\\[\]]/g, '').trim() || `Lap ${i+1}`).slice(0, 31) || `Lap${i+1}`;
-      window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.table_to_sheet(tbl), title);
+      // Ha van előző testvér div (pl. dolgozó/anyag neve részletes szekciókban), azt használjuk
+      const prevName  = tbl.previousElementSibling?.textContent?.replace(/[*?:/\\[\]]/g, '').trim();
+      const cardName  = tbl.closest('.card')?.querySelector('.card-title')?.textContent?.replace(/[*?:/\\[\]]/g, '').trim();
+      let name        = (prevName || cardName || `Lap ${i+1}`).slice(0, 31) || `Lap${i+1}`;
+      // Egyedi lapnév: ha már létezik, számozzuk
+      let finalName = name, counter = 2;
+      while (usedNames.has(finalName)) finalName = `${name.slice(0, 28)} ${counter++}`;
+      usedNames.add(finalName);
+      window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.table_to_sheet(tbl), finalName);
     });
 
     const out  = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
