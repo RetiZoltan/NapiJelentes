@@ -1,6 +1,6 @@
-import { db, doc, addDoc, deleteDoc, collection, query,
+import { db, doc, addDoc, updateDoc, deleteDoc, collection, query,
          where, getDocs, orderBy, serverTimestamp } from './firebase.js';
-import { state, isMainAdmin, hasPerm, canSeeAllReports } from './state.js';
+import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { fetchEntries } from './db.js';
 
@@ -49,14 +49,15 @@ export async function loadLocations() {
 }
 
 function _fillLocSelects() {
-  const opts = '<option value="">— Válassz —</option>' +
-    _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('');
-  ['keszletHelyF','mozgasHelyF','importHelyF','manForrasHely','manCelHely','kiszForrasHely'].forEach(id => {
+  const locOpts  = _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('');
+  const allOpts  = '<option value="">— Mind —</option>' + locOpts;
+  const selOpts  = '<option value="">— Válassz —</option>' + locOpts;
+  const allIds   = ['keszletHelyF','mozgasHelyF'];
+  const selIds   = ['importHelyF','manForrasHely','manCelHely'];
+  [...allIds, ...selIds].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value;
-    el.innerHTML = (id === 'keszletHelyF' || id === 'mozgasHelyF')
-      ? '<option value="">— Mind —</option>' + _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('')
-      : opts;
+    el.innerHTML = allIds.includes(id) ? allOpts : selOpts;
     if (prev) el.value = prev;
   });
 }
@@ -99,7 +100,6 @@ export async function renderLocations() {
       btn.addEventListener('click', async () => {
         if (!confirm('Archivál (nem töröl, mert mozgások hivatkoznak rá)?')) return;
         try {
-          const { updateDoc } = await import('./firebase.js');
           await updateDoc(doc(db, 'stockLocations', btn.dataset.id), { aktiv: false });
           msg('Helyszín archiválva.'); loadLocations(); renderLocations();
         } catch (e) { msg('Hiba: ' + e.message, 'error'); }
@@ -163,7 +163,7 @@ export async function loadKeszlet() {
 }
 
 async function _calcStock(anyagF = '', helyF = '') {
-  const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('datum', 'desc')));
+  const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('createdAt', 'desc')));
   const stock = {}; // 'anyag|helyId' → { anyag, hely, zsakSzam, kg }
 
   snap.docs.forEach(d => {
@@ -203,13 +203,10 @@ export async function loadMozgasok() {
     const honapF = E('mozgasHonapF')?.value  || '';
     const helyF  = E('mozgasHelyF')?.value   || '';
 
-    const constraints = [orderBy('datum', 'desc'), orderBy('createdAt', 'desc')];
-    if (honapF) {
-      constraints.unshift(
-        where('datum', '>=', honapF + '-01'),
-        where('datum', '<=', honapF + '-31')
-      );
-    }
+    // Egyetlen orderBy hogy ne kelljen composite index
+    const constraints = honapF
+      ? [where('datum', '>=', honapF + '-01'), where('datum', '<=', honapF + '-31'), orderBy('datum', 'desc')]
+      : [orderBy('createdAt', 'desc')];
 
     const snap = await getDocs(query(collection(db, 'stockMovements'), ...constraints));
     let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
