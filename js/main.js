@@ -26,6 +26,10 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initHelp } from './help.js';
+import { initKeszletTab, switchKeszletTab, loadKeszlet, loadMozgasok,
+         loadImportFromProduction, executeImport, saveManualisMozgas,
+         onManTipusChange, saveLocation, renderLocations,
+         canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
@@ -101,6 +105,8 @@ function buildAppUI() {
   E('tabBtnFeladatok').style.display   = (isMainAdmin() || hasPerm('feladatokKezeles'))                                 ? '' : 'none';
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'))  ? '' : 'none';
+  E('tabBtnKeszlet').style.display     = (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'))  ? '' : 'none';
+  if (E('sztHelyszinBtn')) E('sztHelyszinBtn').style.display = canManageStock() ? '' : 'none';
   E('tabBtnAdmin').style.display       = (isMainAdmin() || canManageUsers() || hasPerm('kozlemenyIras'))                ? '' : 'none';
   E('tabBtnSugo').style.display        = '';
 
@@ -176,6 +182,7 @@ function switchTab(name, btn) {
   if (name === 'feladatok')   { initTasksUI(); loadTasks(); }
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
+  if (name === 'keszlet')     initKeszletTab();
   if (name === 'dashboard')   { initDashboard(); loadAndDisplayNotice(); }
   if (name === 'sugo')        initHelp();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
@@ -830,6 +837,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Admin — közlemény
   E('noticeSaveBtn').addEventListener('click', saveNotice);
+
+  // Készlet al-fülek és gombok
+  E('keszletSubtabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.ksTab) return;
+    switchKeszletTab(btn.dataset.ksTab);
+  });
+  E('keszletFrissitBtn').addEventListener('click', loadKeszlet);
+  E('mozgasMutatBtn').addEventListener('click', loadMozgasok);
+  E('importLekerdezBtn').addEventListener('click', loadImportFromProduction);
+  E('importMentBtn').addEventListener('click', executeImport);
+  E('manTipus').addEventListener('change', onManTipusChange);
+  E('manMozgasSaveBtn').addEventListener('click', saveManualisMozgas);
+  E('helyszinSaveBtn').addEventListener('click', saveLocation);
+  // Manuális form toggle
+  E('manualMozgasToggle').addEventListener('click', () => {
+    const body = E('manualMozgasBody'), chevron = E('manualMozgasChevron');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    chevron.style.transform = open ? '' : 'rotate(90deg)';
+  });
+  // Anyag szűrő feltöltése a készlet fülön (anyaglista alapján)
+  E('keszletAnyagF').innerHTML = '<option value="">— Mind —</option>' +
+    (state.anyagok || []).sort((a,b)=>a.localeCompare(b,'hu'))
+      .map(a => `<option value="${a}">${a}</option>`).join('');
 
   // Prémium al-fülek
   E('premiumSubtabs').addEventListener('click', e => {

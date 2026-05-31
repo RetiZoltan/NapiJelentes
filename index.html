@@ -146,6 +146,7 @@
     <button class="tab-btn" data-tab="feladatok" id="tabBtnFeladatok" style="display:none"><span class="tb-i">📌</span><span class="tb-t">Feladatok</span></button>
     <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none"><span class="tb-i">👷</span><span class="tb-t">Dolgozók</span></button>
     <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none"><span class="tb-i">💰</span><span class="tb-t">Prémium</span></button>
+    <button class="tab-btn" data-tab="keszlet" id="tabBtnKeszlet" style="display:none"><span class="tb-i">📦</span><span class="tb-t">Készlet</span></button>
     <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none"><span class="tb-i">⚙️</span><span class="tb-t">Admin</span></button>
     <button class="tab-btn" data-tab="sugo" id="tabBtnSugo" style="display:none"><span class="tb-i">❓</span><span class="tb-t">Súgó</span></button>
   </nav>
@@ -797,6 +798,152 @@
       </div>
     </div>
 
+    <!-- ══ KÉSZLET ══ -->
+    <div id="tab-keszlet" class="tab-panel">
+      <div class="subtabs" id="keszletSubtabs">
+        <button class="stab-btn active" data-ksTab="sztkeszlet">📊 Készlet</button>
+        <button class="stab-btn" data-ksTab="sztmozgas">➡️ Mozgások</button>
+        <button class="stab-btn" data-ksTab="sztbevetelez">⬇️ Bevételezés</button>
+        <button class="stab-btn" data-ksTab="szthelyszin" id="sztHelyszinBtn" style="display:none">⚙️ Helyszínek</button>
+      </div>
+
+      <!-- 📊 Aktuális készlet -->
+      <div id="ksTab-sztkeszlet" class="kstab-panel active">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:150px;"><label class="lbl">Anyag</label>
+              <select id="keszletAnyagF"><option value="">— Mind —</option></select>
+            </div>
+            <div class="field" style="min-width:150px;"><label class="lbl">Helyszín</label>
+              <select id="keszletHelyF"><option value="">— Mind —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="keszletFrissitBtn">Frissít</button>
+            </div>
+          </div>
+        </div>
+        <div id="keszletDiv"><div class="empty-st"><div class="empty-ic">📦</div><div class="empty-title">Betöltés…</div></div></div>
+      </div>
+
+      <!-- ➡️ Mozgások napló -->
+      <div id="ksTab-sztmozgas" class="kstab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:140px;"><label class="lbl">Típus</label>
+              <select id="mozgasTipusF">
+                <option value="">— Mind —</option>
+                <option value="bevitel">⬇️ Bevételezés</option>
+                <option value="kivitel">⬆️ Kivitel</option>
+                <option value="atadas">↔️ Átadás</option>
+                <option value="kiszallitas">🚛 Kiszállítás</option>
+                <option value="selejt">🗑 Selejt</option>
+              </select>
+            </div>
+            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label>
+              <input type="month" id="mozgasHonapF">
+            </div>
+            <div class="field" style="min-width:150px;"><label class="lbl">Helyszín</label>
+              <select id="mozgasHelyF"><option value="">— Mind —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="mozgasMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="mozgasListDiv"><div class="empty-st"><div class="empty-ic">➡️</div><div class="empty-title">Válassz szűrőt és kattints a Mutat gombra</div></div></div>
+      </div>
+
+      <!-- ⬇️ Bevételezés -->
+      <div id="ksTab-sztbevetelez" class="kstab-panel">
+        <!-- Import termelésből -->
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">⬇️</span>Import termelésből</div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Hónap</label><input type="month" id="importHonapF"></div>
+            <div class="field"><label class="lbl">Cél helyszín</label>
+              <select id="importHelyF"><option value="">— Válassz —</option></select>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-ghost btn-sm" id="importLekerdezBtn">Lekérdez</button>
+          </div>
+        </div>
+        <div id="importListDiv"></div>
+        <div id="importActionDiv" style="display:none;margin-bottom:14px;">
+          <div class="btn-row">
+            <button class="btn btn-primary" id="importMentBtn" disabled>⬇️ Import kiválasztottak</button>
+            <span id="importCount" style="font-size:13px;color:var(--text3);margin-left:8px;"></span>
+          </div>
+        </div>
+
+        <!-- Manuális rögzítés -->
+        <div class="card">
+          <button class="card-title collapsible-toggle" id="manualMozgasToggle" type="button" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;font:inherit;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.1px;padding:0;">
+            <span class="card-title-icon">✏️</span>Manuális rögzítés
+            <span id="manualMozgasChevron" style="margin-left:auto;font-size:16px;transition:transform .2s;color:var(--text3);">›</span>
+          </button>
+          <div id="manualMozgasBody" style="display:none;margin-top:16px;">
+            <div class="g2">
+              <div class="field"><label class="lbl">Típus</label>
+                <select id="manTipus">
+                  <option value="bevitel">⬇️ Bevételezés</option>
+                  <option value="kivitel">⬆️ Kivitel</option>
+                  <option value="atadas">↔️ Átadás</option>
+                  <option value="kiszallitas">🚛 Kiszállítás</option>
+                  <option value="selejt">🗑 Selejt</option>
+                </select>
+              </div>
+              <div class="field"><label class="lbl">Anyag</label>
+                <input list="anyagDL" id="manAnyag" autocomplete="off" placeholder="Anyag neve…">
+              </div>
+            </div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Zsák (db)</label>
+                <input type="number" id="manZsakSzam" min="1" step="1" placeholder="pl. 22">
+              </div>
+              <div class="field"><label class="lbl">Összsúly (kg, opcionális)</label>
+                <input type="number" id="manKg" min="0" step="0.1" placeholder="Automatikus, ha üresen hagyod">
+              </div>
+            </div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Helyszín (honnan)</label>
+                <select id="manForrasHely"><option value="">— Válassz —</option></select>
+              </div>
+              <div class="field" id="manCelHelyRow" style="display:none;">
+                <label class="lbl">Cél helyszín (hova)</label>
+                <select id="manCelHely"><option value="">— Válassz —</option></select>
+              </div>
+            </div>
+            <div id="kiszallitasHint" style="display:none;background:color-mix(in srgb,var(--amber) 10%,var(--surf2));border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);border-radius:var(--rsm);padding:8px 12px;font-size:12.5px;color:var(--text2);margin-bottom:12px;">
+              🚛 Maximum <strong>22–24 zsák</strong> fér egy kamionra. A rendszer figyelmeztet ha túllépöd.
+            </div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Dátum</label><input type="date" id="manDatum"></div>
+              <div class="field"><label class="lbl">Megjegyzés</label><input type="text" id="manMegjegyzes" placeholder="Opcionális…"></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary btn-sm" id="manMozgasSaveBtn">✓ Rögzít</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⚙️ Helyszínek (admin) -->
+      <div id="ksTab-szthelyszin" class="kstab-panel">
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">➕</span>Új helyszín</div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Név</label><input type="text" id="helyszinNev" placeholder="pl. Raktár 1, Termelési terület…"></div>
+            <div class="field"><label class="lbl">Leírás (opcionális)</label><input type="text" id="helyszinLeiras" placeholder="Opcionális…"></div>
+          </div>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-primary btn-sm" id="helyszinSaveBtn">＋ Hozzáad</button>
+          </div>
+        </div>
+        <div id="helyszinListDiv"><div class="empty-st"><div class="empty-ic">📍</div><div class="empty-title">Betöltés…</div></div></div>
+      </div>
+    </div>
+
     <!-- ══ ADMIN ══ -->
     <div id="tab-admin" class="tab-panel">
       <div class="card">
@@ -856,6 +1003,8 @@
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pDolgozokMegtekintes"><span class="perm-chk-lbl">Dolgozók megtekintés</span></span><span class="perm-chk-desc">Dolgozói adatlapok és hiányzások olvasása</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pDolgozokKezeles"><span class="perm-chk-lbl">Dolgozók kezelése</span></span><span class="perm-chk-desc">Adatok módosítása, hiányzás rögzítése</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pFeladatokKezeles"><span class="perm-chk-lbl">Feladatok kezelése</span></span><span class="perm-chk-desc">Feladatok létrehozása, lezárása, törlése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pKeszletMegtekintes"><span class="perm-chk-lbl">Készlet megtekintés</span></span><span class="perm-chk-desc">Anyagkészlet és mozgások megtekintése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pKeszletKezeles"><span class="perm-chk-lbl">Készlet kezelése</span></span><span class="perm-chk-desc">Mozgások rögzítése, import, helyszínek</span></label>
               </div>
               <div class="perm-group">
                 <div class="perm-group-hdr">💰 Pénzügyi</div>

@@ -57,6 +57,8 @@ const ALL_PERMS = [
   { htmlId:'pDolgozokMegtekintes',key:'dolgozokMegtekintes',  group:'szervez' },
   { htmlId:'pDolgozokKezeles',    key:'dolgozokKezeles',      group:'szervez' },
   { htmlId:'pFeladatokKezeles',   key:'feladatokKezeles',     group:'szervez' },
+  { htmlId:'pKeszletMegtekintes', key:'keszletMegtekintes',   group:'szervez' },
+  { htmlId:'pKeszletKezeles',     key:'keszletKezeles',       group:'szervez' },
   { htmlId:'pPremiumMegtekintes', key:'premiumMegtekintes',   group:'penzugy' },
   { htmlId:'pPremiumKezeles',     key:'premiumKezeles',       group:'penzugy' },
   { htmlId:'pKozlemenyIras',      key:'kozlemenyIras',        group:'admin'   },
@@ -67,7 +69,7 @@ const PERM_LABELS = {
   adatbevitel:'Adatbevitel', sajatJelentes:'Saját jelentés', mindenJelentes:'Mindenki jelentése',
   naptar:'Naptár', elemzes:'Elemzés', adatExport:'Adat export',
   dolgozokMegtekintes:'Dolgozók megtekintés', dolgozokKezeles:'Dolgozók kezelése',
-  feladatokKezeles:'Feladatok kezelése', premiumMegtekintes:'Prémium megtekintés',
+  feladatokKezeles:'Feladatok kezelése', keszletMegtekintes:'Készlet megtekintés', keszletKezeles:'Készlet kezelése', premiumMegtekintes:'Prémium megtekintés',
   premiumKezeles:'Prémium kezelés', kozlemenyIras:'Közlemény írás',
   felhasznalokKezelese:'Felhasználók kezelése',
 };
