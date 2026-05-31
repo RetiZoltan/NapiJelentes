@@ -305,6 +305,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .mozg-selejt{color:var(--text3);}
 .stock-zsak-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .stock-zsak-chip{background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--text3);white-space:nowrap;}
+.stock-row-clickable{cursor:pointer;}
+.stock-row-clickable:hover td{background:var(--surf2);}
+.stock-det-arrow{transition:transform .2s;display:inline-block;}
+.stock-det-row td{border-top:none;}
 
 /* ── Súgó / Help ── */
 .help-section{border:1px solid var(--border);border-radius:var(--rlg);margin-bottom:8px;overflow:hidden;box-shadow:var(--sh);}

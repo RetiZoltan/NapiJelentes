@@ -160,41 +160,71 @@ export async function loadKeszlet() {
         <th style="text-align:right;">Súly</th>
         <th style="text-align:right;">Átlag / zsák</th>
         <th>Szállíthatóság</th>
+        <th style="width:28px;"></th>
       </tr></thead><tbody>`;
 
-    stock.forEach(s => {
-      const avgKg    = s.zsakSzam > 0 ? s.kg / s.zsakSzam : 0;
+    stock.forEach((s, idx) => {
+      const avgKg     = s.zsakSzam > 0 ? s.kg / s.zsakSzam : 0;
       const kamionStr = _kamionStr(s.zsakSzam);
-      h += `<tr>
+      const hasDet    = s.bevitelek.length > 0;
+      const detId     = `sdet_${idx}`;
+
+      h += `<tr class="${hasDet ? 'stock-row-clickable' : ''}" data-det="${hasDet ? detId : ''}">
         <td style="font-weight:600;color:var(--text);">${esc(s.anyag)}</td>
         <td style="color:var(--text2);">${esc(locMap[s.hely] || s.hely)}</td>
         <td style="text-align:right;"><span class="stock-badge-zsak">${s.zsakSzam} db</span></td>
         <td style="text-align:right;">${_fmtKg(s.kg)}</td>
         <td style="text-align:right;color:var(--text3);font-size:12px;">${avgKg > 0 ? avgKg.toFixed(1) + ' kg' : '—'}</td>
         <td><span class="stock-kamion">${kamionStr ? `🚛 ${kamionStr}` : '—'}</span></td>
+        <td style="text-align:center;font-size:13px;color:var(--text3);">${hasDet ? '<span class="stock-det-arrow">▶</span>' : ''}</td>
       </tr>`;
+
+      if (hasDet) {
+        const batchRows = s.bevitelek.map(b => `
+          <div style="padding:5px 0;border-bottom:1px dashed var(--border2);">
+            <div style="font-size:11.5px;color:var(--text3);margin-bottom:4px;">
+              📅 ${esc(b.datum)} · ${b.zsakSzam} zsák
+            </div>
+            ${_zsakChips(b.zsakSulyok)}
+          </div>`).join('');
+        h += `<tr id="${detId}" class="stock-det-row" style="display:none;">
+          <td colspan="7" style="padding:10px 14px;background:var(--surf2);">${batchRows}</td>
+        </tr>`;
+      }
     });
 
-    // Összesítő sor
     const totalZsak = stock.reduce((s, x) => s + x.zsakSzam, 0);
     const totalKg   = stock.reduce((s, x) => s + x.kg, 0);
     h += `</tbody><tfoot><tr>
       <td colspan="2" style="font-weight:700;color:var(--text);">Összesen</td>
       <td style="text-align:right;font-weight:700;">${totalZsak} db</td>
       <td style="text-align:right;">${_fmtKg(totalKg)}</td>
-      <td colspan="2" style="color:var(--text3);font-size:12px;">🚛 ${_kamionStr(totalZsak)}</td>
+      <td colspan="3" style="color:var(--text3);font-size:12px;">🚛 ${_kamionStr(totalZsak)}</td>
     </tr></tfoot></table></div>`;
 
     div.innerHTML = h;
+
+    // Kattintható sorok — expand/collapse
+    div.querySelectorAll('.stock-row-clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        const det   = document.getElementById(row.dataset.det);
+        const arrow = row.querySelector('.stock-det-arrow');
+        if (!det) return;
+        const open = det.style.display !== 'none';
+        det.style.display   = open ? 'none' : '';
+        if (arrow) arrow.textContent = open ? '▶' : '▼';
+      });
+    });
   } catch (e) { msg('Készlet betöltési hiba: ' + e.message, 'error'); }
 }
 
 async function _calcStock(anyagF = '', helyF = '') {
   const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('createdAt', 'desc')));
-  const stock = {}; // 'anyag|helyId' → { anyag, hely, zsakSzam, kg }
+  const stock    = {}; // 'anyag|helyId' → { anyag, hely, zsakSzam, kg, bevitelek[] }
+  const bevitelek = {}; // 'anyag|helyId' → [{ datum, zsakSzam, zsakSulyok }]
 
   snap.docs.forEach(d => {
-    const m    = d.data();
+    const m    = { id: d.id, ...d.data() };
     const kg   = m.mennyisegKg || 0;
     const zsak = m.zsakSzam    || 0;
     const add  = (anyag, hely, sign) => {
@@ -204,9 +234,16 @@ async function _calcStock(anyagF = '', helyF = '') {
       stock[key].kg       += sign * kg;
     };
     const t = m.tipus;
-    if (t === 'bevitel')                 add(m.anyag, m.forrasHely,  1);
-    if (t === 'kivitel' || t === 'selejt' || t === 'kiszallitas')
-                                         add(m.anyag, m.forrasHely, -1);
+    if (t === 'bevitel') {
+      add(m.anyag, m.forrasHely, 1);
+      // Bevitelezési mozgások zsák súlyainak gyűjtése
+      if (m.zsakSulyok?.length) {
+        const key = `${m.anyag}|${m.forrasHely}`;
+        if (!bevitelek[key]) bevitelek[key] = [];
+        bevitelek[key].push({ datum: m.datum, zsakSzam: m.zsakSzam || m.zsakSulyok.length, zsakSulyok: m.zsakSulyok });
+      }
+    }
+    if (t === 'kivitel' || t === 'selejt' || t === 'kiszallitas') add(m.anyag, m.forrasHely, -1);
     if (t === 'atadas') {
       add(m.anyag, m.forrasHely, -1);
       if (m.celHely) add(m.anyag, m.celHely, 1);
@@ -216,6 +253,7 @@ async function _calcStock(anyagF = '', helyF = '') {
   return Object.values(stock)
     .filter(s => s.zsakSzam > 0 || s.kg > 0)
     .filter(s => (!anyagF || s.anyag === anyagF) && (!helyF || s.hely === helyF))
+    .map(s => ({ ...s, bevitelek: bevitelek[`${s.anyag}|${s.hely}`] || [] }))
     .sort((a, b) => b.zsakSzam - a.zsakSzam || a.anyag.localeCompare(b.anyag, 'hu'));
 }
 
