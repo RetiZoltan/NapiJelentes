@@ -160,13 +160,12 @@ function switchTab(name, btn) {
 
   if (typeof _updateFab === 'function') _updateFab();
   if (name === 'admin')       loadAdminUsers();
-  if (name === 'adatbevitel') loadAndDisplayNotice();
   if (name !== 'jelentesek')  cleanupNapiListener();
   if (name === 'naptar')      initNaptar();
   if (name === 'feladatok')   { initTasksUI(); loadTasks(); }
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
-  if (name === 'dashboard')   initDashboard();
+  if (name === 'dashboard')   { initDashboard(); loadAndDisplayNotice(); }
   if (name === 'elemzes' && !switchTab._elemzesInited) {
     switchTab._elemzesInited = true;
     initElemzes();
