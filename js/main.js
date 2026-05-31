@@ -89,14 +89,14 @@ function buildAppUI() {
   E('userAvatar').textContent   = (name[0] || '?').toUpperCase();
 
   E('tabBtnDashboard').style.display   = '';
-  E('tabBtnAdatbevitel').style.display = hasPerm('adatbevitel')                                      ? '' : 'none';
-  E('tabBtnJelentesek').style.display  = (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))     ? '' : 'none';
-  E('tabBtnNaptar').style.display      = (hasPerm('naptar') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))    ? '' : 'none';
-  E('tabBtnElemzes').style.display     = (hasPerm('elemzes') || hasPerm('sajatJelentes') || canSeeAllReports())           ? '' : 'none';
-  E('tabBtnFeladatok').style.display   = (isMainAdmin() || state.userRole) ? '' : 'none';
+  E('tabBtnAdatbevitel').style.display = (isMainAdmin() || hasPerm('adatbevitel'))                                      ? '' : 'none';
+  E('tabBtnJelentesek').style.display  = (isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))       ? '' : 'none';
+  E('tabBtnNaptar').style.display      = (isMainAdmin() || hasPerm('naptar'))                                           ? '' : 'none';
+  E('tabBtnElemzes').style.display     = (isMainAdmin() || hasPerm('elemzes'))                                          ? '' : 'none';
+  E('tabBtnFeladatok').style.display   = (isMainAdmin() || hasPerm('feladatokKezeles'))                                 ? '' : 'none';
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
-  E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles')) ? '' : 'none';
-  E('tabBtnAdmin').style.display       = canManageUsers()                                             ? '' : 'none';
+  E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'))  ? '' : 'none';
+  E('tabBtnAdmin').style.display       = (isMainAdmin() || canManageUsers() || hasPerm('kozlemenyIras'))                ? '' : 'none';
 
   E('stab-roles-btn').style.display        = isMainAdmin() ? '' : 'none';
   E('stab-kozlemeny-btn').style.display    = (canManageUsers() || hasPerm('kozlemenyIras')) ? '' : 'none';
@@ -136,10 +136,19 @@ function buildAppUI() {
   loadAndDisplayNotice();
   addSuly(); addZsak();
 
-  if (!hasPerm('adatbevitel') && (hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))) {
-    switchTab('jelentesek', E('tabBtnJelentesek'));
-  } else if (!hasPerm('adatbevitel') && canManageUsers()) {
-    switchTab('admin', E('tabBtnAdmin'));
+  if (!isMainAdmin() && !hasPerm('adatbevitel')) {
+    // Nincs adatbevitel jog → irányítás az első elérhető tabra
+    if (hasPerm('sajatJelentes') || hasPerm('mindenJelentes')) {
+      switchTab('jelentesek', E('tabBtnJelentesek'));
+    } else if (hasPerm('feladatokKezeles')) {
+      switchTab('feladatok', E('tabBtnFeladatok'));
+    } else if (hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) {
+      switchTab('dolgozok', E('tabBtnDolgozok'));
+    } else if (canManageUsers() || hasPerm('kozlemenyIras')) {
+      switchTab('admin', E('tabBtnAdmin'));
+    } else {
+      switchTab('dashboard', E('tabBtnDashboard'));
+    }
   }
 }
 
