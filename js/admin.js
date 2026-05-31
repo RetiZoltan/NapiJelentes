@@ -1,5 +1,6 @@
 import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp, writeBatch } from './firebase.js';
+import { loadAuditLog, renderAuditLog } from './auditlog.js';
 import { state, isMainAdmin, hasPerm, canManageUsers } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { loadLists } from './db.js';
@@ -258,6 +259,16 @@ export async function saveNotice() {
 }
 
 export function clearNotice() {}
+
+/* ── Audit log ── */
+export async function loadAuditLogAdmin() {
+  const div = E('auditLogDiv'); if (!div) return;
+  div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);">Betöltés…</div>';
+  try {
+    const list = await loadAuditLog(200);
+    div.innerHTML = renderAuditLog(list);
+  } catch (e) { div.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Betöltési hiba</div></div>`; }
+}
 
 /* ── Fájl export / import ── */
 export async function mentFajl() {

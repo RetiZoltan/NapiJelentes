@@ -1,6 +1,7 @@
 import { db, doc, addDoc, updateDoc, deleteDoc,
          collection, query, where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, hasPerm, isMainAdmin } from './state.js';
+import { logAction } from './auditlog.js';
 import { E, esc, msg, tod } from './utils.js';
 
 const HIANYZAS = {
@@ -228,10 +229,12 @@ export async function saveEmployee() {
       await updateDoc(doc(db, 'employees', _editingId),
         { ...data, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
       msg('Dolgozó frissítve.');
+      logAction('employee.update', { nev: data.nev });
     } else {
       await addDoc(collection(db, 'employees'),
         { ...data, createdBy: state.appUser.uid, createdAt: serverTimestamp() });
       msg('Dolgozó hozzáadva.');
+      logAction('employee.create', { nev: data.nev });
     }
     closeEmpForm();
     await loadEmployees();
@@ -309,7 +312,7 @@ export function openEmpDrawer(emp) {
   });
   E('drawerDelBtn')?.addEventListener('click', async () => {
     if (!confirm(`Véglegesen törlöd „${emp.nev}" dolgozót?`)) return;
-    try { await deleteDoc(doc(db,'employees',emp.id)); msg('Dolgozó törölve.'); closeEmpDrawer(); loadEmployees(); }
+    try { await deleteDoc(doc(db,'employees',emp.id)); logAction('employee.delete',{nev:emp.nev}); msg('Dolgozó törölve.'); closeEmpDrawer(); loadEmployees(); }
     catch (err) { msg('Hiba: '+err.message,'error'); }
   });
 
@@ -504,6 +507,7 @@ export async function saveAbsence() {
       createdBy: state.appUser.uid, createdAt: serverTimestamp()
     });
     msg('Hiányzás rögzítve.');
+    logAction('absence.create', { dolgozoNev: nev, datum: tol });
     E('absFormTol').value = E('absFormIg').value = E('absFormMegj').value = '';
     loadAbsences();
     _loadSzabadsagMap().then(() => renderEmployeeGrid());
@@ -764,6 +768,100 @@ export async function loadStatisztika() {
 
     E('statDiv').innerHTML = h;
   } catch (e) { msg('Hiba: '+e.message,'error'); E('statDiv').innerHTML = ''; }
+}
+
+/* ══════════════════════════════════════
+   TÚLÓRA NYILVÁNTARTÁS
+══════════════════════════════════════ */
+export async function loadTulora() {
+  if (!_empLoaded) await loadEmployees();
+  const honapF = E('tuloraHonapF')?.value || tod().slice(0, 7);
+  const nevF   = E('tucloraNevF')?.value  || '';
+
+  // Feltölti a dolgozó selecteket
+  const aktiv = _employees.filter(e => e.statusz !== 'inaktiv').sort((a,b)=>a.nev.localeCompare(b.nev,'hu'));
+  const nevOpts = '<option value="">— Mindenki —</option>' + aktiv.map(e=>`<option value="${esc(e.nev)}">${esc(e.nev)}</option>`).join('');
+  if (E('tucloraNevF')) E('tucloraNevF').innerHTML = nevOpts;
+  if (E('tuloraFormNev')) E('tuloraFormNev').innerHTML = '<option value="">— Válassz —</option>' + aktiv.map(e=>`<option value="${esc(e.nev)}">${esc(e.nev)}</option>`).join('');
+
+  E('tuloraListDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'overtimes'),
+      where('datum', '>=', honapF + '-01'),
+      where('datum', '<=', honapF + '-31'),
+      orderBy('datum')
+    ));
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (nevF) list = list.filter(t => t.dolgozoNev === nevF);
+    _renderTulora(list);
+  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
+}
+
+function _renderTulora(list) {
+  const div = E('tuloraListDiv'); if (!div) return;
+
+  if (!list.length) {
+    div.innerHTML = `<div class="empty-st"><div class="empty-ic">⏰</div><div class="empty-title">Nincs túlóra ebben a hónapban</div></div>`;
+    return;
+  }
+
+  // Összesítő
+  const byWorker = {};
+  list.forEach(t => { byWorker[t.dolgozoNev] = (byWorker[t.dolgozoNev] || 0) + (t.oraSzam || 0); });
+  const total = list.reduce((s, t) => s + (t.oraSzam || 0), 0);
+
+  let h = '<div class="nossz" style="margin-bottom:16px;">';
+  h += `<div class="nossz-item"><div class="nossz-val">${total.toFixed(1)}</div><div class="nossz-lbl">Összes óra</div></div>`;
+  Object.entries(byWorker).sort((a,b) => b[1]-a[1]).slice(0,3).forEach(([nev,ora]) => {
+    h += `<div class="nossz-item"><div class="nossz-val">${ora.toFixed(1)}</div><div class="nossz-lbl">${esc(nev)}</div></div>`;
+  });
+  h += '</div>';
+
+  h += '<div style="display:flex;flex-direction:column;gap:8px;">';
+  list.forEach(t => {
+    const canDel = canEditEmp() || t.createdBy === state.appUser?.uid;
+    h += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surf);border:1px solid var(--border);border-radius:var(--r);">
+      <span style="font-size:20px;flex-shrink:0;">⏰</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(t.dolgozoNev)}</div>
+        <div style="font-size:12px;color:var(--text3);">${esc(t.datum)} · <strong>${t.oraSzam} óra</strong>${t.megjegyzes ? ' · ' + esc(t.megjegyzes) : ''}</div>
+      </div>
+      ${canDel ? `<button class="btn btn-danger btn-xs tulora-del-btn" data-id="${t.id}">✕</button>` : ''}
+    </div>`;
+  });
+  h += '</div>';
+  div.innerHTML = h;
+}
+
+export async function saveTulora() {
+  const nev  = E('tuloraFormNev').value;
+  const datum= E('tuloraFormDatum').value;
+  const ora  = parseFloat(E('tuloraFormOra').value);
+  if (!nev)        { msg('Válassz dolgozót!', 'error'); return; }
+  if (!datum)      { msg('Dátum kötelező!', 'error'); return; }
+  if (!ora || ora <= 0) { msg('Adj meg érvényes óra értéket!', 'error'); return; }
+  try {
+    await addDoc(collection(db, 'overtimes'), {
+      dolgozoNev: nev, datum, oraSzam: ora,
+      megjegyzes: E('tuloraFormMegj').value.trim() || '',
+      createdBy: state.appUser.uid, createdAt: serverTimestamp()
+    });
+    logAction('overtime.create', { dolgozoNev: nev, datum, oraSzam: ora });
+    msg('Túlóra rögzítve.');
+    E('tuloraFormDatum').value = E('tuloraFormOra').value = E('tuloraFormMegj').value = '';
+    loadTulora();
+  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+}
+
+export async function handleTuloraClick(e) {
+  const btn = e.target.closest('.tulora-del-btn'); if (!btn) return;
+  if (!confirm('Törlöd ezt a túlóra bejegyzést?')) return;
+  try {
+    await deleteDoc(doc(db, 'overtimes', btn.dataset.id));
+    logAction('overtime.delete', {});
+    msg('Túlóra törölve.'); loadTulora();
+  } catch (e) { msg('Törlési hiba', 'error'); }
 }
 
 export function exportCsv() {

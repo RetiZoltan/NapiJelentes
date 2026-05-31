@@ -211,7 +211,7 @@ export async function haviRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -227,7 +227,7 @@ export async function haviRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Egyéni tartomány riport ── */
@@ -259,7 +259,7 @@ export async function egyeniRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Éves riport ── */
@@ -274,7 +274,7 @@ export async function evesRiport() {
   if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
   if (!hA.length) {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
-    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
+    E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = true; return;
   }
 
   const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
@@ -291,7 +291,7 @@ export async function evesRiport() {
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
-  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
+  E('idoszakosKepMentBtn').disabled = E('idoszakosPdfBtn').disabled = E('idoszakosXlsxBtn').disabled = E('idoszakosNyomtatBtn').disabled = false;
 }
 
 /* ── Klikk handler (törlés + nap-link) ── */
@@ -422,6 +422,28 @@ async function _exportPdf(el, filename) {
     if (document.body.contains(wrap)) document.body.removeChild(wrap);
     msg('PDF hiba: ' + err.message, 'error');
   }
+}
+
+/* ── XLSX export ── */
+export function idoszakosXlsxMent() {
+  if (!window.XLSX) { msg('Az Excel könyvtár nem töltődött be!', 'error'); return; }
+  const raw = E('idoszakosRiportDiv');
+  if (!raw.children.length || raw.querySelector('.empty-st')) { msg('Nincs riport az exporthoz!', 'error'); return; }
+
+  const wb = window.XLSX.utils.book_new();
+
+  // Minden táblázatot külön munkalapra
+  raw.querySelectorAll('table.stbl').forEach((tbl, i) => {
+    const title = tbl.closest('.card')?.querySelector('.card-title')?.textContent?.trim() || `Lap ${i+1}`;
+    const ws    = window.XLSX.utils.table_to_sheet(tbl);
+    window.XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31));
+  });
+
+  if (!wb.SheetNames.length) { msg('Nincs exportálható táblázat!', 'error'); return; }
+
+  const filename = `riport_${window.XLSX?.version ? '' : ''}${new Date().toISOString().slice(0,10)}.xlsx`;
+  window.XLSX.writeFile(wb, filename);
+  msg('Excel mentve!');
 }
 
 /* ── Nyomtatás ── */

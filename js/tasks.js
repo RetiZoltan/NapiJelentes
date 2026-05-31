@@ -1,6 +1,7 @@
 import { db, doc, getDoc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
+import { logAction } from './auditlog.js';
 import { E, esc, msg, tod, addD, ag, skelHtml } from './utils.js';
 
 let _viewMode   = 'list';  // 'list' | 'kanban'
@@ -187,6 +188,7 @@ export async function saveTask() {
       createdAt:  serverTimestamp()
     });
     msg('Feladat hozzáadva.');
+    logAction('task.create', { cim });
     E('feladatCim').value = E('feladatLeiras').value = E('feladatDatum').value = '';
     if (E('feladatFelelos')) E('feladatFelelos').value = '';
     // Form visszacsukása mentés után

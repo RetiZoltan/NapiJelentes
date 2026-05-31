@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/report.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
 
@@ -180,6 +181,12 @@
 
     <!-- ══ ADATBEVITEL ══ -->
     <div id="tab-adatbevitel" class="tab-panel">
+      <div id="draftBanner" class="draft-banner" style="display:none;">
+        <span class="draft-banner-icon">📝</span>
+        <span class="draft-banner-txt">Félbehagyott vázlat található</span>
+        <button class="btn btn-ghost btn-sm" id="draftRestoreBtn">Visszaállítás</button>
+        <button class="btn btn-ghost btn-sm" id="draftDiscardBtn">Elvet</button>
+      </div>
       <div class="card">
         <div class="card-title"><span class="card-title-icon">📅</span>Időszak</div>
         <div class="g2">
@@ -378,6 +385,7 @@
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-ghost" style="flex:1;" id="idoszakosKepMentBtn" disabled>⬇ Kép</button>
         <button class="btn btn-ghost" id="idoszakosPdfBtn" disabled>⬇ PDF</button>
+        <button class="btn btn-ghost" id="idoszakosXlsxBtn" disabled>⬇ Excel</button>
         <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtat</button>
       </div>
       </div><!-- /jstab-idoszakos -->
@@ -465,6 +473,7 @@
         <button class="stab-btn active" data-dtab="adatlapok">👤 Adatlapok</button>
         <button class="stab-btn" data-dtab="hianyok">📅 Hiányzások</button>
         <button class="stab-btn" data-dtab="naptar">🗓 Naptár</button>
+        <button class="stab-btn" data-dtab="tulora">⏰ Túlóra</button>
         <button class="stab-btn" data-dtab="statisztika">📊 Statisztika</button>
       </div>
 
@@ -641,6 +650,43 @@
         </div>
       </div><!-- /dtab-naptar -->
 
+      <!-- Túlóra -->
+      <div id="dtab-tulora" class="dtab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label><input type="month" id="tuloraHonapF"></div>
+            <div class="field" style="min-width:150px;"><label class="lbl">Dolgozó</label>
+              <select id="tucloraNevF"><option value="">— Mindenki —</option></select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="tuloraMutatBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="tuloraFormWrap" style="display:none;">
+          <div class="card">
+            <div class="card-title"><span class="card-title-icon">➕</span>Túlóra rögzítése</div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Dolgozó</label>
+                <select id="tuloraFormNev"><option value="">— Válassz —</option></select>
+              </div>
+              <div class="field"><label class="lbl">Dátum</label><input type="date" id="tuloraFormDatum"></div>
+            </div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Túlóra (óra)</label>
+                <input type="number" id="tuloraFormOra" min="0.5" max="24" step="0.5" placeholder="pl. 2.5">
+              </div>
+              <div class="field"><label class="lbl">Megjegyzés</label>
+                <input type="text" id="tuloraFormMegj" placeholder="Opcionális…">
+              </div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary btn-sm" id="tuloraSaveBtn">✓ Rögzít</button></div>
+          </div>
+        </div>
+        <div id="tuloraListDiv"><div class="empty-st"><div class="empty-ic">⏰</div><div class="empty-title">Válassz hónapot és kattints a Mutat gombra</div></div></div>
+      </div><!-- /dtab-tulora -->
+
       <!-- Statisztika -->
       <div id="dtab-statisztika" class="dtab-panel">
         <div class="card">
@@ -746,6 +792,7 @@
           <button class="stab-btn" data-stab="kozlemeny" id="stab-kozlemeny-btn">📢 Közlemény</button>
           <button class="stab-btn" data-stab="premium-cfg" id="stab-premium-cfg-btn">💰 Prémium konfig</button>
           <button class="stab-btn" data-stab="data" id="stab-data-btn">💾 Adatok</button>
+          <button class="stab-btn" data-stab="audit" id="stab-audit-btn">📋 Audit log</button>
         </div>
 
         <!-- Felhasználók -->
@@ -897,6 +944,15 @@
             <p>Ez a művelet visszafordíthatatlanul törli az összes tárolt bejegyzést.</p>
             <button class="btn btn-danger" id="mindTorBtn">Minden bejegyzés törlése</button>
           </div>
+        </div>
+
+        <!-- Audit log (főadmin) -->
+        <div id="stab-audit" class="stab-panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <p style="font-size:12.5px;color:var(--text3);margin:0;">A rendszerben végzett módosítások naplója (utolsó 200).</p>
+            <button class="btn btn-ghost btn-sm" id="auditRefreshBtn">↺ Frissít</button>
+          </div>
+          <div id="auditLogDiv"></div>
         </div>
       </div>
     </div>

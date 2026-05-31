@@ -4,15 +4,16 @@ import { E, esc, tod, monday, addD, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
 
 const ALL_WIDGETS = [
-  { id: 'maiOssz',      label: 'Mai össztermelés',   icon: '⚖️', def: true  },
-  { id: 'haviOssz',     label: 'Havi összesítő',     icon: '📊', def: true  },
-  { id: 'hetiGrafikon', label: 'Heti grafikon',       icon: '📉', def: true  },
-  { id: 'hetiTrend',    label: 'Heti trend',          icon: '📈', def: false },
-  { id: 'anyagRangsor', label: 'Anyag rangsor',       icon: '📦', def: true  },
-  { id: 'topDolg',      label: 'Havi legjobb',        icon: '🏅', def: false },
-  { id: 'nyitottF',     label: 'Nyitott feladatok',   icon: '📌', def: true  },
-  { id: 'aktivDolg',    label: 'Aktív dolgozók',      icon: '👷', def: true  },
-  { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',  icon: '📋', def: false },
+  { id: 'maiOssz',      label: 'Mai össztermelés',         icon: '⚖️', def: true  },
+  { id: 'haviOssz',     label: 'Havi összesítő',           icon: '📊', def: true  },
+  { id: 'hetiGrafikon', label: 'Heti grafikon',             icon: '📉', def: true  },
+  { id: 'hetiTrend',    label: 'Heti trend',                icon: '📈', def: false },
+  { id: 'anyagRangsor', label: 'Anyag rangsor',             icon: '📦', def: true  },
+  { id: 'topDolg',      label: 'Havi legjobb',              icon: '🏅', def: false },
+  { id: 'nyitottF',     label: 'Nyitott feladatok',         icon: '📌', def: true  },
+  { id: 'aktivDolg',    label: 'Aktív dolgozók',            icon: '👷', def: true  },
+  { id: 'szulNapok',    label: 'Közelgő születésnapok',     icon: '🎂', def: false },
+  { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
 ];
 
 let _inited            = false;
@@ -25,6 +26,7 @@ function _canSeeWidget(id) {
   if (['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','utobbiBeir'].includes(id)) return canReadEntries;
   if (id === 'topDolg')   return canSeeAllReports();
   if (id === 'aktivDolg') return _empPerm();
+  if (id === 'szulNapok') return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
   return true;
 }
@@ -180,7 +182,7 @@ async function _loadWidgets() {
   ).join('');
 
   const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir'].includes(id));
-  const needsEmps    = enabled.includes('aktivDolg') && _empPerm();
+  const needsEmps    = enabled.some(id => ['aktivDolg','szulNapok'].includes(id)) && _empPerm();
   const needsTasks   = enabled.includes('nyitottF');
 
   const today      = tod();
@@ -217,6 +219,29 @@ async function _loadWidgets() {
   );
 
   _initDragDrop(grid);
+  _animateCounters(grid);
+}
+
+/* ── Számláló animáció ── */
+function _countUp(el, to, decimals, duration = 650) {
+  const start = performance.now();
+  const step  = ts => {
+    const p    = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = (to * ease).toFixed(decimals);
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = to.toFixed(decimals);
+  };
+  requestAnimationFrame(step);
+}
+
+function _animateCounters(grid) {
+  grid.querySelectorAll('[data-count]').forEach(el => {
+    const val = parseFloat(el.dataset.count);
+    if (isNaN(val)) return;
+    const dec = (String(val).split('.')[1] || '').length;
+    _countUp(el, val, dec);
+  });
 }
 
 /* ── Drag & Drop sorrend ── */
@@ -346,14 +371,16 @@ function _buildWidget(id, ctx, large = false) {
     const activeDays = [...new Set(monthEntries.map(e => e.datum))];
     const monthAvg   = activeDays.length > 1 ? sumKg(monthEntries) / activeDays.length : null;
     const diff = monthAvg && monthAvg > 0 ? (kg - monthAvg) / monthAvg * 100 : null;
-    const val  = kg > 0 ? `${(kg/1000).toFixed(2)} t ${_trendBadge(diff)}` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
+    const t = kg / 1000;
+    const val  = kg > 0 ? `<span data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t ${_trendBadge(diff)}` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', '', large);
   }
 
   if (id === 'haviOssz') {
     const kg   = sumKg(monthEntries);
     const days = [...new Set(monthEntries.map(e => e.datum))].length;
-    const val  = kg > 0 ? `${(kg/1000).toFixed(2)} t` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
+    const t    = kg / 1000;
+    const val  = kg > 0 ? `<span data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     return _card('📊', 'Havi összesítő', val, kg > 0 ? `${days} aktív nap · átlag ${((kg/1000)/days).toFixed(2)} t/nap` : 'Még nincs adat', '', large);
   }
 
@@ -378,14 +405,14 @@ function _buildWidget(id, ctx, large = false) {
     const open     = allTasks.filter(d => d.data().statusz === 'nyitott').length;
     const expired  = allTasks.filter(d => { const t = d.data(); return t.statusz === 'nyitott' && t.datum && t.datum < today; }).length;
     const col = open === 0 ? 'var(--green)' : expired > 0 ? 'var(--red)' : 'var(--text)';
-    return _card('📌', 'Nyitott feladatok', `<span style="color:${col};">${open}</span>`, expired > 0 ? `⚠️ ${expired} lejárt határidő` : open === 0 ? '✓ Minden kész' : 'Nincs lejárt feladat', '', large);
+    return _card('📌', 'Nyitott feladatok', `<span style="color:${col};" data-count="${open}">${open}</span>`, expired > 0 ? `⚠️ ${expired} lejárt határidő` : open === 0 ? '✓ Minden kész' : 'Nincs lejárt feladat', '', large);
   }
 
   if (id === 'aktivDolg') {
     if (!empSnap) return _card('👷', 'Aktív dolgozók', '—', 'Nincs jogosultság', '', large);
     const aktiv = empSnap.docs.filter(d => d.data().statusz === 'aktiv').length;
     const ossz  = empSnap.docs.length;
-    return _card('👷', 'Aktív dolgozók', String(aktiv), `${ossz} dolgozó összesen`, '', large);
+    return _card('👷', 'Aktív dolgozók', `<span data-count="${aktiv}">${aktiv}</span>`, `${ossz} dolgozó összesen`, '', large);
   }
 
   if (id === 'utobbiBeir') {
@@ -401,6 +428,41 @@ function _buildWidget(id, ctx, large = false) {
       </div>`;
     }).join('');
     return _card('📋', 'Utóbbi bejegyzések', '', '', `<div style="margin-top:4px;">${rows}</div>`, large);
+  }
+
+  /* ── Közelgő születésnapok ── */
+  if (id === 'szulNapok') {
+    if (!empSnap) return _card('🎂', 'Közelgő születésnapok', '—', 'Nincs jogosultság', '', large);
+    const todayD = new Date(today + 'T12:00:00');
+    const [ty]   = today.split('-').map(Number);
+
+    const upcoming = empSnap.docs
+      .map(d => d.data())
+      .filter(e => e.szulDatum && (e.statusz || 'aktiv') !== 'inaktiv')
+      .map(e => {
+        const [, bm, bd] = e.szulDatum.split('-').map(Number);
+        let next = new Date(`${ty}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        if (next < todayD) next = new Date(`${ty+1}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        const days = Math.round((next - todayD) / 86400000);
+        return { nev: e.nev, bm, bd, days };
+      })
+      .filter(e => e.days <= 30)
+      .sort((a, b) => a.days - b.days);
+
+    if (!upcoming.length)
+      return _card('🎂', 'Közelgő születésnapok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
+
+    const rows = upcoming.slice(0, large ? 5 : 3).map(e => {
+      const isToday = e.days === 0;
+      const col = isToday ? 'var(--green)' : e.days <= 7 ? 'var(--amber)' : 'var(--text3)';
+      const lbl = isToday ? '🎉 Ma!' : `${e.days} nap`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e.nev)}</span>
+        <span style="font-size:11px;color:var(--text3);">${e.bm}. ${e.bd}.</span>
+        <span style="font-size:11px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
+      </div>`;
+    }).join('');
+    return _card('🎂', 'Közelgő születésnapok', `<span data-count="${upcoming.length}">${upcoming.length}</span>`, `${upcoming.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
   }
 
   /* ── Anyag rangsor ── */

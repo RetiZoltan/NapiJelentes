@@ -154,6 +154,23 @@ service cloud.firestore {
       allow delete: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
     }
 
+    // ── overtimes (túlóra) ────────────────────────────────────
+    match /overtimes/{id} {
+      allow read: if isAuth() && (
+        isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')
+      );
+      allow create: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
+      allow delete: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
+      allow update: if false;
+    }
+
+    // ── auditLog (audit napló) ─────────────────────────────────
+    match /auditLog/{logId} {
+      allow read:   if isAuth() && isMainAdmin();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+
     // ── config (nevek/anyagok/gépek listák) ────────────────────
     match /config/{doc} {
       allow read:  if isAuth();

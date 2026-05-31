@@ -10,17 +10,19 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, autoAddToList, delFromList, editItem } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
+         saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount } from './data-entry.js';
 import { napiRiport, haviRiport, evesRiport, egyeniRiport,
          napiKepMent, idoszakosKepMent,
-         napiPdfMent, idoszakosPdfMent,
+         napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
 import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
-         loadNoticeAdmin, saveNotice, applyRoleTemplate } from './admin.js';
+         loadNoticeAdmin, saveNotice, applyRoleTemplate,
+         loadAuditLogAdmin } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initNaptar } from './calendar.js';
@@ -28,6 +30,7 @@ import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig } from './prem
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
+         loadTulora, saveTulora, handleTuloraClick,
          closeEmpDrawer, canEditEmp } from './employees.js';
 
 let _prevReszleg = '';
@@ -102,6 +105,7 @@ function buildAppUI() {
   E('stab-kozlemeny-btn').style.display    = (canManageUsers() || hasPerm('kozlemenyIras')) ? '' : 'none';
   E('stab-premium-cfg-btn').style.display  = (isMainAdmin() || hasPerm('premiumKezeles')) ? '' : 'none';
   E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
+  E('stab-audit-btn').style.display        = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
 
@@ -134,6 +138,14 @@ function buildAppUI() {
   applyLayout(state.userData.layout || 'classic');
   loadLists().then(() => _updateFeladatReszlegF());
   addSuly(); addZsak();
+
+  // Vázlat ellenőrzés
+  const draft = loadDraft();
+  if (draft) {
+    const b = E('draftBanner');
+    if (b) b.style.display = 'flex';
+  }
+
   // Dashboard mindig betölt alapértelmezetten
   initDashboard();
   loadAndDisplayNotice();
@@ -267,6 +279,7 @@ function switchDolgozokSubtab(name) {
   document.querySelectorAll('.dtab-panel').forEach(p => p.classList.remove('active'));
   E('dtab-' + name).classList.add('active');
   if (name === 'hianyok') loadAbsences();
+  if (name === 'tulora')  loadTulora();
 }
 
 let _dolgozokUISetup = false;
@@ -274,8 +287,9 @@ function _setupDolgozokUI() {
   if (_dolgozokUISetup) return;
   _dolgozokUISetup = true;
   const ce  = canEditEmp();
-  E('ujDolgozoWrap').style.display = ce ? '' : 'none';
-  E('hianyFormWrap').style.display = ce ? '' : 'none';
+  E('ujDolgozoWrap').style.display    = ce ? '' : 'none';
+  E('hianyFormWrap').style.display    = ce ? '' : 'none';
+  E('tuloraFormWrap').style.display   = ce ? '' : 'none';
   const now = new Date();
   const mo  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   if (!E('hianyHonapF').value)  E('hianyHonapF').value  = mo;
@@ -312,6 +326,7 @@ function switchAdminSubtab(name) {
   if (name === 'lists')        refreshListUI();
   if (name === 'kozlemeny')    loadNoticeAdmin();
   if (name === 'premium-cfg')  initPremiumAdmin();
+  if (name === 'audit')        loadAuditLogAdmin();
 }
 
 /* ── Auth helpers ── */
@@ -484,6 +499,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
+
+  // Draft banner gombok
+  E('draftRestoreBtn').addEventListener('click', () => {
+    const d = loadDraft(); if (d) { restoreDraft(d); E('draftBanner').style.display = 'none'; }
+  });
+  E('draftDiscardBtn').addEventListener('click', () => { clearDraft(); E('draftBanner').style.display = 'none'; });
+
+  // Auto-save draft debounced
+  let _draftT = null;
+  function _triggerDraft() { clearTimeout(_draftT); _draftT = setTimeout(saveDraft, 1000); }
+  ['nev','anyag','megj','datum','ido','reszleg'].forEach(id => {
+    E(id)?.addEventListener('input',  _triggerDraft);
+    E(id)?.addEventListener('change', _triggerDraft);
+  });
+  E('sulyC').addEventListener('input',  _triggerDraft);
+  E('zsakC').addEventListener('input',  _triggerDraft);
   E('napiMegj').addEventListener('input',    () => ag(E('napiMegj')));
 [E('nev'), E('reszleg'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
   E('napiMegj').addEventListener('focus', e => e.target.select());
@@ -551,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);
   E('idoszakosPdfBtn').addEventListener('click', idoszakosPdfMent);
+  E('idoszakosXlsxBtn').addEventListener('click', idoszakosXlsxMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
@@ -600,6 +632,9 @@ document.addEventListener('DOMContentLoaded', () => {
   E('calQaSaveBtn').addEventListener('click',   saveCalQuickAdd);
   E('calQaCancelBtn').addEventListener('click', () => E('calQuickAddPanel').style.display = 'none');
   E('hianyMutatBtn').addEventListener('click', loadAbsences);
+  E('tuloraMutatBtn').addEventListener('click', loadTulora);
+  E('tuloraSaveBtn').addEventListener('click',  saveTulora);
+  E('tuloraListDiv').addEventListener('click',  handleTuloraClick);
   E('absSaveBtn').addEventListener('click',    saveAbsence);
   E('hianyListDiv').addEventListener('click',  handleAbsenceClick);
   E('empDrawerClose').addEventListener('click', closeEmpDrawer);
@@ -800,6 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('fajlKivBtn').addEventListener('click',   () => E('fajlInput').click());
   E('fajlInput').addEventListener('change',   betoltFajl);
   E('mindTorBtn').addEventListener('click',   mindTorol);
+  E('auditRefreshBtn').addEventListener('click', loadAuditLogAdmin);
 });
 
 /* ── Auth state ── */

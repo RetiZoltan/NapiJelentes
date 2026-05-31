@@ -4,6 +4,64 @@ import { E, msg, ag } from './utils.js';
 import { saveNapiFor, loadNapiFor, autoAddToList } from './db.js';
 
 const OFFLINE_KEY = 'nj_offlineQueue';
+const DRAFT_TTL   = 24 * 60 * 60 * 1000; // 24 óra
+
+function _draftKey() { return `nj_draft_${state.appUser?.uid || 'anon'}`; }
+
+export function saveDraft() {
+  if (!state.appUser || state.editingEntryId) return;
+  const sulyok = [...E('sulyC').querySelectorAll('.wrow')].map(r => ({
+    suly:    parseFloat(r.querySelector('.wsuly')?.value) || 0,
+    statusz: r.querySelector('.wstat')?.value || 'teli'
+  })).filter(s => s.suly > 0);
+  const zsakSulyok = [...E('zsakC').querySelectorAll('.wrow')].map(r =>
+    parseFloat(r.querySelector('.wzsak')?.value) || 0
+  ).filter(v => v > 0);
+  const draft = {
+    datum: E('datum')?.value, ido: E('ido')?.value,
+    reszleg: E('reszleg')?.value, nev: E('nev')?.value,
+    anyag: E('anyag')?.value, megj: E('megj')?.value,
+    sulyok, zsakSulyok, ts: Date.now()
+  };
+  // Csak ha van érdemi tartalom
+  if (!draft.nev && !draft.anyag && !sulyok.length && !zsakSulyok.length) return;
+  localStorage.setItem(_draftKey(), JSON.stringify(draft));
+}
+
+export function loadDraft() {
+  if (!state.appUser) return null;
+  try {
+    const raw = localStorage.getItem(_draftKey());
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (Date.now() - d.ts > DRAFT_TTL) { clearDraft(); return null; }
+    return d;
+  } catch { return null; }
+}
+
+export function restoreDraft(d) {
+  if (!d) return;
+  if (d.datum)   E('datum').value   = d.datum;
+  if (d.ido)     E('ido').value     = d.ido;
+  if (d.reszleg) E('reszleg').value = d.reszleg;
+  if (d.nev)     E('nev').value     = d.nev;
+  if (d.anyag)   E('anyag').value   = d.anyag;
+  if (d.megj)    E('megj').value    = d.megj;
+  if (d.sulyok?.length) {
+    E('sulyC').innerHTML = '';
+    d.sulyok.forEach(s => addSuly(s.suly, s.statusz));
+  }
+  if (d.zsakSulyok?.length) {
+    E('zsakC').innerHTML = '';
+    d.zsakSulyok.forEach(v => addZsak(v));
+  }
+  msg('Vázlat visszaállítva.', 'info', 3000);
+}
+
+export function clearDraft() {
+  localStorage.removeItem(_draftKey());
+  const b = E('draftBanner'); if (b) b.style.display = 'none';
+}
 
 export function getOfflineCount() {
   try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]').length; } catch { return 0; }
@@ -150,6 +208,7 @@ export async function rogzit() {
 
 export function clearF(sh = true) {
   state.editingEntryId = null;
+  clearDraft();
   E('rogzitBtn').textContent = '✓ Adatok rögzítése';
   const banner = E('editBanner');
   if (banner) banner.style.display = 'none';
