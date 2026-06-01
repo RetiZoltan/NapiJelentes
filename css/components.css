@@ -697,6 +697,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dash-cfg-lbl input { accent-color:var(--accent); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
 .dash-last-update { font-size:11px; color:var(--text3); text-align:right; margin-top:8px; font-style:italic; grid-column:1/-1; }
 .dash-widget-large { grid-column:span 2; }
+.dash-widget-clickable { cursor:pointer; transition:box-shadow var(--tr),border-color var(--tr); }
+.dash-widget-clickable:hover { box-shadow:var(--sh2); border-color:var(--border2); }
 @media(max-width:540px) { .dash-widget-large { grid-column:span 1; } }
 /* Widget pozíció nyíl gombok */
 .dash-w-move { display:flex; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; flex-shrink:0; }

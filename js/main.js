@@ -24,7 +24,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          loadNoticeAdmin, saveNotice, applyRoleTemplate,
          loadAuditLogAdmin } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
-import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
+import { initDashboard, reloadDashboard, setAutoRefresh, closeWidgetDrawer } from './dashboard.js';
 import { initHelp } from './help.js';
 import { logAction } from './auditlog.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadMozgasok,
@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
   E('taskDrawerClose').addEventListener('click', closeTaskDrawer);
   E('taskDrawerOverlay').addEventListener('click', closeTaskDrawer);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEmpDrawer(); closeTaskDrawer(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEmpDrawer(); closeTaskDrawer(); closeWidgetDrawer(); } });
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);
@@ -864,6 +864,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Dashboard auto-frissítés
   E('dashAutoRefreshSel').addEventListener('change', e => {
     setAutoRefresh(parseInt(e.target.value, 10));
+  });
+
+  // Widget drawer – "Feladatok megnyitása →" gomb
+  E('widgetDrawerBody').addEventListener('click', e => {
+    if (e.target.closest('.wd-goto-tasks')) {
+      closeWidgetDrawer();
+      switchTab('feladatok', E('tabBtnFeladatok'));
+    }
   });
 
   // Admin — listák

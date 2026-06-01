@@ -20,6 +20,9 @@ const ALL_WIDGETS = [
 
 let _inited            = false;
 let _autoRefreshTimer  = null;
+let _lastCtx           = null;   // utolsó betöltött ctx cache
+
+const DRAWER_WIDGETS = ['maiOssz','haviOssz','nyitottF','topDolg','sajatTelj','anyagRangsor'];
 
 /* ── Jogosultságok ── */
 function _empPerm()       { return isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'); }
@@ -68,6 +71,304 @@ function _startAutoRefresh(minutes) {
   if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
   if (minutes > 0) _autoRefreshTimer = setInterval(_loadWidgets, minutes * 60 * 1000);
 }
+/* ══════════════════════════════════════
+   WIDGET DETAIL DRAWER
+══════════════════════════════════════ */
+
+export function closeWidgetDrawer() {
+  E('widgetDrawer')?.classList.remove('open');
+  E('widgetDrawerOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+const _WD_META = {
+  maiOssz:     { icon:'⚖️', title:'Mai össztermelés – részletes' },
+  haviOssz:    { icon:'📊', title:'Havi összesítő – részletes' },
+  nyitottF:    { icon:'📌', title:'Nyitott feladatok' },
+  topDolg:     { icon:'🏅', title:'Havi legjobb – teljes rangsor' },
+  sajatTelj:   { icon:'👤', title:'Saját teljesítmény – 14 napos trend' },
+  anyagRangsor:{ icon:'📦', title:'Anyag rangsor – teljes lista' },
+};
+
+async function _openWidgetDrawer(wid) {
+  const meta = _WD_META[wid]; if (!meta || !_lastCtx) return;
+  const drawer = E('widgetDrawer'), body = E('widgetDrawerBody');
+  if (!drawer || !body) return;
+
+  if (E('widgetDrawerIcon'))  E('widgetDrawerIcon').textContent  = meta.icon;
+  if (E('widgetDrawerTitle')) E('widgetDrawerTitle').textContent = meta.title;
+  body.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  drawer.classList.add('open');
+  E('widgetDrawerOverlay')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Extra adat lekérése ahol szükséges
+  let extra = {};
+  if (wid === 'sajatTelj') {
+    const from14 = addD(tod(), -13);
+    extra.entries14 = await fetchEntries({ datumFrom: from14, datumTo: tod() }).catch(() => []);
+  }
+
+  body.innerHTML = _buildWidgetDrawerContent(wid, _lastCtx, extra) ||
+    `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat</div></div>`;
+}
+
+function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
+  const { todayEntries, thisWeekEntries, prevWeekEntries, monthEntries,
+          today, weekStart, monthStart, sumKg, kgOf, tasksSnap } = ctx;
+
+  /* ── Segéd ── */
+  const workerTable = (rank, maxKg) => rank.map(([nev,kg],i) => {
+    const barW = Math.round(kg/maxKg*80);
+    return `<tr><td style="color:var(--text3);width:22px;">${i+1}.</td>
+      <td style="font-weight:600;">${esc(nev)}</td>
+      <td style="text-align:right;font-weight:700;">${(kg/1000).toFixed(2)} t</td>
+      <td style="width:90px;padding-left:8px;">
+        <div style="height:5px;background:var(--surf2);border-radius:3px;">
+          <div style="height:100%;width:${barW}px;background:var(--accent);border-radius:3px;opacity:.65;"></div>
+        </div>
+      </td></tr>`;
+  }).join('');
+
+  const section = (title, content) =>
+    `<div class="emp-drawer-section"><div class="emp-drawer-section-title">${title}</div>${content}</div>`;
+
+  /* ── ⚖️ Mai össztermelés ── */
+  if (wid === 'maiOssz') {
+    if (!todayEntries.length) return '';
+    const byW = {}, byM = {}, byS = { Délelőtt:0, Délután:0 };
+    todayEntries.forEach(e => {
+      const kg = kgOf(e);
+      byW[e.nev] = (byW[e.nev]||0) + kg;
+      const mat = (e.anyag||'').trim(); if (mat) byM[mat] = (byM[mat]||0) + kg;
+      byS[(e.ido||'').trim()==='Délután'?'Délután':'Délelőtt'] += kg;
+    });
+    const wRank = Object.entries(byW).sort((a,b)=>b[1]-a[1]);
+    const mRank = Object.entries(byM).sort((a,b)=>b[1]-a[1]);
+    const maxW = wRank[0]?.[1] || 1, totM = mRank.reduce((s,[,v])=>s+v,0);
+    const maxSh = Math.max(byS.Délelőtt, byS.Délután, 1);
+
+    // 7 napos mini chart
+    const last7s = addD(today, -6);
+    const d7map = {};
+    [...prevWeekEntries, ...thisWeekEntries].filter(e=>e.datum>=last7s).forEach(e=>{
+      d7map[e.datum]=(d7map[e.datum]||0)+kgOf(e);
+    });
+    const perDay7 = Object.entries(d7map).sort((a,b)=>a[0].localeCompare(b[0])).map(([datum,kg])=>({datum,kg}));
+
+    return section('Műszak bontás', `
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:4px;"><span>☀️ Délelőtt</span><span style="font-weight:600;">${(byS.Délelőtt/1000).toFixed(2)} t</span></div>
+        <div style="height:9px;background:var(--surf2);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.round(byS.Délelőtt/maxSh*100)}%;background:var(--amber);border-radius:4px;"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:4px;"><span>🌙 Délután</span><span style="font-weight:600;">${(byS.Délután/1000).toFixed(2)} t</span></div>
+        <div style="height:9px;background:var(--surf2);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.round(byS.Délután/maxSh*100)}%;background:var(--accent);border-radius:4px;"></div></div>
+      </div>`) +
+    section(`Dolgozónként (${wRank.length} fő)`,
+      `<table class="stbl"><tbody>${workerTable(wRank, maxW)}</tbody></table>`) +
+    (mRank.length ? section('Anyagonként',
+      `<table class="stbl"><tbody>${mRank.map(([mat,kg])=>`<tr>
+        <td style="font-weight:600;">${esc(mat)}</td>
+        <td style="text-align:right;font-weight:700;">${(kg/1000).toFixed(2)} t</td>
+        <td style="text-align:right;color:var(--text3);font-size:11px;">${Math.round(kg/totM*100)}%</td>
+      </tr>`).join('')}</tbody></table>`) : '') +
+    (perDay7.length>=2 ? section('Utolsó 7 nap', _svgLineChart(perDay7)) : '');
+  }
+
+  /* ── 📊 Havi összesítő ── */
+  if (wid === 'haviOssz') {
+    if (!monthEntries.length) return '';
+    const byDay = {};
+    monthEntries.forEach(e => { byDay[e.datum]=(byDay[e.datum]||0)+kgOf(e); });
+    const days = Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0]));
+    const vals = days.map(([,v])=>v);
+    const best = days.reduce((b,d)=>d[1]>b[1]?d:b, days[0]);
+    const worst = days.reduce((b,d)=>d[1]<b[1]?d:b, days[0]);
+    const wkMap = {};
+    monthEntries.forEach(e=>{ const ws=monday(e.datum); wkMap[ws]=(wkMap[ws]||0)+kgOf(e); });
+    const weeks = Object.entries(wkMap).sort((a,b)=>a[0].localeCompare(b[0]));
+    const maxW = Math.max(...weeks.map(([,v])=>v),1);
+    const totKg = vals.reduce((s,v)=>s+v,0);
+    const perDay = days.map(([datum,kg])=>({datum,kg}));
+
+    return section('Összefoglaló', `
+      <div class="nossz">
+        <div class="nossz-item"><div class="nossz-val">${(totKg/1000).toFixed(2)} t</div><div class="nossz-lbl">Összes</div></div>
+        <div class="nossz-item"><div class="nossz-val">${days.length}</div><div class="nossz-lbl">Aktív nap</div></div>
+        <div class="nossz-item"><div class="nossz-val">${((totKg/1000)/days.length).toFixed(2)} t</div><div class="nossz-lbl">Napi átlag</div></div>
+      </div>`) +
+    section('Szélső napok', `
+      <div class="emp-drawer-row"><span class="emp-drawer-row-icon">🏆</span><span>Legjobb: <strong>${best[0]}</strong> — ${(best[1]/1000).toFixed(2)} t</span></div>
+      ${worst[0]!==best[0]?`<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📉</span><span>Leggyengébb: <strong>${worst[0]}</strong> — ${(worst[1]/1000).toFixed(2)} t</span></div>`:''}`) +
+    (weeks.length>1 ? section('Heti bontás', weeks.map(([ws,kg],i)=>`
+      <div style="margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span style="color:var(--text3);">${i+1}. hét</span><span style="font-weight:600;">${(kg/1000).toFixed(2)} t</span>
+        </div>
+        <div style="height:7px;background:var(--surf2);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${Math.round(kg/maxW*100)}%;background:var(--accent);border-radius:3px;opacity:.7;"></div>
+        </div>
+      </div>`).join('')) : '') +
+    (perDay.length>=2 ? section('Napi trend', _svgLineChart(perDay)) : '');
+  }
+
+  /* ── 📌 Nyitott feladatok ── */
+  if (wid === 'nyitottF') {
+    const all = (tasksSnap?.docs || []).map(d=>({id:d.id,...d.data()}));
+    const open = all.filter(t=>t.statusz==='nyitott'||t.statusz==='folyamatban').sort((a,b)=>{
+      const ap=a.prioritas==='fontos'?0:1, bp=b.prioritas==='fontos'?0:1;
+      if (ap!==bp) return ap-bp;
+      const al=a.datum&&a.datum<today?-1:0, bl=b.datum&&b.datum<today?-1:0;
+      if (al!==bl) return al-bl;
+      return (a.datum||'9').localeCompare(b.datum||'9');
+    });
+    if (!open.length) return '<div class="empty-st"><div class="empty-ic">✅</div><div class="empty-title">Nincs nyitott feladat</div></div>';
+    const expired = open.filter(t=>t.datum&&t.datum<today).length;
+    const rows = open.map(t=>{
+      const lejart=t.datum&&t.datum<today, fontos=t.prioritas==='fontos';
+      const folyamat=t.statusz==='folyamatban';
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:flex-start;gap:8px;">
+          ${fontos?'<span style="color:var(--red);font-size:14px;flex-shrink:0;">⚡</span>':'<span style="color:var(--border2);font-size:14px;flex-shrink:0;">○</span>'}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(t.cim)}</div>
+            <div style="font-size:11.5px;color:var(--text3);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
+              ${t.datum?`<span style="color:${lejart?'var(--red)':'inherit'};">📅 ${esc(t.datum)}${lejart?' ⚠️':''}</span>`:''}
+              ${t.reszleg?`<span>📍 ${esc(t.reszleg)}</span>`:''}
+              ${folyamat?'<span style="color:var(--amber);font-weight:600;">◑ Folyamatban</span>':''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">${open.length} nyitott feladat${expired?` · <span style="color:var(--red);font-weight:600;">${expired} lejárt</span>`:''}</div>
+      ${rows}
+      <div style="margin-top:14px;"><button class="btn btn-ghost btn-sm wd-goto-tasks" style="width:100%;">📌 Feladatok megnyitása →</button></div>`;
+  }
+
+  /* ── 🏅 Havi legjobb – teljes rangsor ── */
+  if (wid === 'topDolg') {
+    const byWD = {};
+    monthEntries.forEach(e=>{
+      const key=`${e.nev}__${e.datum}`, kg=kgOf(e);
+      if (!byWD[key]) byWD[key]={nev:e.nev,kg:0};
+      byWD[key].kg+=kg;
+    });
+    const byW = {};
+    Object.values(byWD).forEach(({nev,kg})=>{ if (!byW[nev]) byW[nev]=[]; byW[nev].push(kg); });
+    const rank = Object.entries(byW).map(([nev,vals])=>({
+      nev, avg:vals.reduce((s,v)=>s+v,0)/vals.length,
+      total:vals.reduce((s,v)=>s+v,0), napok:vals.length
+    })).sort((a,b)=>b.avg-a.avg);
+    if (!rank.length) return '';
+    const medals=['🥇','🥈','🥉'];
+    const maxAvg=rank[0].avg;
+    const tableRows = rank.map((w,i)=>`<tr>
+      <td style="font-size:15px;text-align:center;width:30px;">${medals[i]||`${i+1}.`}</td>
+      <td style="font-weight:600;color:var(--text);">${esc(w.nev)}</td>
+      <td style="text-align:right;font-weight:700;color:${i===0?'var(--green)':'inherit'};">${(w.avg/1000).toFixed(2)} t</td>
+      <td style="text-align:right;color:var(--text3);font-size:12px;">${w.napok} nap</td>
+    </tr>`).join('');
+
+    // Top dolgozó anyag-bontása
+    const top = rank[0];
+    const topMat={};
+    monthEntries.filter(e=>e.nev===top.nev).forEach(e=>{
+      const mat=(e.anyag||'').trim(); if(!mat) return;
+      topMat[mat]=(topMat[mat]||0)+kgOf(e);
+    });
+    const matRows=Object.entries(topMat).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([mat,kg])=>`
+      <div class="emp-drawer-row"><span class="emp-drawer-row-icon">📦</span>
+        <span style="flex:1;">${esc(mat)}</span>
+        <span style="font-weight:600;">${(kg/1000).toFixed(2)} t</span>
+      </div>`).join('');
+
+    return section(`Teljes rangsor (${rank.length} dolgozó)`,
+      `<table class="stbl"><tbody>${tableRows}</tbody></table>`) +
+      section(`🏆 ${esc(top.nev)} anyag-bontása`,matRows);
+  }
+
+  /* ── 👤 Saját teljesítmény ── */
+  if (wid === 'sajatTelj') {
+    const selected = ctx.sajatDolgozo || '';
+    if (!selected) return '<div class="empty-st"><div class="empty-ic">👤</div><div class="empty-title">Válassz dolgozót a widgetben</div></div>';
+    const e14 = (extra.entries14||[]).filter(e=>e.nev===selected);
+    if (!e14.length) return '<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat az elmúlt 14 napban</div></div>';
+
+    // 14 napos chart
+    const byDay14={};
+    e14.forEach(e=>{byDay14[e.datum]=(byDay14[e.datum]||0)+kgOf(e);});
+    const perDay14=Object.entries(byDay14).sort((a,b)=>a[0].localeCompare(b[0])).map(([datum,kg])=>({datum,kg}));
+
+    // Havi anyag bontás
+    const myMonth=monthEntries.filter(e=>e.nev===selected);
+    const matMap={};
+    myMonth.forEach(e=>{const m=(e.anyag||'').trim();if(m)matMap[m]=(matMap[m]||0)+kgOf(e);});
+    const matRank=Object.entries(matMap).sort((a,b)=>b[1]-a[1]);
+    const matRows=matRank.map(([mat,kg],i)=>`<tr>
+      <td style="color:var(--text3);">${i+1}.</td>
+      <td style="font-weight:600;">${esc(mat)}</td>
+      <td style="text-align:right;font-weight:700;">${(kg/1000).toFixed(2)} t</td>
+    </tr>`).join('');
+
+    const vals14=Object.values(byDay14);
+    const avg14=vals14.length?vals14.reduce((s,v)=>s+v,0)/vals14.length:0;
+    const best14=vals14.length?Math.max(...vals14):0;
+
+    return section(`${esc(selected)} – 14 napos trend`, _svgLineChart(perDay14)) +
+      section('Statisztikák (14 nap)', `
+        <div class="nossz">
+          <div class="nossz-item"><div class="nossz-val">${(avg14/1000).toFixed(2)} t</div><div class="nossz-lbl">Napi átlag</div></div>
+          <div class="nossz-item"><div class="nossz-val">${(best14/1000).toFixed(2)} t</div><div class="nossz-lbl">Legjobb nap</div></div>
+          <div class="nossz-item"><div class="nossz-val">${vals14.length}</div><div class="nossz-lbl">Aktív nap</div></div>
+        </div>`) +
+      (matRank.length ? section('Anyagonkénti bontás (hónap)',`<table class="stbl"><tbody>${matRows}</tbody></table>`) : '');
+  }
+
+  /* ── 📦 Anyag rangsor – teljes ── */
+  if (wid === 'anyagRangsor') {
+    const byMD={};
+    monthEntries.forEach(e=>{
+      const mat=(e.anyag||'').trim(); if(!mat) return;
+      const kg=kgOf(e), key=`${mat}||${e.nev}||${e.datum}`;
+      if(!byMD[key]) byMD[key]={mat,nev:e.nev,kg:0};
+      byMD[key].kg+=kg;
+    });
+    const byMat={};
+    Object.values(byMD).forEach(({mat,nev,kg})=>{
+      if(!byMat[mat]) byMat[mat]={total:0,workers:{}};
+      byMat[mat].total+=kg;
+      byMat[mat].workers[nev]=(byMat[mat].workers[nev]||0)+kg;
+    });
+    const matRank=Object.entries(byMat).sort((a,b)=>b[1].total-a[1].total);
+    if(!matRank.length) return '';
+    const grandTotal=matRank.reduce((s,[,v])=>s+v.total,0);
+    const rows=matRank.map(([mat,{total,workers}],i)=>{
+      const topW=Object.entries(workers).sort((a,b)=>b[1]-a[1])[0];
+      const pct=Math.round(total/grandTotal*100);
+      const barW=Math.round(pct*0.7);
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+          <span style="color:var(--text3);width:22px;font-size:12px;">${i+1}.</span>
+          <span style="font-weight:700;font-size:13.5px;flex:1;">${esc(mat)}</span>
+          <span style="font-weight:700;">${(total/1000).toFixed(2)} t</span>
+          <span style="font-size:11px;color:var(--text3);">${pct}%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:30px;">
+          <div style="height:5px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;opacity:.6;"></div>
+          </div>
+        </div>
+        ${topW?`<div style="font-size:11.5px;color:var(--text3);padding-left:30px;margin-top:3px;">Top: ${esc(topW[0])} · ${(topW[1]/1000).toFixed(2)} t</div>`:''}
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Összes: ${(grandTotal/1000).toFixed(2)} t · ${matRank.length} anyag</div>${rows}`;
+  }
+
+  return '';
+}
+
 export function setAutoRefresh(minutes) {
   localStorage.setItem('nj_autorefresh', String(minutes));
   _startAutoRefresh(minutes);
@@ -217,6 +518,19 @@ export async function initDashboard() {
       await _loadWidgets();
     });
 
+    // Widget klikk → detail drawer
+    E('dashWidgets').addEventListener('click', async e => {
+      if (e.target.closest('.dash-move-btn')) return;
+      if (e.target.tagName === 'SELECT' || e.target.closest('select')) return;
+      if (e.target.closest('button')) return;
+      const w = e.target.closest('.dash-widget-clickable');
+      if (w?.dataset.wid) { await _openWidgetDrawer(w.dataset.wid); return; }
+    });
+
+    // Widget drawer bezárás
+    E('widgetDrawerClose')?.addEventListener('click', closeWidgetDrawer);
+    E('widgetDrawerOverlay')?.addEventListener('click', closeWidgetDrawer);
+
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
       const btn = e.target.closest('.dash-move-btn');
@@ -304,6 +618,14 @@ async function _loadWidgets() {
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
     hdr.appendChild(mv);
+  });
+  // Kattintható widgetek jelölése + ctx mentése
+  _lastCtx = ctx;
+  wNodes.forEach((w, i) => {
+    if (DRAWER_WIDGETS.includes(enabled[i])) {
+      w.classList.add('dash-widget-clickable');
+      w.dataset.wid = enabled[i];
+    }
   });
   _renderSummaryBar(ctx);
   _updateGreetingCtx(ctx);
