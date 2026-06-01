@@ -77,6 +77,15 @@ async function loadUserContext(fbUser) {
       const rs = await getDoc(doc(db, 'roles', ud.roleId));
       if (rs.exists()) state.userRole = rs.data();
     }
+    if (ud.isDisabled && !ud.isMainAdmin) {
+      E('pendingEmail').textContent = fbUser.email;
+      const pt = document.querySelector('.pending-title');
+      if (pt) pt.textContent = 'Fiók letiltva';
+      const ps = document.querySelector('.pending-sub');
+      if (ps) ps.textContent = 'Ez a fiók le van tiltva az adminisztrátor által. Kérj feloldást.';
+      showScreen('pending');
+      return;
+    }
     if (!ud.isMainAdmin && !ud.roleId) {
       E('pendingEmail').textContent = fbUser.email;
       showScreen('pending');
@@ -147,6 +156,9 @@ function buildAppUI() {
   applyLayout(state.userData.layout || 'classic');
   loadLists().then(() => _updateFeladatReszlegF());
   addSuly(); addZsak();
+  // Login logolás + lastLoginAt mentés
+  logAction('auth.login', { email: state.appUser.email });
+  updateDoc(doc(db, 'users', state.appUser.uid), { lastLoginAt: serverTimestamp() }).catch(() => {});
 
   // Vázlat ellenőrzés
   const draft = loadDraft();
@@ -792,6 +804,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (ex) { msg('Frissítési hiba: ' + ex.message, 'error'); }
   });
   E('userTableBody').addEventListener('click', async e => {
+    // Letiltás / Aktiválás
+    const disBtn = e.target.closest('.dis-toggle-btn');
+    if (disBtn && !disBtn.disabled) {
+      const uid = disBtn.dataset.uid;
+      const willDisable = disBtn.dataset.isDisabled !== '1';
+      try {
+        await updateDoc(doc(db, 'users', uid), { isDisabled: willDisable });
+        logAction(willDisable ? 'user.disable' : 'user.enable', { targetUid: uid });
+        msg(willDisable ? 'Fiók letiltva.' : 'Fiók aktiválva.');
+        loadAdminUsers();
+      } catch (ex) { msg('Hiba: ' + ex.message, 'error'); }
+      return;
+    }
     const btn = e.target.closest('[data-del-user]'); if (!btn) return;
     const uid = btn.dataset.delUser;
     if (!confirm('Biztosan törlöd ezt a felhasználót?')) return;
@@ -895,6 +920,11 @@ document.addEventListener('DOMContentLoaded', () => {
   E('fajlInput').addEventListener('change',   betoltFajl);
   E('mindTorBtn').addEventListener('click',   mindTorol);
   E('auditRefreshBtn').addEventListener('click', loadAuditLogAdmin);
+  ['auditTipusF','auditUserF','auditTolF','auditIgF'].forEach(id => {
+    E(id)?.addEventListener('change', () => {
+      import('./admin.js').then(m => m.applyAuditFilter?.());
+    });
+  });
 });
 
 /* ── Auth state ── */

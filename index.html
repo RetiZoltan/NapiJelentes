@@ -1046,7 +1046,7 @@
         <div id="stab-users" class="stab-panel active">
           <div style="overflow-x:auto;">
             <table class="user-tbl" id="userTable">
-              <thead><tr><th>Név</th><th>E-mail</th><th>Szerepkör</th><th>Műveletek</th></tr></thead>
+              <thead><tr><th>Név</th><th>E-mail</th><th>Szerepkör</th><th>Utolsó belépés</th><th>Műveletek</th></tr></thead>
               <tbody id="userTableBody"></tbody>
             </table>
           </div>
@@ -1197,9 +1197,27 @@
 
         <!-- Audit log (főadmin) -->
         <div id="stab-audit" class="stab-panel">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <p style="font-size:12.5px;color:var(--text3);margin:0;">A rendszerben végzett módosítások naplója (utolsó 200).</p>
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <select id="auditTipusF" style="font-size:12px;padding:4px 8px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--surf2);color:var(--text);max-width:160px;">
+              <option value="">— Minden típus —</option>
+              <option value="entry">📋 Bejegyzés</option>
+              <option value="employee">👷 Dolgozó</option>
+              <option value="task">📌 Feladat</option>
+              <option value="notice">📢 Közlemény</option>
+              <option value="auth">🔐 Bejelentkezés</option>
+              <option value="role">🎭 Szerepkör</option>
+              <option value="premium">💰 Prémium</option>
+              <option value="user">👤 Felhasználó</option>
+              <option value="absence">📅 Hiányzás</option>
+              <option value="overtime">⏰ Túlóra</option>
+            </select>
+            <select id="auditUserF" style="font-size:12px;padding:4px 8px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--surf2);color:var(--text);max-width:160px;">
+              <option value="">— Mindenki —</option>
+            </select>
+            <input type="date" id="auditTolF" style="font-size:12px;padding:4px 8px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--surf2);color:var(--text);">
+            <input type="date" id="auditIgF"  style="font-size:12px;padding:4px 8px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--surf2);color:var(--text);">
             <button class="btn btn-ghost btn-sm" id="auditRefreshBtn">↺ Frissít</button>
+            <span id="auditCount" style="font-size:11.5px;color:var(--text3);margin-left:4px;"></span>
           </div>
           <div id="auditLogDiv"></div>
         </div>

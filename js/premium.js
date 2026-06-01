@@ -83,6 +83,7 @@ export async function savePremiumAdminConfig() {
     await setDoc(doc(db, 'config', 'premiumConfig'), { materials: newCfg });
     premiumConfig = newCfg;
     msg('Prémium konfiguráció mentve!');
+    try { const { logAction } = await import('./auditlog.js'); logAction('premium.configSave', { count: Object.keys(newCfg).length }); } catch {}
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
 

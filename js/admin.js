@@ -1,6 +1,6 @@
 import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp, writeBatch } from './firebase.js';
-import { loadAuditLog, renderAuditLog } from './auditlog.js';
+import { logAction, loadAuditLog, renderAuditLog, ACTION_LABELS } from './auditlog.js';
 import { state, isMainAdmin, hasPerm, canManageUsers } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { loadLists } from './db.js';
@@ -32,14 +32,24 @@ export async function loadAdminUsers() {
           ? `<span class="role-badge">${esc(roles[u.roleId]?.name || u.roleId)}</span>`
           : '<span class="role-badge pending">Nincs szerepkör</span>';
       const isMe = u.id === state.appUser.uid;
+      const lastLogin = u.lastLoginAt?.toDate
+        ? u.lastLoginAt.toDate().toLocaleDateString('hu-HU', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—';
+      const disabledBadge = u.isDisabled ? ' <span style="font-size:10px;color:var(--red);font-weight:700;">⛔ letiltva</span>' : '';
       let actions = '';
       if (isMainAdmin() && !u.isMainAdmin) {
         const opts = Object.values(roles).map(r => `<option value="${esc(r.id)}" ${u.roleId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
-        actions += `<select class="role-select" data-uid="${u.id}" style="font-size:12px;padding:4px 24px 4px 7px;margin-right:6px;"><option value="">— Nincs —</option>${opts}</select>`;
+        actions += `<select class="role-select" data-uid="${u.id}" style="font-size:12px;padding:4px 24px 4px 7px;margin-right:4px;"><option value="">— Nincs —</option>${opts}</select>`;
+        actions += `<button class="btn btn-xs ${u.isDisabled ? 'btn-ghost' : 'btn-danger'} dis-toggle-btn" data-uid="${u.id}" data-is-disabled="${u.isDisabled ? '1' : '0'}" ${isMe ? 'disabled' : ''}>${u.isDisabled ? '▶ Aktivál' : '⏸ Letilt'}</button> `;
         actions += `<button class="btn btn-danger btn-xs" data-del-user="${u.id}" ${isMe ? 'disabled' : ''}>Töröl</button>`;
       }
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="font-weight:600;color:var(--text);">${esc(u.displayName || '—')}</td><td style="font-size:12px;">${esc(u.email || '—')}</td><td>${roleName}</td><td>${actions || '—'}</td>`;
+      tr.innerHTML = `
+        <td style="font-weight:600;color:var(--text);">${esc(u.displayName || '—')}${disabledBadge}</td>
+        <td style="font-size:12px;">${esc(u.email || '—')}</td>
+        <td>${roleName}</td>
+        <td style="font-size:12px;color:var(--text3);">${lastLogin}</td>
+        <td>${actions || '—'}</td>`;
       E('userTableBody').appendChild(tr);
     });
   } catch (e) { E('userLoadingMsg').textContent = 'Hiba: ' + e.message; }
@@ -133,9 +143,11 @@ export async function saveRole() {
   try {
     if (editingRoleId) {
       await updateDoc(doc(db, 'roles', editingRoleId), { name, permissions });
+      logAction('role.update', { nev: name });
       msg('Szerepkör frissítve.');
     } else {
       await addDoc(collection(db, 'roles'), { name, permissions, createdAt: serverTimestamp(), createdBy: state.appUser.uid });
+      logAction('role.create', { nev: name });
       msg('Szerepkör létrehozva.');
     }
     cancelRoleForm(); loadRoles();
@@ -166,6 +178,7 @@ export async function handleRoleListClick(e) {
   } else if (delBtn) {
     if (!confirm('Törlöd ezt a szerepkört?')) return;
     await deleteDoc(doc(db, 'roles', delBtn.dataset.delRole));
+    logAction('role.delete', {});
     msg('Szerepkör törölve.'); loadRoles();
   }
 }
@@ -261,15 +274,41 @@ export async function saveNotice() {
 }
 
 export function clearNotice() {}
+export function applyAuditFilter() { _renderFilteredAudit(); }
 
 /* ── Audit log ── */
+let _auditCache = [];
+
 export async function loadAuditLogAdmin() {
   const div = E('auditLogDiv'); if (!div) return;
   div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);">Betöltés…</div>';
   try {
-    const list = await loadAuditLog(200);
-    div.innerHTML = renderAuditLog(list);
+    _auditCache = await loadAuditLog(500);
+    // Felhasználó szűrő feltöltése
+    const userSel = E('auditUserF');
+    if (userSel) {
+      const users = [...new Map(_auditCache.map(e => [e.userId, e.userName])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'hu'));
+      userSel.innerHTML = '<option value="">— Mindenki —</option>' + users.map(([uid,name]) => `<option value="${uid}">${name}</option>`).join('');
+    }
+    _renderFilteredAudit();
   } catch (e) { div.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Betöltési hiba</div></div>`; }
+}
+
+function _renderFilteredAudit() {
+  const div = E('auditLogDiv'); if (!div) return;
+  const filters = {
+    tipusF: E('auditTipusF')?.value || '',
+    userF:  E('auditUserF')?.value  || '',
+    tolF:   E('auditTolF')?.value   || '',
+    igF:    E('auditIgF')?.value    || '',
+  };
+  div.innerHTML = renderAuditLog(_auditCache, filters);
+  const cnt = E('auditCount');
+  if (cnt) {
+    const total = _auditCache.length;
+    const shown = div.querySelectorAll('.audit-row').length;
+    cnt.textContent = shown < total ? `${shown} / ${total} bejegyzés` : `${total} bejegyzés`;
+  }
 }
 
 /* ── Fájl export / import ── */
