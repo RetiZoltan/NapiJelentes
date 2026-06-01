@@ -26,6 +26,7 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh } from './dashboard.js';
 import { initHelp } from './help.js';
+import { logAction } from './auditlog.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadMozgasok,
          loadImportFromProduction, executeImport, saveManualisMozgas,
          saveAtmozgatas, onManTipusChange, saveLocation, renderLocations,
