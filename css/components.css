@@ -715,6 +715,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dash-qa-label { font-size:12px; font-weight:600; color:var(--text2); white-space:nowrap; }
 .dash-qa-btn:hover .dash-qa-label { color:var(--accent); }
 
+/* Dashboard QA bar (gyorsgombok + beállítások) */
+.dash-qa-bar{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:0;}
+.dash-qa-bar #dashQuickActions{flex:1;min-width:0;}
+.dash-qa-cfg-btn{flex-shrink:0;opacity:.7;transition:opacity var(--tr);}
+.dash-qa-cfg-btn:hover,.dash-qa-cfg-btn.active{opacity:1;border-color:var(--accent);color:var(--accent);background:var(--agl);}
+.dash-cfg-card{margin-top:10px;border-style:solid;animation:tabSlideIn .18s ease both;}
+
 /* Méret gomb a konfigban */
 .dash-size-btn { background:var(--surf3); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:11px; cursor:pointer; color:var(--text3); margin-left:auto; flex-shrink:0; transition:all var(--tr); }
 .dash-size-btn:hover { border-color:var(--accent); color:var(--accent); }

@@ -191,7 +191,9 @@ export async function initDashboard() {
       const panel = E('dashConfigPanel');
       const open  = panel.style.display !== 'none';
       panel.style.display = open ? 'none' : '';
-      E('dashCfgBtn').textContent = open ? '⚙ Testreszab' : '✕ Bezár';
+      E('dashCfgBtn').classList.toggle('active', !open);
+      if (E('dashCfgIcon'))  E('dashCfgIcon').textContent  = open ? '⚙️' : '✕';
+      if (E('dashCfgLabel')) E('dashCfgLabel').textContent = open ? 'Beállítások' : 'Bezár';
     });
     _startAutoRefresh(parseInt(localStorage.getItem('nj_autorefresh') || '0', 10));
 

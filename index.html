@@ -156,32 +156,37 @@
     <!-- ══ DASHBOARD / ÁTTEKINTÉS ══ -->
     <div id="tab-dashboard" class="tab-panel active">
       <div id="dashGreeting" class="dash-greeting"></div>
-      <div id="dashQuickActions"></div>
-      <div id="noticeCards" style="margin-bottom:14px;"></div>
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-title">
-          <span class="card-title-icon">🏠</span>Widgetek
-          <button class="btn btn-ghost btn-sm" id="dashCfgBtn" style="margin-left:auto;font-size:12px;">⚙ Testreszab</button>
+
+      <!-- Gyors műveletek + Beállítások gomb egy sorban -->
+      <div class="dash-qa-bar">
+        <div id="dashQuickActions" style="flex:1;"></div>
+        <button class="dash-qa-btn dash-qa-cfg-btn" id="dashCfgBtn" title="Testreszabás">
+          <span class="dash-qa-icon" id="dashCfgIcon">⚙️</span>
+          <span class="dash-qa-label" id="dashCfgLabel">Beállítások</span>
+        </button>
+      </div>
+
+      <!-- Konfig panel – alapból rejtett, gombra nyílik ki -->
+      <div id="dashConfigPanel" class="card dash-cfg-card" style="display:none;margin-bottom:14px;">
+        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:10px;">📊 Widgetek</div>
+        <div id="dashConfigWidgets" class="dash-cfg-grid"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px;">⚡ Gyors műveletek</div>
+          <div id="dashQaConfigWidgets" class="dash-cfg-grid"></div>
         </div>
-        <div id="dashConfigPanel" class="dash-cfg-panel" style="display:none;">
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Kapcsold be/ki a widgeteket, és állítsd be a méretüket.</p>
-          <div id="dashConfigWidgets" class="dash-cfg-grid"></div>
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px;">⚡ Gyors műveletek</div>
-            <div id="dashQaConfigWidgets" class="dash-cfg-grid"></div>
-          </div>
-          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);">🔄 Auto frissítés</span>
-            <select id="dashAutoRefreshSel" style="width:auto;max-width:150px;">
-              <option value="0">Kikapcsolva</option>
-              <option value="1">1 perc</option>
-              <option value="5">5 perc</option>
-              <option value="10">10 perc</option>
-              <option value="30">30 perc</option>
-            </select>
-          </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);">🔄 Auto frissítés</span>
+          <select id="dashAutoRefreshSel" style="width:auto;max-width:150px;">
+            <option value="0">Kikapcsolva</option>
+            <option value="1">1 perc</option>
+            <option value="5">5 perc</option>
+            <option value="10">10 perc</option>
+            <option value="30">30 perc</option>
+          </select>
         </div>
       </div>
+
+      <div id="noticeCards" style="margin-bottom:14px;"></div>
       <div id="dashWidgets" class="dash-grid"></div>
     </div>
 
