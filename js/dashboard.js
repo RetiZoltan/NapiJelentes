@@ -141,7 +141,8 @@ function _renderGreeting() {
   });
   el.innerHTML = `
     <div class="dash-greet-text">${greet}, <strong>${esc(firstName)}</strong>! ${icon}</div>
-    <div class="dash-greet-date">${dateStr}</div>`;
+    <div class="dash-greet-date">${dateStr}</div>
+    <div id="dashGreetCtx" class="dash-greet-ctx" style="display:none;"></div>`;
 }
 
 /* ── Gyors műveletek ── */
@@ -302,7 +303,54 @@ async function _loadWidgets() {
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
     hdr.appendChild(mv);
   });
+  _renderSummaryBar(ctx);
+  _updateGreetingCtx(ctx);
   _animateCounters(grid);
+}
+
+/* ── Összefoglaló sáv ── */
+function _renderSummaryBar(ctx) {
+  const bar = E('dashSummaryBar'); if (!bar) return;
+  const canRead = isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
+  if (!canRead) { bar.innerHTML = ''; return; }
+  const { todayEntries, thisWeekEntries, monthEntries, sumKg } = ctx;
+  const todayKg = sumKg(todayEntries);
+  const weekKg  = sumKg(thisWeekEntries);
+  const monthKg = sumKg(monthEntries);
+  const pill = (lbl, kg) => `<div class="dash-sum-pill">
+    <span class="dash-sum-lbl">${lbl}</span>
+    <span class="dash-sum-val${kg <= 0 ? ' dash-sum-empty' : ''}">${kg > 0 ? (kg/1000).toFixed(2) + ' t' : '—'}</span>
+  </div>`;
+  bar.innerHTML = `<div class="dash-summary-bar">
+    ${pill('Ma', todayKg)}<span class="dash-sum-sep">·</span>
+    ${pill('Ezen a héten', weekKg)}<span class="dash-sum-sep">·</span>
+    ${pill('Ebben a hónapban', monthKg)}
+  </div>`;
+}
+
+/* ── Munkanapos üdvözlő kontextus ── */
+function _updateGreetingCtx(ctx) {
+  const el = E('dashGreetCtx'); if (!el) return;
+  const canRead = isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
+  if (!canRead) return;
+  const { todayEntries, thisWeekEntries, prevWeekEntries, monthEntries, sumKg } = ctx;
+  const dow = new Date().getDay(); // 0=V, 1=H, 2=K, 3=Sze, 4=Cs, 5=P, 6=Szo
+  let txt = '';
+  if (dow === 1) {
+    const prevKg = sumKg(prevWeekEntries);
+    txt = prevKg > 0 ? `Múlt héten összesen: ${(prevKg/1000).toFixed(2)} t` : 'Kellemes munkahetet! 💪';
+  } else if (dow === 5) {
+    const weekKg = sumKg(thisWeekEntries);
+    txt = weekKg > 0 ? `Ez a hét eddig: ${(weekKg/1000).toFixed(2)} t` : 'Szép hétvégét!';
+  } else if (dow === 6 || dow === 0) {
+    const monthKg = sumKg(monthEntries);
+    txt = monthKg > 0 ? `Havi termelés eddig: ${(monthKg/1000).toFixed(2)} t` : 'Jó pihenést!';
+  } else {
+    const todayKg = sumKg(todayEntries);
+    txt = todayKg > 0 ? `Ma eddig: ${(todayKg/1000).toFixed(2)} t` : '';
+  }
+  el.textContent = txt;
+  el.style.display = txt ? '' : 'none';
 }
 
 /* ── Számláló animáció ── */
