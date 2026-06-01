@@ -714,6 +714,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dash-sum-val { font-size:13.5px; font-weight:700; color:var(--text); }
 .dash-sum-empty { color:var(--text3); font-weight:400; }
 .dash-sum-sep { color:var(--border2); font-size:18px; line-height:1; padding:0 1px; }
+/* Elemzés dátumszűrő */
+.edate-preset.active { background:var(--accent)!important; color:#fff!important; border-color:var(--accent)!important; }
+#edateCustomWrap { display:flex; }
 
 /* Gyors műveletek */
 .dash-qa { display:flex; flex-wrap:wrap; gap:8px; padding:0 0 16px; }

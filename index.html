@@ -422,11 +422,30 @@
 
     <!-- ══ ELEMZÉS ══ -->
     <div id="tab-elemzes" class="tab-panel">
+      <!-- Dátumszűrő -->
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);">Időszak:</span>
+          <button class="btn btn-ghost btn-xs edate-preset active" data-preset="all">Minden adat</button>
+          <button class="btn btn-ghost btn-xs edate-preset" data-preset="30d">30 nap</button>
+          <button class="btn btn-ghost btn-xs edate-preset" data-preset="90d">90 nap</button>
+          <button class="btn btn-ghost btn-xs edate-preset" data-preset="year">Ez az év</button>
+          <button class="btn btn-ghost btn-xs edate-preset" data-preset="custom">Egyéni</button>
+          <div id="edateCustomWrap" style="display:none;gap:6px;align-items:center;">
+            <input type="date" id="edateTol" style="font-size:12px;padding:4px 8px;">
+            <span style="color:var(--text3);">→</span>
+            <input type="date" id="edateIg" style="font-size:12px;padding:4px 8px;">
+            <button class="btn btn-primary btn-xs" id="edateAlkalmaz">OK</button>
+          </div>
+        </div>
+      </div>
       <div class="vsw" style="margin-bottom:12px;">
-        <button class="vbtn active" id="eBtnEgyeni">Egyéni elemzés</button>
-        <button class="vbtn" id="eBtnAnyagRangsor">Anyagtípus rangsor</button>
-        <button class="vbtn" id="eBtnRekordok">Személyes rekordok</button>
+        <button class="vbtn active" id="eBtnEgyeni">Egyéni</button>
+        <button class="vbtn" id="eBtnAnyagRangsor">Anyag rangsor</button>
+        <button class="vbtn" id="eBtnRekordok">Rekordok</button>
         <button class="vbtn" id="eBtnOsszehasonlit">Összehasonlítás</button>
+        <button class="vbtn" id="eBtnMatrix">Mátrix</button>
+        <button class="vbtn" id="eBtnMuszak">Műszak</button>
       </div>
 
       <!-- 1. fül: Egyéni elemzés -->
@@ -477,6 +496,16 @@
           </div>
         </div>
         <div id="osszDiv"><div class="empty-st"><div class="empty-ic">⚖️</div>Válassz két dolgozót és anyagot</div></div>
+      </div>
+
+      <!-- 5. fül: Anyag × Dolgozó mátrix -->
+      <div id="eTabMatrix" style="display:none;">
+        <div id="matrixDiv"><div class="empty-st"><div class="empty-ic">📊</div><div class="empty-title">Kattints ide a mátrix betöltéséhez</div></div></div>
+      </div>
+
+      <!-- 6. fül: Műszak elemzés -->
+      <div id="eTabMuszak" style="display:none;">
+        <div id="muszakDiv"><div class="empty-st"><div class="empty-ic">🕐</div><div class="empty-title">Kattints ide a műszak elemzéshez</div></div></div>
       </div>
     </div>
 
