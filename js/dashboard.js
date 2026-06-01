@@ -109,8 +109,13 @@ async function _openWidgetDrawer(wid) {
     extra.entries14 = await fetchEntries({ datumFrom: from14, datumTo: tod() }).catch(() => []);
   }
 
-  body.innerHTML = _buildWidgetDrawerContent(wid, _lastCtx, extra) ||
-    `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat</div></div>`;
+  try {
+    body.innerHTML = _buildWidgetDrawerContent(wid, _lastCtx, extra) ||
+      `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat</div></div>`;
+  } catch (err) {
+    console.error('Widget drawer hiba:', wid, err);
+    body.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Betöltési hiba</div><div class="empty-sub">${err.message}</div></div>`;
+  }
 }
 
 function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
