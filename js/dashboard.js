@@ -104,6 +104,24 @@ function _renderConfig() {
     });
   });
 
+  // ── Gyors műveletek konfig szekció ──
+  const qaContainer = E('dashQaConfigWidgets');
+  if (qaContainer) {
+    const enabledQA = _getEnabledQA();
+    qaContainer.innerHTML = _availableQA().map(a => `
+      <label class="dash-cfg-lbl">
+        <input type="checkbox" data-qaid="${a.id}"${enabledQA.includes(a.id) ? ' checked' : ''}>
+        <span>${a.icon} ${a.label}</span>
+      </label>`).join('');
+    qaContainer.querySelectorAll('input').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const ids = [...qaContainer.querySelectorAll('input:checked')].map(c => c.dataset.qaid);
+        await _saveQAConfig(ids);
+        _renderQuickActions();
+      });
+    });
+  }
+
   const sel = E('dashAutoRefreshSel');
   if (sel) sel.value = String(parseInt(localStorage.getItem('nj_autorefresh') || '0', 10));
 }
@@ -125,17 +143,36 @@ function _renderGreeting() {
 }
 
 /* ── Gyors műveletek ── */
+const ALL_QUICK_ACTIONS = [
+  { id: 'adatbevitel', icon: '✏️', label: 'Adatrögzítés', tab: 'adatbevitel',  perm: () => isMainAdmin() || hasPerm('adatbevitel') },
+  { id: 'napi-report', icon: '📊', label: 'Mai riport',    action: 'napi-report', perm: () => isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes') },
+  { id: 'feladatok',   icon: '📌', label: 'Feladatok',     tab: 'feladatok',    perm: () => isMainAdmin() || hasPerm('feladatokKezeles') },
+  { id: 'dolgozok',    icon: '👷', label: 'Dolgozók',      tab: 'dolgozok',     perm: () => isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles') },
+  { id: 'naptar',      icon: '📅', label: 'Naptár',        tab: 'naptar',       perm: () => isMainAdmin() || hasPerm('naptar') },
+  { id: 'elemzes',     icon: '📈', label: 'Elemzés',       tab: 'elemzes',      perm: () => isMainAdmin() || hasPerm('elemzes') },
+  { id: 'keszlet',     icon: '📦', label: 'Készlet',       tab: 'keszlet',      perm: () => isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles') },
+];
+
+function _availableQA() { return ALL_QUICK_ACTIONS.filter(a => a.perm()); }
+
+function _getEnabledQA() {
+  const saved = state.userData?.dashboardQuickActions;
+  if (Array.isArray(saved)) return saved.filter(id => _availableQA().some(a => a.id === id));
+  // Alapértelmezett: első 4 elérhető akció
+  return _availableQA().slice(0, 4).map(a => a.id);
+}
+
+async function _saveQAConfig(ids) {
+  if (state.userData) state.userData.dashboardQuickActions = ids;
+  if (state.appUser) {
+    try { await updateDoc(doc(db, 'users', state.appUser.uid), { dashboardQuickActions: ids }); } catch (e) { console.warn('QA save:', e.message); }
+  }
+}
+
 function _renderQuickActions() {
   const el = E('dashQuickActions'); if (!el) return;
-  const actions = [];
-  if (isMainAdmin() || hasPerm('adatbevitel'))
-    actions.push({ icon: '✏️', label: 'Adatrögzítés', tab: 'adatbevitel' });
-  if (isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))
-    actions.push({ icon: '📊', label: 'Mai riport', action: 'napi-report' });
-  if (isMainAdmin() || hasPerm('feladatokKezeles'))
-    actions.push({ icon: '📌', label: 'Feladatok', tab: 'feladatok' });
-  if (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'))
-    actions.push({ icon: '👷', label: 'Dolgozók', tab: 'dolgozok' });
+  const enabled = _getEnabledQA();
+  const actions = _availableQA().filter(a => enabled.includes(a.id));
 
   if (!actions.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="dash-qa">${actions.map(a =>
@@ -157,6 +194,9 @@ export async function initDashboard() {
       E('dashCfgBtn').textContent = open ? '⚙ Testreszab' : '✕ Bezár';
     });
     _startAutoRefresh(parseInt(localStorage.getItem('nj_autorefresh') || '0', 10));
+
+    // QA konfig betöltése state.userData-ból (ha van)
+    // (a _getEnabledQA() már olvassa, nincs külön init szükséges)
 
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
