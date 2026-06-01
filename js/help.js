@@ -1,175 +1,349 @@
 import { isMainAdmin, hasPerm } from './state.js';
 import { E } from './utils.js';
 
-/* Minden szekció: { id, icon, title, perm(), content() } */
 const SECTIONS = [
+  /* ── Navigáció & Alapok ─────────────────────────────── */
   {
     id: 'navigacio', icon: '🧭', title: 'Navigáció & alapok',
     perm: () => true,
     content: () => `
-      <p>A program bal oldalán (sidebar módban) vagy felül (klasszikus módban) található a <strong>navigációs sáv</strong> az elérhető modulokkal.</p>
+      <p>A program tetején (klasszikus mód) vagy bal oldalán (sidebar mód) találod a <strong>navigációs sávot</strong> az elérhető modulokkal — csak azok a fülek látszanak, amihez jogosultságod van.</p>
+      <p><strong>Dizájn beállítások</strong> (jobb felső sarokban):</p>
       <ul>
-        <li>A jobb felső sarokban a <strong>🌙/☀️ gombbal</strong> válthatsz sötét és világos mód között</li>
-        <li>A <strong>🎨 gombbal</strong> 5 dizájn-téma közül választhatsz (Blueprint, Forest, Terra, Grafit, Viola)</li>
-        <li>Az elrendezés a 🎨 menüben váltható: <strong>Klasszikus</strong> (fejléc + felső tabs) vagy <strong>Sidebar</strong> (oldalsáv üveges kártyákkal)</li>
+        <li><strong>🌙 / ☀️</strong> — sötét / világos mód váltása</li>
+        <li><strong>🎨</strong> — 5 színtéma: Blueprint (kék), Forest (zöld), Terra (barna), Grafit (szürke), Viola (lila)</li>
+        <li>A 🎨 menüben az <strong>Elrendezés</strong> is váltható: Klasszikus (vízszintes fülek) vagy Sidebar (függőleges oldalsáv üveges háttérrel)</li>
       </ul>
-      <div class="help-tip">Mobiltelefonon a ✏️ FAB gomb (jobb alul) gyorsbillentyűként működik az aktuális fülhöz igazodva.</div>
+      <p><strong>Mobilos funkciók:</strong></p>
+      <ul>
+        <li>A <strong>✏️ FAB gomb</strong> (jobb alul, csak mobilon) az aktuális fülhöz igazodik: Adatbevitelen → adatrögzítés, Feladatokon → új feladat form megnyitása</li>
+        <li><strong>Lefelé húzással</strong> (pull-to-refresh) frissíthető az aktív oldal</li>
+      </ul>
+      <div class="help-tip">Az oldal először mindig az <strong>Áttekintés</strong> fülre nyílik, ahol személyre szabott összefoglalót láthatsz.</div>
     `
   },
+
+  /* ── Áttekintés ─────────────────────────────────────── */
   {
     id: 'attekintes', icon: '🏠', title: 'Áttekintés (Dashboard)',
     perm: () => true,
     content: () => `
-      <p>Az <strong>Áttekintés</strong> az alapértelmezett kezdőlap, személyre szabható widgetekkel.</p>
+      <p>Az <strong>Áttekintés</strong> a személyre szabható kezdőlap, ami a legfontosabb adatokat jeleníti meg widgetekben.</p>
+
+      <p><strong>Gyors műveletek sáv</strong> — a widgetek felett egy sor gomb a leggyakoribb funkciókhoz. A sor végén lévő <strong>⚙️ Beállítások</strong> gombra kattintva nyílik a konfiguráció.</p>
+
+      <p><strong>Widget testreszabás</strong> (⚙️ Beállítások panel):</p>
       <ul>
-        <li>A <strong>⚙ Testreszab</strong> gombbal be/ki kapcsolhatod a widgeteket, és beállíthatod méretüket (▢ Kis = 1 cella, ▭ Nagy = 2 cella)</li>
-        <li>A widgetek <strong>húzd-és-ejtsd</strong> módszerrel átrendezhetők — fogd meg a ⠿ jelzőt és húzd a célpozícióba</li>
-        <li><strong>Auto frissítés</strong>: a konfig panelben 1–30 perces automatikus frissítés állítható be (pl. falra akasztott monitorhoz)</li>
-        <li>A <strong>Gyors műveletek</strong> sáv (✏️ 📊 📌 👷) közvetlenül a leggyakoribb funkciókra navigál</li>
+        <li><strong>Widgetek szekció</strong> — be/ki kapcsolhatod az egyes widgeteket. Méretük is állítható: <strong>▢ Kis</strong> (1 cella) vagy <strong>▭ Nagy</strong> (2 cella széles)</li>
+        <li><strong>Sorrend</strong> — minden widgeten hover-re megjelenő <strong>‹ ›</strong> nyilakkal balra/jobbra mozgatható. A beállítás automatikusan mentődik</li>
+        <li><strong>⚡ Gyors műveletek szekció</strong> — a gyorsgombok is testreszabhatók; be/ki kapcsolható melyik látsszon</li>
+        <li><strong>🔄 Auto frissítés</strong> — 1/5/10/30 perc, vagy kikapcsolva. Hasznos monitoron rögzített megjelenítőhöz</li>
       </ul>
-      <div class="help-tip">A widget számok animáltan „felszámlálnak" minden betöltéskor. A 🎂 Születésnapok widget 30 napon belüli születésnapokat mutat.</div>
+
+      <p><strong>Elérhető widgetek:</strong></p>
+      <ul>
+        <li>⚖️ <strong>Mai össztermelés</strong> — mai termelés tonnában, %-os eltérés a havi átlagtól</li>
+        <li>📊 <strong>Havi összesítő</strong> — hónap eddigi termelése + napi átlag</li>
+        <li>📉 <strong>Heti grafikon</strong> — SVG oszlopdiagram, mai nap kiemelve, jövő halványítva</li>
+        <li>📈 <strong>Heti trend</strong> — e hét összege és az előző héthez viszonyított %-os változás</li>
+        <li>📦 <strong>Anyag rangsor</strong> — havi top anyagok sávdiagrammal (kis: 4 db, nagy: 6 db)</li>
+        <li>🏅 <strong>Havi legjobb</strong> — top 3 dolgozó 🥇🥈🥉 érmekkel, havi termelésük alapján</li>
+        <li>👤 <strong>Saját teljesítmény</strong> — megadott dolgozó mai / heti / havi átlag termelése; a widgetben lévő legördülőből bármely dolgozó kiválasztható</li>
+        <li>📌 <strong>Nyitott feladatok</strong> — darabszám, lejárt határidők kiemelve</li>
+        <li>👷 <strong>Aktív dolgozók</strong> — jelenleg aktív státuszú dolgozók száma</li>
+        <li>🎂 <strong>Közelgő születésnapok</strong> — 30 napon belüli születésnapok listája</li>
+        <li>🎖️ <strong>Belépési jubileumok</strong> — 30 napon belüli munkaévfordulók (1+ év)</li>
+        <li>📋 <strong>Utóbbi bejegyzések</strong> — az utolsó 5 bejegyzés dátummal és tonnával</li>
+      </ul>
+
+      <p><strong>Összefoglaló sáv</strong> — a widgetek felett mindig látható kompakt sor: <em>Ma: X t · Ezen a héten: Y t · Ebben a hónapban: Z t</em></p>
+
+      <div class="help-tip">Az üdvözlő szöveg naphoz igazodik: hétfőn a múlt hét összesítőjét, pénteken az aktuális hét összesítőjét mutatja.</div>
     `
   },
+
+  /* ── Adatbevitel ────────────────────────────────────── */
   {
     id: 'adatbevitel', icon: '✏️', title: 'Adatbevitel',
     perm: () => isMainAdmin() || hasPerm('adatbevitel'),
     content: () => `
       <p>Az <strong>Adatbevitel</strong> lapon rögzítheted a napi termelési adatokat.</p>
       <ul>
-        <li><strong>Dátum & Műszak</strong> — válaszd ki a napot (alapértelmezés: ma) és a műszakot (Délelőtt / Délután)</li>
-        <li><strong>Részleg</strong> — a 📌 gombbal rögzítheted az aktuális részleget, hogy ne kelljen minden bejegyzésnél újra beírni</li>
-        <li><strong>Dolgozó neve & Anyagtípus</strong> — a korábban felvett nevek automatikusan megjelennek; Enter-rel az adat rögzítésére ugrhatsz</li>
-        <li><strong>Súlyok</strong> — add meg a darált súlyokat kg-ban, jelöld meg Teli vagy Megkezdett állapotot; a ＋ gombbal új sort adhatsz hozzá</li>
-        <li><strong>Teli zsákok</strong> — a teli zsákok súlya külön oszlopban rögzíthető</li>
-        <li><strong>Napi megjegyzés</strong> — gépprobléma, anyagszükséglet stb. az adott naphoz/részleghez</li>
+        <li><strong>Dátum & Műszak</strong> — alapértelmezés: ma + Délelőtt. A dátum a múltba visszamódosítható, ha kimaradt egy rögzítés</li>
+        <li><strong>Részleg</strong> — a 📌 gombbal rögzítheted; rögzítés után minden bejegyzésnél automatikusan kitöltődik. Újra 📌-re kattintva feloldható</li>
+        <li><strong>Dolgozó neve & Anyagtípus</strong> — a beépített listából választható; Enter a következő mezőre ugrik</li>
+        <li><strong>Darált súlyok</strong> — minden sor: súly kg-ban + Teli / Megkezdett állapot. ＋ gombbal újabb sort adsz hozzá, ✕ gombbal törölsz. A súlyokra kattintva kinyílik az egyedi zsák súlyok listája</li>
+        <li><strong>Teli zsákok</strong> — a csomagolt anyag súlyát külön tartjuk nyilván, mert ez alapozza a készletkezelést</li>
+        <li><strong>Napi megjegyzés</strong> — gépprobléma, anyaghiány, egyéb info az adott naphoz és részleghez kötve</li>
+        <li><strong>Rögzítés gomb</strong> — csak az aktuális dolgozó+anyag bejegyzést menti; több dolgozó esetén minden sorhoz külön kattints</li>
       </ul>
-      <div class="help-tip">Ha félbehagyod a formot és elhagyod az oldalt, az adatok automatikusan mentődnek <strong>vázlatként</strong>. Visszatéréskor egy sárga sáv kínálja a visszaállítást vagy elvetést.</div>
+      <div class="help-tip"><strong>Auto-save vázlat:</strong> ha félbehagyod és elhagyod az oldalt, az adatok automatikusan mentődnek. Visszatéréskor egy sárga sáv kínálja a visszaállítást (Visszaállítás) vagy elvetést (Elvet).</div>
     `
   },
+
+  /* ── Jelentések ─────────────────────────────────────── */
   {
     id: 'jelentesek', icon: '📋', title: 'Jelentések',
     perm: () => isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'),
     content: () => `
-      <p>A <strong>Jelentések</strong> lapon két al-fül érhető el:</p>
-      <p><strong>Napi riport</strong> — válassz dátumot, majd kattints a Mutat gombra. A ‹ › nyilakkal naponként léphetsz. Szűrhetsz dolgozóra, műszakra és részlegre.</p>
-      <p><strong>Időszakos riport</strong> — havi, éves vagy egyéni dátumtartományra. A <em>⚙ Szekciók beállítása</em> gombban személyre szabhatod mit tartalmazzon.</p>
+      <p>A <strong>Jelentések</strong> lapon napi és időszakos riportok tekinthetők meg.</p>
+
+      <p><strong>📋 Napi riport:</strong></p>
       <ul>
-        <li><strong>⬇ Kép</strong> — JPG exportálás</li>
-        <li><strong>⬇ PDF</strong> — nyomtatható PDF (mindig világos módban generálódik)</li>
-        <li><strong>⬇ Excel</strong> — XLSX fájl, minden táblázat külön munkalapon (Kovács Péter, Kiss Anna stb. névvel)</li>
-        <li><strong>🖨 Nyomtat</strong> — böngészős nyomtatási párbeszéd</li>
+        <li>Válassz dátumot, majd kattints a <strong>Mutat</strong> gombra. A <strong>‹ ›</strong> nyilakkal naponként léphetsz, a <strong>Ma</strong> gombbal az aktuális napra ugraszhatsz</li>
+        <li>Szűrhetsz dolgozóra, műszakra (Délelőtt/Délután) és részlegre — szűrő változtatásakor a riport azonnal frissül</li>
+        <li>A kék dátumokra kattintva az adott napra ugrik a riport. Az összesítő fejlécen látható a legjobb dolgozó és az aktív dolgozók száma</li>
       </ul>
-      <div class="help-tip">A napi bontásban a kék dátumokra kattintva az érintett nap napi riportjára ugrhatsz.</div>
+
+      <p><strong>📊 Időszakos riport:</strong></p>
+      <ul>
+        <li>Három mód: <strong>Havi</strong> (hónap választó), <strong>Éves</strong> (évszám), <strong>Egyéni tartomány</strong> (tól–ig dátum)</li>
+        <li>A <strong>⚙ Szekciók beállítása</strong> gombban be/ki kapcsolhatod a riport egyes részeit (rangsor, átlagok, részletezés stb.)</li>
+      </ul>
+
+      <p><strong>Export lehetőségek:</strong></p>
+      <ul>
+        <li><strong>⬇ Kép</strong> — JPG formátum, mindig világos színekkel (sötét módban is olvasható)</li>
+        <li><strong>⬇ PDF</strong> — nyomtatható, többoldalas ha szükséges</li>
+        <li><strong>⬇ Excel</strong> — XLSX fájl; a Dolgozónkénti és Anyagonkénti részletezés esetén minden dolgozó/anyag külön munkalapon</li>
+        <li><strong>🖨 Nyomtat</strong> — böngészős nyomtatási párbeszéd, fejléccel és lábléccel</li>
+      </ul>
     `
   },
+
+  /* ── Naptár ─────────────────────────────────────────── */
   {
     id: 'naptar', icon: '📅', title: 'Naptár',
     perm: () => isMainAdmin() || hasPerm('naptar'),
     content: () => `
       <p>A <strong>Naptár</strong> lapon vizuálisan látható a termelés alakulása.</p>
       <ul>
-        <li><strong>📅 Havi nézet</strong> — minden nap egy cella, zöld intenzitás mutatja a termelés mértékét</li>
-        <li><strong>🗓 Éves nézet</strong> — GitHub-stílusú hőtérkép, az egész év áttekintése egy képernyőn (52 hét × 7 nap)</li>
-        <li>Bármely cellára kattintva egy <strong>popup</strong> jelenik meg: napi tonnában kifejezett adat + eltérés a havi átlagtól (+/-%). A „Teljes napi riport →" gombbal közvetlenül a riportra ugrhatsz</li>
+        <li><strong>📅 Havi nézet</strong> — minden nap egy cella. A szín 5 szintet jelöl: szürke (nincs adat) → kék → türkiz → zöld → narancs (maximális termelés). A legenda a jobb alsó sarokban</li>
+        <li><strong>🗓 Éves nézet</strong> — GitHub-stílusú hőtérkép: 52 hét × 7 nap, az egész év egy képernyőn. Hétfő–vasárnapig, hónapfeliratokkal</li>
+        <li>Bármelyik cellára kattintva egy <strong>popup</strong> jelenik meg: az adott nap termelése tonnában és az eltérés a havi átlagtól. „Teljes napi riport →" gombbal a Jelentések fülre ugrik</li>
+        <li>A <strong>‹ Előző</strong> / <strong>Következő ›</strong> gombokkal léphetsz hónapot vagy évet (nézettől függően)</li>
       </ul>
     `
   },
+
+  /* ── Elemzés ─────────────────────────────────────────── */
   {
     id: 'elemzes', icon: '📈', title: 'Elemzés',
     perm: () => isMainAdmin() || hasPerm('elemzes'),
     content: () => `
-      <p>Az <strong>Elemzés</strong> lapon négy al-fül érhető el:</p>
+      <p>Az <strong>Elemzés</strong> lapon 6 al-fül érhető el, és minden nézethez <strong>időszak szűrő</strong> állítható be a tetején: Minden adat / 30 nap / 90 nap / Ez az év / Egyéni tól–ig.</p>
+
+      <p><strong>👤 Egyéni elemzés:</strong></p>
       <ul>
-        <li><strong>Egyéni elemzés</strong> — válassz dolgozót és anyagot; láthatod az összefoglalót (átlag, legjobb/leggyengébb nap, szórás) és az üzemi átlaggal való összehasonlítást</li>
-        <li><strong>Anyagtípus rangsor</strong> — egy adott anyagnál ki termel legtöbbet átlagosan, személyes rekorddal és leggyengébb nappal</li>
-        <li><strong>Személyes rekordok</strong> — minden dolgozó legjobb napja, rangsorolva (kattintható tábla)</li>
-        <li><strong>Összehasonlítás</strong> — két dolgozó egymás mellé helyezve, ugyanarra az anyagra: statisztikai tábla + vizuális sávdiagram</li>
+        <li>Válassz dolgozót és anyagot → Összefoglaló: aktív napok, legjobb/leggyengébb nap, napi átlag, szórás</li>
+        <li>Üzemi átlaggal való összehasonlítás (+/-% eltérés)</li>
+        <li><strong>📉 Trend vonaldiagram</strong> — SVG grafikon az időbeli változásról (≥2 adatpont esetén)</li>
+        <li><strong>📦 Anyagok szerinti rangsor</strong> — az adott dolgozó összes anyaga átlag/nap szerint sorrendben; a kiválasztott anyag ◀ jelöléssel kiemelve</li>
+        <li>Napi bontás táblázat a végén</li>
       </ul>
+
+      <p><strong>🏅 Anyagtípus rangsor:</strong> Egy anyagnál ki termel legtöbbet átlagosan — személyes legjobb és leggyengébb nappal.</p>
+
+      <p><strong>🏆 Személyes rekordok:</strong> Minden dolgozó valaha volt legjobb napja, rangsorolva.</p>
+
+      <p><strong>⚖️ Összehasonlítás:</strong> Két dolgozó egymás mellé helyezve ugyanarra az anyagra — statisztikai tábla (✓ jelöli a győztest) + vizuális sávdiagram.</p>
+
+      <p><strong>📊 Anyag × Dolgozó mátrix:</strong> Táblázat ahol sorok = dolgozók, oszlopok = anyagok, cellák = átlagos napi termelés. Hőtérkép szín: kék (alacsony) → narancs (magas). Hover tooltip részleteket mutat.</p>
+
+      <p><strong>🕐 Műszak elemzés:</strong> Dolgozónként Délelőtt vs. Délután átlagos napi termelés, ✓ jelöli a jobb műszakot. Üzemi összesítő: melyik műszak termel többet és mennyivel.</p>
     `
   },
+
+  /* ── Feladatok ──────────────────────────────────────── */
   {
     id: 'feladatok', icon: '📌', title: 'Feladatok',
     perm: () => isMainAdmin() || hasPerm('feladatokKezeles'),
     content: () => `
-      <p>A <strong>Feladatok</strong> lapon csapat-szintű feladatokat kezelhetsz.</p>
+      <p>A <strong>Feladatok</strong> lapon csapat-szintű teendőket kezelhetsz.</p>
       <ul>
-        <li><strong>☰ Lista nézet</strong> — feladatok időrendi listában, szűrhető állapot (Nyitott / Folyamatban / Kész) és részleg szerint</li>
-        <li><strong>⬛ Kanban nézet</strong> — három oszlop: Nyitott · Folyamatban · Kész. A → gombbal léptetheted az állapotot a következő fázisba</li>
-        <li>Bármely feladatkártyára kattintva megnyílik a <strong>szerkesztő drawer</strong>: szerkeszthető a cím, leírás, prioritás, határidő, felelős és állapot</li>
-        <li><strong>Felelős</strong> — a feladat hozzárendelhető egy felhasználóhoz; a felelős is lezárhatja a feladatát</li>
-        <li>Az <strong>Új feladat</strong> fejlécre kattintva nyílik ki a form; mentés után automatikusan becsukódik</li>
+        <li><strong>☰ Lista nézet / ⬛ Kanban nézet</strong> — a szűrők mellett váltható. Lista: időrendi, szűrhető állapot és részleg szerint. Kanban: 3 oszlop (Nyitott → Folyamatban → Kész), a <strong>→</strong> gombbal léptethetők</li>
+        <li><strong>Állapotok</strong>: Nyitott · Folyamatban · Kész — a → gomb lépteti, vagy a draweren belül is változtatható</li>
+        <li><strong>Felelős hozzárendelése</strong> — a feladat hozzárendelhető bármely felhasználóhoz; a felelős is lezárhatja saját feladatát</li>
+        <li>Kártyára kattintva megnyílik a <strong>szerkesztő drawer</strong>: szerkeszthető a cím, leírás, prioritás, határidő, felelős és állapot egyszerre</li>
+        <li><strong>Új feladat</strong> — a „Új feladat ›" fejlécre kattintva kinyílik a form, mentés vagy mégse után automatikusan becsukódik</li>
       </ul>
-      <div class="help-tip">Mobilon a ✏️ FAB gombra kattintva a Feladatok lapon az Új feladat form automatikusan kinyílik.</div>
+      <div class="help-tip">Mobilon a ✏️ FAB gomb (jobb alul) a Feladatok lapon az Új feladat formt nyitja meg közvetlenül.</div>
     `
   },
+
+  /* ── Dolgozók ───────────────────────────────────────── */
   {
-    id: 'dolgozok', icon: '👷', title: 'Dolgozők',
+    id: 'dolgozok', icon: '👷', title: 'Dolgozók',
     perm: () => isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'),
     content: () => `
-      <p>A <strong>Dolgozók</strong> lapon négy al-fül érhető el:</p>
+      <p>A <strong>Dolgozók</strong> lapon 5 al-fül érhető el.</p>
+
+      <p><strong>👤 Adatlapok:</strong></p>
       <ul>
-        <li><strong>Adatlapok</strong> — kereshetsz névben, részlegben, pozícióban és kompetenciákban. Rendezhetsz névsor / belépési dátum / részleg szerint. Kártyára kattintva részletes drawer nyílik, ahol 📄 PDF adatlap is generálható</li>
-        <li><strong>Hiányzások</strong> — havi szűrővel listázhatók a hiányzások (szabadság 🌴 · betegszabadság 🤒 · fizetés nélküli 📋 · egyéb ❓)</li>
-        <li><strong>Naptár (roster)</strong> — havi nézet: ki mikor volt hiányzáson. Üres, munkanapra kattintva gyorsan rögzíthetsz hiányzást</li>
-        <li><strong>Statisztika</strong> — éves összesítő tábla típusonként bontva, részlegenként összesítve. CSV exportálható</li>
+        <li><strong>⊞ Kártya / ☰ Lista nézet</strong> váltható a szűrők mellett. Lista nézet sok dolgozónál kompaktabb</li>
+        <li>Keresés: névben, részlegben, pozícióban és kompetenciákban is keres egyszerre</li>
+        <li>Rendezés: Névsor / Belépési dátum / Részleg szerint</li>
+        <li>Kártyára kattintva részletes <strong>drawer</strong> nyílik:
+          <ul>
+            <li>Alap kapcsolattartási adatok (telefon, e-mail)</li>
+            <li><strong>Teljes hiányzás összefoglaló</strong> — 🌴 Szabadság X/Y nap + 🤒 Betegszabadság + 📋 Fizetés nélküli + ❓ Egyéb + összesen</li>
+            <li><strong>Kompetenciák</strong> chipek formájában</li>
+            <li><strong>📚 Képzési napló</strong> — dátum + képzés neve + megjegyzés listában. Szerkesztési joggal új bejegyzés adható hozzá</li>
+            <li><strong>📄 PDF adatlap</strong> generálható (adatok + szabadságkeret + kompetenciák)</li>
+          </ul>
+        </li>
       </ul>
+
+      <p><strong>📅 Hiányzások:</strong> Havi szűrővel listázhatók. Típusok: 🌴 Szabadság · 🤒 Betegszabadság · 📋 Fizetés nélküli · ❓ Egyéb.</p>
+
+      <p><strong>🗓 Naptár (roster):</strong> Havi táblázat, ki mikor volt távol. Üres munkanapra kattintva gyors beviteli form jelenik meg alul — nem kell átmenni a Hiányzások fülre.</p>
+
+      <p><strong>⏰ Túlóra:</strong> Havi lista szűrőkkel. Összesítő kártyák mutatják az összes órát és top dolgozókat.</p>
+
+      <p><strong>📊 Statisztika:</strong> Éves összesítő hiányzásból típusonként, részlegenként. Az év kiválasztása után a túlóra összesítő is megjelenik. CSV export.</p>
+
       ${isMainAdmin() || hasPerm('dolgozokKezeles') ? `
-      <p>Új dolgozó felvitelekor megadható: név, részleg, pozíció/beosztás, belépési dátum, szerződés típusa, éves szabadságkeret és <strong>kompetenciák</strong> (chip-alapú tag input — gépelj és nyomj Entert).</p>
+      <p><strong>Dolgozó felvitelekor</strong> megadható: név, részleg, pozíció/beosztás, belépési dátum, szerződés típusa (határozatlan/határozott/megbízási), éves szabadságkeret. A <strong>Kompetenciák</strong> mezőbe gépelj és nyomj Entert — chipként adódnak hozzá, × gombbal törölhetők.</p>
       ` : ''}
     `
   },
+
+  /* ── Túlóra ─────────────────────────────────────────── */
   {
     id: 'tulora', icon: '⏰', title: 'Túlóra nyilvántartás',
     perm: () => isMainAdmin() || hasPerm('dolgozokKezeles'),
     content: () => `
-      <p>A Dolgozók → <strong>Túlóra</strong> al-fülön rögzítheted a túlórákat.</p>
+      <p>A <strong>Dolgozók → Túlóra</strong> al-fülön rögzítheted és elemzed a túlóra bejegyzéseket.</p>
       <ul>
-        <li>Szűrhetsz hónap és dolgozó szerint, majd kattints a Mutat gombra</li>
-        <li>Minden bejegyzés tartalmaz: dolgozó neve, dátum, túlóra óra száma, megjegyzés</li>
-        <li>A lista tetején összesítő kártyák mutatják az összes túlóra-órát és a top dolgozókat ebben a hónapban</li>
+        <li>Szűrhetsz hónap és dolgozó szerint, majd kattints a <strong>Mutat</strong> gombra</li>
+        <li>Minden bejegyzés: dolgozó neve · dátum · túlóra óraszáma · opcionális megjegyzés</li>
+        <li>A lista tetején összesítő kártyák: összes óra + hónapban részt vett dolgozók száma</li>
+        <li>A <strong>Statisztika</strong> fülön az éves hiányzás-statisztika után a túlóra éves összesítője is megjelenik dolgozónkénti bontásban</li>
       </ul>
     `
   },
+
+  /* ── Készlet ─────────────────────────────────────────── */
+  {
+    id: 'keszlet', icon: '📦', title: 'Készlet & Anyagmozgás',
+    perm: () => isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'),
+    content: () => `
+      <p>A <strong>Készlet</strong> lapon az anyagkészlet és a belső mozgások tarthatók nyilván. A rendszer eseményalapú: minden készletváltozás egy-egy mozgásbejegyzés.</p>
+
+      <p><strong>📊 Aktuális készlet:</strong></p>
+      <ul>
+        <li>Anyagonként és helyszínenként mutatja: <strong>zsák darabszám</strong> · összsúly (kg/t) · átlag/zsák · 🚛 kamion-szám</li>
+        <li>A kamion kapacitás a ⚙️ Helyszínek fülön állítható be (alapértelmezett: 22 zsák)</li>
+        <li>Kattintásra ▶ kinyílik a részletező: bevitelezések dátumával és az <strong>egyedi zsák súlyok chipekben</strong></li>
+        <li>Szűrhető anyag és helyszín szerint</li>
+      </ul>
+
+      <p><strong>➡️ Mozgások napló:</strong> Hónap / típus / helyszín szűrőkkel. Mozgástípusok: ⬇️ Bevételezés · ⬆️ Kivitel · ↔️ Átadás · 🚛 Kiszállítás · 🗑 Selejt. Minden sornál látszanak az egyedi zsák súlyok.</p>
+
+      <p><strong>⬇️ Bevételezés:</strong></p>
+      <ul>
+        <li><strong>Import termelésből</strong>: hónap + cél helyszín választása → megmutatja az importálatlan teli zsákos bejegyzéseket anyagonként csoportosítva (dátum, dolgozó, zsák db, tonna, egyedi kg chipek). Checkbox-szal kijelölhető, tömeges importálható</li>
+        <li><strong>↔️ Átmozgatás</strong> — mindig látható kártya: anyag + zsák szám + forrás/cél helyszín + dátum. Kattintásra azonnal rögzíti az átadást</li>
+        <li><strong>✏️ Manuális rögzítés</strong> — lenyitható form bármilyen mozgástípushoz. Kiszállításnál 22-24 zsák felett figyelmeztetést kap</li>
+      </ul>
+
+      <p><strong>⚙️ Helyszínek</strong> (szerkesztési joggal): raktárak és területek hozzáadása/archiválása. Az archiválás nem töröl — a mozgások hivatkoznak rá.</p>
+    `
+  },
+
+  /* ── Prémium ─────────────────────────────────────────── */
   {
     id: 'premium', icon: '💰', title: 'Prémium számítás',
     perm: () => isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'),
     content: () => `
-      <p>A <strong>Prémium</strong> lapon havi prémium kalkuláció végezhető.</p>
+      <p>A <strong>Prémium</strong> lapon két al-fül érhető el.</p>
+
+      <p><strong>📊 Számítás:</strong></p>
       <ul>
         <li>Válassz hónapot (és opcionálisan részleget), majd kattints a <strong>Számol</strong> gombra</li>
-        <li>Minden dolgozóra megmutatja: aktív napok száma, prémium-jogosult napok, kiszámolt prémium összeg</li>
-        <li>A számítás <strong>naponként értékeli</strong> az alapteljesítményt — csak azok a napok számítanak ahol elérte a napi alapot</li>
+        <li>A számítás <strong>naponként értékeli</strong> az alapteljesítményt — csak azok a napok számítanak prémiumba, ahol az adott anyagból elérte a napi alapot</li>
+        <li>Dolgozóra kattintva kinyílik a részletes anyagonkénti bontás: napi alap, prémium napok száma, túlteljesítés, kiszámolt prémium összeg</li>
+        <li>A <strong>💾 Mentés</strong> gombbal az aktuális eredmény az Előzmények fülre kerül</li>
       </ul>
+
+      <p><strong>📋 Előzmények:</strong></p>
+      <ul>
+        <li>Listázza az összes mentett hónap prémium összesítőjét: hónap neve · összesített prémium · mentő neve · dátum · dolgozók száma</li>
+        <li><strong>Betölt</strong> gomb: visszatölti az adott hónap eredményét a Számítás nézetre</li>
+        <li><strong>✕</strong> gomb: törli a mentett előzményt</li>
+      </ul>
+
       ${isMainAdmin() || hasPerm('premiumKezeles') ? `
-      <div class="help-tip">Admin → Prémium konfig fülön anyagonként beállítható az alapteljesítmény (kg/nap), a prémium aránya (%) és az eladási ár. Csak azok az anyagok kapnak prémiumot, amelyeknél ki van töltve a konfiguráció.</div>
+      <div class="help-tip">Admin → Prémium konfig fülön anyagonként beállítható az alap (kg/nap), a prémium aránya (%) és az eladási ár (Ft/kg). Csak konfigurált anyagok kapnak prémiumot.</div>
       ` : ''}
     `
   },
+
+  /* ── Közlemény ──────────────────────────────────────── */
   {
     id: 'kozlemeny', icon: '📢', title: 'Közlemények',
     perm: () => isMainAdmin() || hasPerm('kozlemenyIras'),
     content: () => `
-      <p>Az <strong>Admin → Közlemény</strong> fülön közzétehetsz üzeneteket az Áttekintés oldalra.</p>
+      <p>Az <strong>Admin → Közlemény</strong> fülön közzétehetsz üzeneteket, amelyek az Áttekintés oldalon jelennek meg kártyaként.</p>
       <ul>
-        <li><strong>7 típus</strong>: Tájékoztatás ℹ️ · Figyelmeztetés ⚠️ · Jó hír ✅ · Sürgős 🔴 · Esemény 📅 · Karbantartás 🔧 · Hír 🎉</li>
-        <li><strong>Láthatóság</strong>: Mindenki / Csak adminok / Adott részleg</li>
-        <li><strong>Lejárat</strong>: opcionálisan megadható dátum, ami után a közlemény automatikusan eltűnik</li>
-        <li>A felhasználók az ✕ gombbal bezárhatják az üzenetet — az adminnak látszik hányan olvasták el (👁 N)</li>
+        <li><strong>7 típus</strong>: ℹ️ Tájékoztatás · ⚠️ Figyelmeztetés · ✅ Jó hír · 🔴 Sürgős · 📅 Esemény · 🔧 Karbantartás · 🎉 Hír — minden típus más színű bal oldali sávval jelenik meg</li>
+        <li><strong>Láthatóság</strong>: Mindenki / Csak adminok / Adott részleg (részleg lista alapján)</li>
+        <li><strong>Lejárat</strong>: opcionálisan megadható dátum — a lejárt közlemények automatikusan eltűnnek a felhasználóknál</li>
+        <li>A felhasználók az <strong>✕ gombbal</strong> bezárhatják az üzenetet; a bezárás eszközönként mentődik (localStorage + Firestore)</li>
+        <li>Az admin látja hányan olvasták el (<strong>👁 N elolvasva</strong>) és mikor járt le</li>
+        <li>Törlés: a lista jobb szélén lévő ✕ gombbal törölhető bármely közlemény</li>
       </ul>
     `
   },
+
+  /* ── Admin ──────────────────────────────────────────── */
   {
     id: 'admin', icon: '⚙️', title: 'Admin funkciók',
-    perm: () => isMainAdmin() || hasPerm('felhasznalokKezelese'),
+    perm: () => isMainAdmin() || hasPerm('felhasznalokKezelese') || hasPerm('kozlemenyIras'),
     content: () => `
-      <p>Az <strong>Admin</strong> lapon az alábbi funkciók érhetők el:</p>
+      <p>Az <strong>Admin</strong> lapon az alábbi funkciók érhetők el (jogosultságtól függően):</p>
+
+      ${isMainAdmin() ? `
+      <p><strong>👥 Felhasználók:</strong></p>
       <ul>
-        ${isMainAdmin() ? '<li><strong>👥 Felhasználók</strong> — fióklistázás, szerepkörök hozzárendelése, fiókok törlése</li>' : ''}
-        ${isMainAdmin() ? '<li><strong>🎭 Szerepkörök</strong> — 13 jogosultság 4 kategóriában (Termelés / Szervezet / Pénzügyi / Admin). 4 sablon: Dolgozó, Csoportvezető, HR, Könyvelő</li>' : ''}
-        ${isMainAdmin() || hasPerm('felhasznalokKezelese') ? '<li><strong>📋 Listák</strong> — névlista, anyaglista, részleglista szerkesztése; dupla kattintás = szerkesztés</li>' : ''}
-        ${isMainAdmin() ? '<li><strong>📋 Audit log</strong> — a rendszerben végrehajtott módosítások időrendben (utolsó 200 esemény)</li>' : ''}
-        ${isMainAdmin() ? '<li><strong>💾 Adatok</strong> — bejegyzések mentése JSON fájlba és visszatöltése. <em>Minden bejegyzés törlése visszafordíthatatlan!</em></li>' : ''}
+        <li>Listázza az összes regisztrált fiókot: név · e-mail · szerepkör · <strong>utolsó belépés időpontja</strong></li>
+        <li>Szerepkör hozzárendelése a legördülőből (nem főadmin fiókoknál)</li>
+        <li><strong>⏸ Letiltás</strong> — a felhasználó fiókja deaktiválható törlés nélkül. A letiltott felhasználó belépési kísérletnél „Fiók letiltva" üzenetet kap. Visszakapcsolható ▶ Aktivál gombbal</li>
+        <li>Törlés — véglegesen törli a felhasználó dokumentumát (Firebase Auth fiókot nem törli)</li>
       </ul>
+
+      <p><strong>🎭 Szerepkörök:</strong></p>
+      <ul>
+        <li>13 jogosultság 4 kategóriában: Termelés / Szervezet / Pénzügyi / Adminisztráció</li>
+        <li>Minden jogosultság mellett leírás segíti a döntést</li>
+        <li>4 gyors sablon: 👷 Dolgozó · 👨‍💼 Csoportvezető · 📋 HR · 📊 Könyvelő</li>
+        <li>A szerepkör kártyákon color-coded badge-ek mutatják a jogosultságokat</li>
+      </ul>
+      ` : ''}
+
+      ${isMainAdmin() || hasPerm('felhasznalokKezelese') ? `
+      <p><strong>📋 Listák:</strong> Névlista, anyaglista, részleglista szerkesztése. Dupla kattintás = helyszíni szerkesztés. Ctrl+klik = több kijelölés, majd törlés.</p>
+      ` : ''}
+
+      ${isMainAdmin() || hasPerm('kozlemenyIras') ? `
+      <p><strong>📢 Közlemény:</strong> Lásd a Közlemények szekciót.</p>
+      ` : ''}
+
+      ${isMainAdmin() ? `
+      <p><strong>📋 Audit log:</strong></p>
+      <ul>
+        <li>A rendszerben végrehajtott műveletek naplója (utolsó 500 esemény)</li>
+        <li><strong>Szűrők</strong>: típus (10 kategória: bejegyzés, dolgozó, feladat, közlemény, bejelentkezés, szerepkör, prémium, felhasználó, hiányzás, túlóra) · felhasználó · dátum tól–ig</li>
+        <li>Logolt események: bejegyzés/nap törlése, dolgozó CRUD, feladat CRUD, közlemény CRUD, bejelentkezés, szerepkör változás, prémium konfig mentés, felhasználó letiltás/aktiválás</li>
+      </ul>
+
+      <p><strong>💾 Adatok:</strong></p>
+      <ul>
+        <li><strong>⬇ Mentés fájlba</strong> — JSON export (bejegyzések + listák + napi megjegyzések)</li>
+        <li><strong>⬆ Betöltés fájlból</strong> — JSON importálás visszaállításhoz</li>
+        <li><strong>Minden bejegyzés törlése</strong> — visszafordíthatatlan! Confirm párbeszéd véd véletlen törlés ellen</li>
+      </ul>
+      ` : ''}
     `
   }
 ];
@@ -203,7 +377,7 @@ export function initHelp() {
   container.addEventListener('click', e => {
     const hdr = e.target.closest('[data-help-id]');
     if (!hdr) return;
-    const body  = E('helpBody-' + hdr.dataset.helpId);
+    const body   = E('helpBody-' + hdr.dataset.helpId);
     const isOpen = hdr.classList.contains('open');
     hdr.classList.toggle('open', !isOpen);
     body.style.display = isOpen ? 'none' : 'block';
