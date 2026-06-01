@@ -14,6 +14,7 @@ const ALL_WIDGETS = [
   { id: 'nyitottF',     label: 'Nyitott feladatok',          icon: '📌', def: true  },
   { id: 'aktivDolg',    label: 'Aktív dolgozók',            icon: '👷', def: true  },
   { id: 'szulNapok',    label: 'Közelgő születésnapok',     icon: '🎂', def: false },
+  { id: 'jubileum',     label: 'Belépési jubileumok',        icon: '🎖️', def: false },
   { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
 ];
 
@@ -29,6 +30,7 @@ function _canSeeWidget(id) {
   if (id === 'topDolg')   return canSeeAllReports();
   if (id === 'aktivDolg') return _empPerm();
   if (id === 'szulNapok') return _empPerm();
+  if (id === 'jubileum')  return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
   return true;
 }
@@ -254,7 +256,7 @@ async function _loadWidgets() {
   ).join('');
 
   const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir','sajatTelj'].includes(id));
-  const needsEmps    = enabled.some(id => ['aktivDolg','szulNapok'].includes(id)) && _empPerm();
+  const needsEmps    = enabled.some(id => ['aktivDolg','szulNapok','jubileum'].includes(id)) && _empPerm();
   const needsTasks   = enabled.includes('nyitottF');
 
   const today      = tod();
@@ -551,6 +553,41 @@ function _buildWidget(id, ctx, large = false) {
       </div>`;
     }).join('');
     return _card('🎂', 'Közelgő születésnapok', `<span data-count="${upcoming.length}">${upcoming.length}</span>`, `${upcoming.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
+  }
+
+  /* ── Belépési jubileumok ── */
+  if (id === 'jubileum') {
+    if (!empSnap) return _card('🎖️', 'Belépési jubileumok', '—', 'Nincs jogosultság', '', large);
+    const todayD = new Date(today + 'T12:00:00');
+    const [ty]   = today.split('-').map(Number);
+    const jubileumok = empSnap.docs
+      .map(d => d.data())
+      .filter(e => e.belepet && (e.statusz || 'aktiv') !== 'inaktiv')
+      .map(e => {
+        const [by, bm, bd] = e.belepet.split('-').map(Number);
+        let next = new Date(`${ty}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        let years = ty - by;
+        if (next < todayD) { years++; next = new Date(`${ty+1}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`); }
+        const days = Math.round((next - todayD) / 86400000);
+        return { nev: e.nev, years, bm, bd, days };
+      })
+      .filter(e => e.days <= 30 && e.years >= 1)
+      .sort((a, b) => a.days - b.days);
+
+    if (!jubileumok.length)
+      return _card('🎖️', 'Belépési jubileumok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
+
+    const rows = jubileumok.slice(0, large ? 5 : 3).map(e => {
+      const isToday = e.days === 0;
+      const col = isToday ? 'var(--green)' : e.days <= 7 ? 'var(--amber)' : 'var(--text3)';
+      const lbl = isToday ? '🎉 Ma!' : `${e.days} nap`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;">${esc(e.nev)}</span>
+        <span style="font-size:11px;color:var(--text3);">${e.years} év · ${e.bm}. ${e.bd}.</span>
+        <span style="font-size:11px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
+      </div>`;
+    }).join('');
+    return _card('🎖️', 'Belépési jubileumok', `<span data-count="${jubileumok.length}">${jubileumok.length}</span>`, `${jubileumok.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
   }
 
   /* ── Anyag rangsor ── */

@@ -37,7 +37,7 @@ import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmplo
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
          loadTulora, saveTulora, handleTuloraClick,
-         closeEmpDrawer, canEditEmp } from './employees.js';
+         closeEmpDrawer, canEditEmp, setEmpListView } from './employees.js';
 
 let _prevReszleg = '';
 let _prevIdo = '';
@@ -638,6 +638,14 @@ document.addEventListener('DOMContentLoaded', () => {
   E('dolgozoGrid').addEventListener('click',   handleEmpGridClick);
   E('dolgReszlegF').addEventListener('change',  renderEmployeeGrid);
   E('dolgStatuszF').addEventListener('change',  renderEmployeeGrid);
+  E('empViewCard').addEventListener('click', () => { _empListView(false); });
+  E('empViewList').addEventListener('click', () => { _empListView(true); });
+  function _empListView(list) {
+    localStorage.setItem('nj_emp_listview', list ? '1' : '0');
+    // Frissítjük a listView állapotot az employees.js-ben (exportált setter-en keresztül)
+    setEmpListView(list);
+    renderEmployeeGrid();
+  }
   E('dolgNevKeres').addEventListener('input',   renderEmployeeGrid);
   E('dolgRendezes').addEventListener('change',  renderEmployeeGrid);
   E('calQaSaveBtn').addEventListener('click',   saveCalQuickAdd);

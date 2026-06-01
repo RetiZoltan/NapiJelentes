@@ -15,12 +15,14 @@ const SZERZODES = { hatarozatlan:'Határozatlan', hatarozott:'Határozott', megb
 let _employees    = [];
 let _empLoaded    = false;
 let _editingId    = null;
-let _szabadsagMap = {};
+let _szabadsagMap = {};   // { nev: { szabadsag, betegseg, fizetesnelkuli, egyeb } }
 let _lastStatData = null;
 let _kompList     = [];
+let _listView     = localStorage.getItem('nj_emp_listview') === '1';
 
 /* ── Helpers ── */
 export function canEditEmp() { return isMainAdmin() || hasPerm('dolgozokKezeles'); }
+export function setEmpListView(v) { _listView = v; }
 
 function initials(nev) {
   return nev.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
@@ -45,10 +47,18 @@ async function _loadSzabadsagMap() {
     _szabadsagMap = {};
     snap.docs.forEach(d => {
       const a = d.data();
-      if (a.tipus !== 'szabadsag') return;
-      _szabadsagMap[a.dolgozoNev] = (_szabadsagMap[a.dolgozoNev] || 0) + countDays(a.tol, a.ig);
+      const n = a.dolgozoNev;
+      const days = countDays(a.tol, a.ig);
+      if (!_szabadsagMap[n]) _szabadsagMap[n] = { szabadsag:0, betegseg:0, fizetesnelkuli:0, egyeb:0 };
+      const t = a.tipus || 'egyeb';
+      if (t in _szabadsagMap[n]) _szabadsagMap[n][t] += days;
+      else _szabadsagMap[n].egyeb += days;
     });
   } catch { _szabadsagMap = {}; }
+}
+
+function _getAbsStats(nev) {
+  return _szabadsagMap[nev] || { szabadsag:0, betegseg:0, fizetesnelkuli:0, egyeb:0 };
 }
 
 function _updateReszlegSelect(id) {
@@ -127,6 +137,10 @@ export function renderEmployeeGrid() {
     return a.nev.localeCompare(b.nev, 'hu');
   });
 
+  // Lista/kártya nézet toggle szinkronizálása
+  if (E('empViewCard')) E('empViewCard').classList.toggle('active', !_listView);
+  if (E('empViewList')) E('empViewList').classList.toggle('active', _listView);
+
   const grid = E('dolgozoGrid'); if (!grid) return;
   if (!list.length) {
     grid.innerHTML = `<div class="empty-st"><div class="empty-ic">👷</div><div class="empty-title">Nincs megjeleníthető dolgozó</div></div>`;
@@ -140,10 +154,31 @@ export function renderEmployeeGrid() {
   };
   const today = tod();
 
+  if (_listView) {
+    // ── Lista nézet ──
+    grid.innerHTML = '<div class="emp-list">' + list.map(emp => {
+      const st    = STATUSZ[emp.statusz || 'aktiv'] || STATUSZ.aktiv;
+      const abs   = _getAbsStats(emp.nev);
+      const keret = emp.szabadsagKeret ?? 20;
+      const marad = Math.max(0, keret - abs.szabadsag);
+      return `<div class="emp-list-row emp-card-clickable" data-id="${esc(emp.id)}">
+        <div class="emp-avatar-sm" style="background:${avatarColor(emp.nev)};flex-shrink:0;">${initials(emp.nev)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(emp.nev)}</div>
+          <div style="font-size:12px;color:var(--text3);">${esc(emp.reszleg || '—')}${emp.pozicio ? ` · ${esc(emp.pozicio)}` : ''}</div>
+        </div>
+        <span class="emp-status ${st.cls}" style="flex-shrink:0;">${st.label}</span>
+        <span style="font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0;">🌴 ${abs.szabadsag}/${keret} nap</span>
+      </div>`;
+    }).join('') + '</div>';
+    return;
+  }
+
   grid.innerHTML = '<div class="emp-grid">' + list.map(emp => {
     const st    = STATUSZ[emp.statusz || 'aktiv'] || STATUSZ.aktiv;
+    const abs   = _getAbsStats(emp.nev);
     const keret = emp.szabadsagKeret ?? 20;
-    const felh  = _szabadsagMap[emp.nev] || 0;
+    const felh  = abs.szabadsag;
     const marad = Math.max(0, keret - felh);
     const komps = (emp.kompetenciak || []).slice(0, 3);
     const moreK = (emp.kompetenciak || []).length > 3
@@ -256,7 +291,7 @@ export function openEmpDrawer(emp) {
   };
   const st    = STATUSZ[emp.statusz || 'aktiv'] || STATUSZ.aktiv;
   const keret = emp.szabadsagKeret ?? 20;
-  const felh  = _szabadsagMap[emp.nev] || 0;
+  const felh  = _getAbsStats(emp.nev).szabadsag;
   const marad = Math.max(0, keret - felh);
   const today = tod();
   E('empDrawerAvatar').textContent      = initials(emp.nev);
@@ -276,12 +311,19 @@ export function openEmpDrawer(emp) {
   ].filter(Boolean);
   if (rows.length) body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Alapadatok</div>${rows.join('')}</div>`;
 
-  body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Szabadság — ${new Date().getFullYear()}</div>
-    <div class="nossz">
-      <div class="nossz-item"><div class="nossz-val">${felh}</div><div class="nossz-lbl">Felhasznált</div></div>
-      <div class="nossz-item"><div class="nossz-val">${keret}</div><div class="nossz-lbl">Keret</div></div>
+  // ── Teljes hiányzás összefoglaló ──
+  const absAll  = _getAbsStats(emp.nev);
+  const evTot   = absAll.szabadsag + absAll.betegseg + absAll.fizetesnelkuli + absAll.egyeb;
+  body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Hiányzások — ${new Date().getFullYear()}</div>
+    <div class="nossz" style="margin-bottom:10px;">
+      <div class="nossz-item"><div class="nossz-val">${felh}</div><div class="nossz-lbl">🌴 Szab. (${keret}-ból)</div></div>
       <div class="nossz-item${marad < 5 ? ' emp-szab-low' : ''}"><div class="nossz-val">${marad}</div><div class="nossz-lbl">Maradt</div></div>
-    </div></div>`;
+    </div>
+    ${absAll.betegseg > 0 ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">🤒</span><span>Betegszabadság: <strong>${absAll.betegseg} nap</strong></span></div>` : ''}
+    ${absAll.fizetesnelkuli > 0 ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">📋</span><span>Fizetés nélküli: <strong>${absAll.fizetesnelkuli} nap</strong></span></div>` : ''}
+    ${absAll.egyeb > 0 ? `<div class="emp-drawer-row"><span class="emp-drawer-row-icon">❓</span><span>Egyéb: <strong>${absAll.egyeb} nap</strong></span></div>` : ''}
+    ${evTot > 0 ? `<div style="font-size:11.5px;color:var(--text3);margin-top:6px;">Összes hiányzás idén: <strong style="color:var(--text2);">${evTot} nap</strong></div>` : ''}
+  </div>`;
 
   if ((emp.kompetenciak || []).length) {
     body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Kompetenciák</div>
@@ -292,6 +334,33 @@ export function openEmpDrawer(emp) {
     body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Megjegyzés</div>
       <div style="font-size:13.5px;color:var(--text2);font-style:italic;line-height:1.6;">${esc(emp.megjegyzes)}</div></div>`;
   }
+
+  // ── Képzési napló ──
+  const kepzesek = emp.kepzesek || [];
+  let kepBody = kepzesek.length
+    ? [...kepzesek].sort((a,b)=>b.datum.localeCompare(a.datum)).map(k => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+          <span style="flex-shrink:0;font-size:11.5px;color:var(--text3);white-space:nowrap;">${esc(k.datum)}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${esc(k.nev)}</div>
+            ${k.megjegyzes ? `<div style="font-size:12px;color:var(--text3);">${esc(k.megjegyzes)}</div>` : ''}
+          </div>
+          ${canEditEmp() ? `<button class="btn btn-danger btn-xs kepzes-del-btn" data-kid="${esc(k.id)}" style="flex-shrink:0;">✕</button>` : ''}
+        </div>`).join('')
+    : `<div style="font-size:12.5px;color:var(--text3);padding:4px 0;">Nincs rögzített képzés.</div>`;
+  if (canEditEmp()) {
+    kepBody += `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+        <input type="text" id="kepzesNev" placeholder="Képzés neve…" style="flex:2;min-width:100px;font-size:12.5px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--rsm);background:var(--surf2);color:var(--text);font-family:inherit;">
+        <input type="date" id="kepzesDatum" style="flex:1;min-width:90px;font-size:12.5px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--rsm);background:var(--surf2);color:var(--text);font-family:inherit;">
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="kepzesMegj" placeholder="Megjegyzés (opcionális)…" style="flex:1;font-size:12.5px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--rsm);background:var(--surf2);color:var(--text);font-family:inherit;">
+        <button class="btn btn-primary btn-xs kepzes-add-btn" data-empid="${emp.id}">＋</button>
+      </div>
+    </div>`;
+  }
+  body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Képzési napló</div>${kepBody}</div>`;
 
   const isInaktiv = (emp.statusz || 'aktiv') === 'inaktiv';
   body += `<div class="emp-drawer-actions">
@@ -320,6 +389,44 @@ export function openEmpDrawer(emp) {
   E('empDrawerOverlay').classList.add('open');
   E('empDrawer').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  // Képzési napló gombok
+  E('empDrawerBody').querySelectorAll('.kepzes-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => saveKepzes(btn.dataset.empid, emp));
+  });
+  E('empDrawerBody').querySelectorAll('.kepzes-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteKepzes(btn.dataset.kid, emp));
+  });
+}
+
+async function saveKepzes(empId, emp) {
+  const nev  = E('kepzesNev')?.value.trim();
+  const datum= E('kepzesDatum')?.value;
+  const megj = E('kepzesMegj')?.value.trim() || '';
+  if (!nev)  { msg('Add meg a képzés nevét!', 'error'); return; }
+  if (!datum){ msg('Add meg a dátumot!', 'error'); return; }
+  const id = `${Date.now()}`;
+  const newK = { id, nev, datum, megjegyzes: megj };
+  const updated = [...(emp.kepzesek||[]), newK];
+  try {
+    await updateDoc(doc(db, 'employees', empId), { kepzesek: updated });
+    emp.kepzesek = updated;
+    msg('Képzés hozzáadva.');
+    closeEmpDrawer();
+    openEmpDrawer(emp);
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+}
+
+async function deleteKepzes(kid, emp) {
+  if (!confirm('Törlöd ezt a képzést?')) return;
+  const updated = (emp.kepzesek||[]).filter(k => k.id !== kid);
+  try {
+    await updateDoc(doc(db, 'employees', emp.id), { kepzesek: updated });
+    emp.kepzesek = updated;
+    msg('Képzés törölve.');
+    closeEmpDrawer();
+    openEmpDrawer(emp);
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
 
 export function closeEmpDrawer() {
@@ -767,6 +874,29 @@ export async function loadStatisztika() {
       h += '</div>';
     }
 
+    // ── Túlóra összesítő ──
+    try {
+      const tuSnap = await getDocs(query(collection(db, 'overtimes'),
+        where('datum','>=',`${evF}-01-01`), where('datum','<=',`${evF}-12-31`), orderBy('datum')));
+      const tuls = tuSnap.docs.map(d => d.data());
+      if (tuls.length) {
+        const tuByW = {};
+        tuls.forEach(t => { tuByW[t.dolgozoNev] = (tuByW[t.dolgozoNev]||0) + (t.oraSzam||0); });
+        const tuSorted = Object.entries(tuByW).sort((a,b)=>b[1]-a[1]);
+        const tuTotal  = tuls.reduce((s,t)=>s+(t.oraSzam||0),0);
+        h += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin:20px 0 10px;">⏰ Túlóra összesítő</div>
+          <div class="nossz" style="margin-bottom:14px;">
+            <div class="nossz-item"><div class="nossz-val">${tuTotal.toFixed(1)}</div><div class="nossz-lbl">Összes óra</div></div>
+            <div class="nossz-item"><div class="nossz-val">${tuSorted.length}</div><div class="nossz-lbl">Dolgozó</div></div>
+          </div>
+          <div style="overflow-x:auto;"><table class="stat-table">
+            <thead><tr><th>Dolgozó</th><th style="text-align:right;">Túlóra (óra)</th></tr></thead><tbody>`;
+        tuSorted.forEach(([nev,ora]) => { h+=`<tr><td style="font-weight:600;">${esc(nev)}</td><td style="text-align:right;font-weight:700;">${ora.toFixed(1)} h</td></tr>`; });
+        h += `</tbody></table></div>`;
+      }
+    } catch {}
+
+    _lastStatData = { ev: evF, sorted, tuleraSorted: undefined };
     E('statDiv').innerHTML = h;
   } catch (e) { msg('Hiba: '+e.message,'error'); E('statDiv').innerHTML = ''; }
 }
