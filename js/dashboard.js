@@ -135,7 +135,7 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
 
   /* ── ⚖️ Mai össztermelés ── */
   if (wid === 'maiOssz') {
-    if (!todayEntries.length) return '';
+    if (!todayEntries.length) return `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs mai adat</div><div class="empty-sub">Még nem lett rögzítve termelési adat a mai napra. Menj az Adatbevitel fülre és rögzítsd az adatokat.</div></div>`;
     const byW = {}, byM = {}, byS = { Délelőtt:0, Délután:0 };
     todayEntries.forEach(e => {
       const kg = kgOf(e);
@@ -292,9 +292,9 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
   /* ── 👤 Saját teljesítmény ── */
   if (wid === 'sajatTelj') {
     const selected = ctx.sajatDolgozo || '';
-    if (!selected) return '<div class="empty-st"><div class="empty-ic">👤</div><div class="empty-title">Válassz dolgozót a widgetben</div></div>';
+    if (!selected) return `<div class="empty-st"><div class="empty-ic">👤</div><div class="empty-title">Nincs kiválasztott dolgozó</div><div class="empty-sub">A widgetben lévő legördülőből válassz dolgozót, majd kattints újra a widgetre.</div></div>`;
     const e14 = (extra.entries14||[]).filter(e=>e.nev===selected);
-    if (!e14.length) return '<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat az elmúlt 14 napban</div></div>';
+    if (!e14.length) return `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat az elmúlt 14 napban</div><div class="empty-sub">${esc(selected)} nevű dolgozónak nincs termelési bejegyzése az elmúlt 14 napban.</div></div>`;
 
     // 14 napos chart
     const byDay14={};
