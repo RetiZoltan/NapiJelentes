@@ -694,7 +694,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!fc) return;
     E('bsTitle').textContent = title;
     E('bsContent').innerHTML = '';
-    E('bsContent').appendChild(fc.cloneNode(true));
+    const clone = fc.cloneNode(true);
+    // A js-filter-card osztály display:none!important-ot kap mobilon –
+    // a klónból el kell távolítani, hogy látható legyen a bottom sheet-ben
+    clone.classList.remove('js-filter-card');
+    clone.style.display = '';
+    E('bsContent').appendChild(clone);
     // Szinkronizálja az értékeket az eredeti elemekkel
     E('bsContent').querySelectorAll('[id]').forEach(el => {
       const orig = document.getElementById(el.id);
