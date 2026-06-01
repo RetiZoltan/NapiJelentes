@@ -9,8 +9,9 @@ const ALL_WIDGETS = [
   { id: 'hetiGrafikon', label: 'Heti grafikon',             icon: '📉', def: true  },
   { id: 'hetiTrend',    label: 'Heti trend',                icon: '📈', def: false },
   { id: 'anyagRangsor', label: 'Anyag rangsor',             icon: '📦', def: true  },
-  { id: 'topDolg',      label: 'Havi legjobb',              icon: '🏅', def: false },
-  { id: 'nyitottF',     label: 'Nyitott feladatok',         icon: '📌', def: true  },
+  { id: 'sajatTelj',    label: 'Saját teljesítmény',         icon: '👤', def: false },
+  { id: 'topDolg',      label: 'Havi legjobb (top 3)',       icon: '🏅', def: false },
+  { id: 'nyitottF',     label: 'Nyitott feladatok',          icon: '📌', def: true  },
   { id: 'aktivDolg',    label: 'Aktív dolgozók',            icon: '👷', def: true  },
   { id: 'szulNapok',    label: 'Közelgő születésnapok',     icon: '🎂', def: false },
   { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
@@ -24,6 +25,7 @@ function _empPerm()       { return isMainAdmin() || hasPerm('dolgozokMegtekintes
 function _canSeeWidget(id) {
   const canReadEntries = isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
   if (['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','utobbiBeir'].includes(id)) return canReadEntries;
+  if (id === 'sajatTelj') return isMainAdmin() || hasPerm('adatbevitel') || hasPerm('sajatJelentes') || hasPerm('mindenJelentes');
   if (id === 'topDolg')   return canSeeAllReports();
   if (id === 'aktivDolg') return _empPerm();
   if (id === 'szulNapok') return _empPerm();
@@ -238,7 +240,7 @@ async function _loadWidgets() {
     `<div class="sk-card"><div class="sk sk-title"></div><div class="sk sk-h w70"></div><div class="sk sk-h w50" style="margin-top:8px;"></div></div>`
   ).join('');
 
-  const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir'].includes(id));
+  const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir','sajatTelj'].includes(id));
   const needsEmps    = enabled.some(id => ['aktivDolg','szulNapok'].includes(id)) && _empPerm();
   const needsTasks   = enabled.includes('nyitottF');
 
@@ -263,6 +265,7 @@ async function _loadWidgets() {
     thisWeekEntries: entries.filter(e => e.datum >= weekStart),
     prevWeekEntries: entries.filter(e => e.datum >= prevWeekS && e.datum < weekStart),
     monthEntries:    entries.filter(e => e.datum >= monthStart),
+    myUid: state.appUser?.uid,   // személyes szűréshez
     empSnap, tasksSnap, sumKg, kgOf,
   };
 
@@ -365,9 +368,44 @@ function _buildWidget(id, ctx, large = false) {
   if (id === 'topDolg') {
     const byW = {};
     monthEntries.forEach(e => { byW[e.nev] = (byW[e.nev] || 0) + kgOf(e); });
-    const top = Object.entries(byW).sort((a, b) => b[1] - a[1])[0];
-    const val = top ? `<span style="font-size:18px;font-family:'Source Sans 3',sans-serif;">${esc(top[0])}</span>` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
-    return _card('🏅', 'Havi legjobb', val, top ? `${(top[1]/1000).toFixed(2)} t ebben a hónapban` : 'Még nincs adat', '', large);
+    const rank = Object.entries(byW).sort((a, b) => b[1] - a[1]).slice(0, large ? 5 : 3);
+    if (!rank.length) return _card('🏅', 'Havi legjobb', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    const medals = ['🥇','🥈','🥉','4.','5.'];
+    const rows = rank.map(([nev, kg], i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:${i===0?'17':'14'}px;flex-shrink:0;width:22px;">${medals[i]}</span>
+        <span style="font-size:${i===0?'13.5':'12.5'}px;font-weight:${i===0?700:600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(nev)}</span>
+        <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i===0?600:400};">${(kg/1000).toFixed(2)} t</span>
+      </div>`).join('');
+    return _card('🏅', 'Havi legjobb', '', `Top ${rank.length} · ebben a hónapban`, `<div style="margin-top:6px;">${rows}</div>`, large);
+  }
+
+  if (id === 'sajatTelj') {
+    const uid      = ctx.myUid;
+    const myToday  = todayEntries.filter(e => e.createdBy === uid);
+    const myWeek   = thisWeekEntries.filter(e => e.createdBy === uid);
+    const myMonth  = monthEntries.filter(e => e.createdBy === uid);
+    const todayKg  = sumKg(myToday);
+    const weekKg   = sumKg(myWeek);
+    const monthKg  = sumKg(myMonth);
+    const monthDays = [...new Set(myMonth.map(e => e.datum))].length;
+    const monthAvg  = monthDays > 0 ? monthKg / monthDays : 0;
+    const diff      = monthAvg > 0 && todayKg > 0 ? (todayKg - monthAvg) / monthAvg * 100 : null;
+    const val  = todayKg > 0
+      ? `<span data-count="${(todayKg/1000).toFixed(2)}">${(todayKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
+      : `<span style="color:var(--text3);font-size:20px;">—</span>`;
+    const sub  = todayKg > 0 ? `${todayKg.toFixed(0)} kg ma` : 'Még nincs mai adat';
+    const extra = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
+      <div style="background:var(--surf2);border-radius:var(--rsm);padding:7px 10px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Ezen a héten</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${weekKg > 0 ? (weekKg/1000).toFixed(2) + ' t' : '—'}</div>
+      </div>
+      <div style="background:var(--surf2);border-radius:var(--rsm);padding:7px 10px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Havi átlag/nap</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${monthAvg > 0 ? (monthAvg/1000).toFixed(2) + ' t' : '—'}</div>
+      </div>
+    </div>`;
+    return _card('👤', 'Saját teljesítmény', val, sub, extra, large);
   }
 
   if (id === 'nyitottF') {
