@@ -682,6 +682,47 @@ function _updateGreetingCtx(ctx) {
   el.style.display = txt ? '' : 'none';
 }
 
+/* ── SVG vonaldiagram ── */
+function _svgLineChart(perDay) {
+  // Belső rendezés: legrégebbi bal, legújabb jobb
+  const days = [...perDay].sort((a,b) => a.datum.localeCompare(b.datum));
+  if (days.length < 2) return '';
+  const vals = days.map(d => d.kg);
+  const maxV = Math.max(...vals, 1);
+  const W = 600, H = 130, PL = 42, PR = 10, PT = 12, PB = 22;
+  const cW = W-PL-PR, cH = H-PT-PB, n = days.length;
+  const xP = i => PL + (i / Math.max(n-1,1)) * cW;
+  const yP = v => PT + cH - (v / maxV) * cH;
+
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
+    const y = PT + cH - p*cH;
+    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="${PL-4}" y="${y+3.5}" font-size="9" text-anchor="end" fill="var(--text3)">${((p*maxV)/1000).toFixed(1)}t</text>`;
+  }).join('');
+
+  const linePts = days.map((d,i) => `${xP(i)} ${yP(d.kg)}`).join(' L ');
+  const areaPath = `M ${xP(0)} ${PT+cH} L ${linePts} L ${xP(n-1)} ${PT+cH} Z`;
+  const dots = n <= 90 ? days.map((d,i) =>
+    `<circle cx="${xP(i)}" cy="${yP(d.kg)}" r="2.5" fill="var(--accent)" opacity=".8"/>`
+  ).join('') : '';
+  const step = Math.max(1, Math.floor(n/5));
+  const xLabels = days.filter((_,i) => i%step===0||i===n-1).map((d,_,arr) => {
+    const i = days.indexOf(d);
+    return `<text x="${xP(i)}" y="${H-4}" font-size="9" text-anchor="middle" fill="var(--text3)">${d.datum.slice(5)}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;margin:10px 0 4px;overflow:visible;">
+    <defs><linearGradient id="lcg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--accent)" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity=".01"/>
+    </linearGradient></defs>
+    ${grid}
+    <path d="${areaPath}" fill="url(#lcg)"/>
+    <path d="M ${linePts}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+    ${dots}${xLabels}
+  </svg>`;
+}
+
 /* ── Számláló animáció ── */
 function _countUp(el, to, decimals, duration = 650) {
   const start = performance.now();
