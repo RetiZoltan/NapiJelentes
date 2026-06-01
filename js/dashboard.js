@@ -616,6 +616,8 @@ async function _loadWidgets() {
   // Nyíl gombok injektálása minden widgetbe
   const wNodes = [...grid.querySelectorAll('.dash-widget')];
   wNodes.forEach((w, i) => {
+    // Staggered fade-in delay
+    w.style.setProperty('--wi-delay', `${i * 0.07}s`);
     const hdr = w.querySelector('.dash-w-hdr'); if (!hdr) return;
     const mv  = document.createElement('div');
     mv.className = 'dash-w-move';
@@ -776,7 +778,11 @@ function _buildWidget(id, ctx, large = false) {
     const monthAvg   = activeDays.length > 1 ? sumKg(monthEntries) / activeDays.length : null;
     const diff = monthAvg && monthAvg > 0 ? (kg - monthAvg) / monthAvg * 100 : null;
     const t = kg / 1000;
-    const val  = kg > 0 ? `<span data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t ${_trendBadge(diff)}` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
+    // Kontextus-alapú értékszín
+    const vcls = (diff !== null && kg > 0) ? (diff > 5 ? 'val-good' : diff < -5 ? 'val-warn' : 'val-ok') : 'val-ok';
+    const val  = kg > 0
+      ? `<span class="${vcls}" data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t ${_trendBadge(diff)}`
+      : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', '', large);
   }
 
@@ -792,7 +798,10 @@ function _buildWidget(id, ctx, large = false) {
     const thisKg = sumKg(thisWeekEntries);
     const prevKg = sumKg(prevWeekEntries);
     const diff   = prevKg > 0 ? (thisKg - prevKg) / prevKg * 100 : null;
-    const val    = thisKg > 0 ? `${(thisKg/1000).toFixed(2)} t ${_trendBadge(diff)}` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
+    const vcls   = (diff !== null && thisKg > 0) ? (diff > 3 ? 'val-good' : diff < -3 ? 'val-warn' : 'val-ok') : 'val-ok';
+    const val    = thisKg > 0
+      ? `<span class="${vcls}">${(thisKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
+      : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     return _card('📈', 'Heti trend', val, prevKg > 0 ? `Előző hét: ${(prevKg/1000).toFixed(2)} t` : 'Hét összesítő', '', large);
   }
 
@@ -801,10 +810,18 @@ function _buildWidget(id, ctx, large = false) {
     monthEntries.forEach(e => { byW[e.nev] = (byW[e.nev] || 0) + kgOf(e); });
     const rank = Object.entries(byW).sort((a, b) => b[1] - a[1]).slice(0, large ? 5 : 3);
     if (!rank.length) return _card('🏅', 'Havi legjobb', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
-    const medals = ['🥇','🥈','🥉','4.','5.'];
+    // Stilizált medál badge-ek
+    const medalGrad = [
+      'linear-gradient(135deg,#FFD700,#E6A000)',
+      'linear-gradient(135deg,#C8C8C8,#909090)',
+      'linear-gradient(135deg,#CD853F,#8B4513)',
+    ];
+    const medalBadge = (i) => i < 3
+      ? `<span style="background:${medalGrad[i]};color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.25);">${i+1}</span>`
+      : `<span style="color:var(--text3);width:22px;text-align:center;display:inline-block;flex-shrink:0;font-size:12px;">${i+1}.</span>`;
     const rows = rank.map(([nev, kg], i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:${i===0?'17':'14'}px;flex-shrink:0;width:22px;">${medals[i]}</span>
+        ${medalBadge(i)}
         <span style="font-size:${i===0?'13.5':'12.5'}px;font-weight:${i===0?700:600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(nev)}</span>
         <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i===0?600:400};">${(kg/1000).toFixed(2)} t</span>
       </div>`).join('');

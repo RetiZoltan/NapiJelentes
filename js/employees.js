@@ -184,7 +184,8 @@ export function renderEmployeeGrid() {
     const moreK = (emp.kompetenciak || []).length > 3
       ? `<span class="komp-chip komp-chip-sm" style="opacity:.5;">+${emp.kompetenciak.length - 3}</span>` : '';
 
-    return `<div class="emp-card emp-card-clickable" data-id="${esc(emp.id)}">
+    const borderC = { aktiv:'emp-border-aktiv', inaktiv:'emp-border-inaktiv', szabadsag:'emp-border-szabadsag' }[emp.statusz||'aktiv'] || 'emp-border-aktiv';
+    return `<div class="emp-card emp-card-clickable ${borderC}" data-id="${esc(emp.id)}">
       <div style="display:flex;gap:12px;align-items:flex-start;">
         <div class="emp-avatar-sm" style="background:${avatarColor(emp.nev)};flex-shrink:0;">${initials(emp.nev)}</div>
         <div style="flex:1;min-width:0;">

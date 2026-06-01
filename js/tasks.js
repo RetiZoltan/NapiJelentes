@@ -100,7 +100,7 @@ function _renderList(list, statuszF) {
     const nextSt  = STATUS_NEXT[t.statusz];
     const assignee = _userName(t.assignedTo);
 
-    return `<div class="task-card${kesz ? ' task-done' : ''}${fontos && !kesz ? ' task-fontos' : ''}" data-taskid="${t.id}" style="cursor:pointer;">
+    return `<div class="task-card${kesz ? ' task-done' : ''}${fontos && !kesz ? ' task-fontos' : ''}${lejart ? ' task-overdue-bg' : ''}" data-taskid="${t.id}" style="cursor:pointer;">
       <div class="task-prio-dot ${fontos ? 'task-prio-fontos' : 'task-prio-normal'}"></div>
       <div style="flex:1;min-width:0;">
         <div class="task-cim${kesz ? ' task-cim-done' : ''}">${esc(t.cim)}</div>

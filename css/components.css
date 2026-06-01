@@ -76,7 +76,7 @@
 .field:last-child{margin-bottom:0;}
 .lbl{display:block;font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
 input[type="text"],input[type="number"],input[type="date"],input[type="month"],input[type="email"],input[type="password"],input[type="tel"],input[type="search"],input[list],select,textarea{width:100%;background:var(--surf2);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-family:'Source Sans 3',sans-serif;font-size:14px;padding:8px 11px;outline:none;transition:border-color var(--tr),box-shadow var(--tr),background var(--tr);-webkit-appearance:none;appearance:none;}
-input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--agl);background:var(--surf);}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:-3px 0 0 var(--accent),0 0 0 2px var(--agl);background:var(--surf);}
 textarea{resize:none;overflow:hidden;min-height:68px;line-height:1.55;}
 input[type="search"]::-webkit-search-decoration,
 input[type="search"]::-webkit-search-cancel-button{-webkit-appearance:none;}
@@ -696,6 +696,53 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dash-cfg-lbl:hover { border-color:var(--accent); color:var(--accent); }
 .dash-cfg-lbl input { accent-color:var(--accent); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
 .dash-last-update { font-size:11px; color:var(--text3); text-align:right; margin-top:8px; font-style:italic; grid-column:1/-1; }
+
+/* ══════════════════════════════════════
+   VIZUÁLIS TUNING
+══════════════════════════════════════ */
+
+/* Widget staggered fade-in */
+@keyframes dashIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.dash-widget { animation: dashIn .28s ease both; animation-delay: var(--wi-delay,0s); }
+
+/* Classic mód: kártya tetején accent sáv */
+html:not([data-layout]) .card {
+  border-top: 2px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
+/* Card hover lift – interaktív elemek */
+.emp-card-clickable {
+  transition: box-shadow var(--tr), transform var(--tr) !important;
+}
+.emp-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(15,23,42,.13) !important;
+}
+.task-card {
+  transition: box-shadow var(--tr), transform var(--tr), background var(--tr) !important;
+}
+.task-card:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(15,23,42,.11); }
+.kanban-task:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(15,23,42,.12); }
+.notice-card { transition:box-shadow var(--tr),transform var(--tr); }
+.notice-card:hover { transform:translateY(-1px); box-shadow:var(--sh2); }
+
+/* Drawer simább átmenet */
+.emp-drawer,#taskDrawer,#widgetDrawer {
+  transition: transform .28s cubic-bezier(.4,0,.2,1) !important;
+}
+
+/* Employee kártya státusz-alapú left border */
+.emp-border-aktiv    { border-left:3px solid var(--green)   !important; }
+.emp-border-inaktiv  { border-left:3px solid var(--border2) !important; }
+.emp-border-szabadsag{ border-left:3px solid var(--amber)   !important; }
+
+/* Lejárt feladat halvány piros háttér */
+.task-overdue-bg { background:color-mix(in srgb,var(--red) 5%,var(--surf)) !important; }
+
+/* Dashboard widget kontextus-alapú értékszín – segédosztályok */
+.val-good { color:var(--green)  !important; }
+.val-warn { color:var(--red)    !important; }
+.val-ok   { color:var(--text)   !important; }
 .dash-widget-large { grid-column:span 2; }
 .dash-widget-clickable { cursor:pointer; transition:box-shadow var(--tr),border-color var(--tr); }
 .dash-widget-clickable:hover { box-shadow:var(--sh2); border-color:var(--border2); }
