@@ -202,6 +202,18 @@ export async function initDashboard() {
     // QA konfig betöltése state.userData-ból (ha van)
     // (a _getEnabledQA() már olvassa, nincs külön init szükséges)
 
+    // Dolgozó-választó a Saját teljesítmény widgetben
+    E('dashWidgets').addEventListener('change', async e => {
+      const sel = e.target.closest('.sajat-dolgozo-sel'); if (!sel) return;
+      const nev = sel.value;
+      if (state.userData) state.userData.dashboardSajatDolgozo = nev;
+      if (state.appUser) {
+        try { await updateDoc(doc(db, 'users', state.appUser.uid), { dashboardSajatDolgozo: nev }); }
+        catch (err) { console.warn('sajatDolgozo save:', err.message); }
+      }
+      await _loadWidgets();
+    });
+
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
       const btn = e.target.closest('.dash-move-btn');
@@ -265,7 +277,8 @@ async function _loadWidgets() {
     thisWeekEntries: entries.filter(e => e.datum >= weekStart),
     prevWeekEntries: entries.filter(e => e.datum >= prevWeekS && e.datum < weekStart),
     monthEntries:    entries.filter(e => e.datum >= monthStart),
-    myUid: state.appUser?.uid,   // személyes szűréshez
+    myUid:        state.appUser?.uid,
+    sajatDolgozo: state.userData?.dashboardSajatDolgozo || '',
     empSnap, tasksSnap, sumKg, kgOf,
   };
 
@@ -381,13 +394,32 @@ function _buildWidget(id, ctx, large = false) {
   }
 
   if (id === 'sajatTelj') {
-    const uid      = ctx.myUid;
-    const myToday  = todayEntries.filter(e => e.createdBy === uid);
-    const myWeek   = thisWeekEntries.filter(e => e.createdBy === uid);
-    const myMonth  = monthEntries.filter(e => e.createdBy === uid);
-    const todayKg  = sumKg(myToday);
-    const weekKg   = sumKg(myWeek);
-    const monthKg  = sumKg(myMonth);
+    // Dolgozó-választó: nev alapú szűrés (nem createdBy)
+    const selected = ctx.sajatDolgozo || '';
+    const workers  = [...new Set([
+      ...(state.nevek || []),
+      ...monthEntries.map(e => e.nev)
+    ])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'hu'));
+
+    const workerSel = `<div style="margin-bottom:10px;">
+      <select class="sajat-dolgozo-sel" style="font-size:12.5px;padding:5px 8px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--surf2);color:var(--text);width:100%;font-family:inherit;cursor:pointer;">
+        <option value="">— Válassz dolgozót —</option>
+        ${workers.map(w => `<option value="${esc(w)}"${w === selected ? ' selected' : ''}>${esc(w)}</option>`).join('')}
+      </select>
+    </div>`;
+
+    if (!selected) {
+      return _card('👤', 'Saját teljesítmény',
+        `<span style="color:var(--text3);font-size:14px;">Válassz dolgozót a megjelenítéshez</span>`,
+        '', workerSel, large);
+    }
+
+    const myToday   = todayEntries.filter(e => e.nev === selected);
+    const myWeek    = thisWeekEntries.filter(e => e.nev === selected);
+    const myMonth   = monthEntries.filter(e => e.nev === selected);
+    const todayKg   = sumKg(myToday);
+    const weekKg    = sumKg(myWeek);
+    const monthKg   = sumKg(myMonth);
     const monthDays = [...new Set(myMonth.map(e => e.datum))].length;
     const monthAvg  = monthDays > 0 ? monthKg / monthDays : 0;
     const diff      = monthAvg > 0 && todayKg > 0 ? (todayKg - monthAvg) / monthAvg * 100 : null;
@@ -395,7 +427,7 @@ function _buildWidget(id, ctx, large = false) {
       ? `<span data-count="${(todayKg/1000).toFixed(2)}">${(todayKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
       : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     const sub  = todayKg > 0 ? `${todayKg.toFixed(0)} kg ma` : 'Még nincs mai adat';
-    const extra = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
+    const extra = workerSel + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
       <div style="background:var(--surf2);border-radius:var(--rsm);padding:7px 10px;">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Ezen a héten</div>
         <div style="font-size:15px;font-weight:700;color:var(--text);">${weekKg > 0 ? (weekKg/1000).toFixed(2) + ' t' : '—'}</div>
