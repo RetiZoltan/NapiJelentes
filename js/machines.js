@@ -57,7 +57,7 @@ function _renderMachines() {
     }
     return `<div class="emp-card emp-card-clickable ${borderCls}" data-gid="${esc(m.id)}">
       <div style="display:flex;gap:12px;align-items:flex-start;">
-        <div class="emp-avatar-sm" style="background:var(--accent);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⚙️</div>
+        <div class="emp-avatar-sm" style="background:var(--accent);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🔧</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
             <div>
