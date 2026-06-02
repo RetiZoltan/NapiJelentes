@@ -2,6 +2,7 @@ import { db, doc, addDoc, updateDoc, deleteDoc,
          collection, query, where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, hasPerm, isMainAdmin } from './state.js';
 import { logAction } from './auditlog.js';
+import { queueOp } from './offlineQueue.js';
 import { E, esc, msg, tod } from './utils.js';
 
 const HIANYZAS = {
@@ -608,13 +609,15 @@ export async function saveAbsence() {
   if (!nev) { msg('Válassz dolgozót!', 'error'); return; }
   if (!tol) { msg('Kezdő dátum kötelező!', 'error'); return; }
   if (ig < tol) { msg('A végdátum nem lehet korábbi a kezdőnél!', 'error'); return; }
+  const absData = { dolgozoNev:nev, tol, ig, tipus:E('absFormTipus').value||'szabadsag', megjegyzes:E('absFormMegj').value.trim() };
+  if (!navigator.onLine) {
+    queueOp('absence.create', absData);
+    msg('Offline — hiányzás sorba rakva, szinkronizálódik visszatéréskor.', 'info', 4000);
+    E('absFormTol').value = E('absFormIg').value = E('absFormMegj').value = '';
+    return;
+  }
   try {
-    await addDoc(collection(db,'absences'), {
-      dolgozoNev:nev, tol, ig,
-      tipus:     E('absFormTipus').value || 'szabadsag',
-      megjegyzes:E('absFormMegj').value.trim(),
-      createdBy: state.appUser.uid, createdAt: serverTimestamp()
-    });
+    await addDoc(collection(db,'absences'), { ...absData, createdBy: state.appUser.uid, createdAt: serverTimestamp() });
     msg('Hiányzás rögzítve.');
     logAction('absence.create', { dolgozoNev: nev, datum: tol });
     E('absFormTol').value = E('absFormIg').value = E('absFormMegj').value = '';

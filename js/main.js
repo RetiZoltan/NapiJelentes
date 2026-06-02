@@ -27,6 +27,9 @@ import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh, closeWidgetDrawer } from './dashboard.js';
 import { initHelp } from './help.js';
 import { logAction } from './auditlog.js';
+import { queueOp, syncOfflineOps, getOfflineOpCount, initOfflineBadge } from './offlineQueue.js';
+import { loadMachines, saveMachine, openGepForm, closeGepForm,
+         closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadMozgasok,
          loadImportFromProduction, executeImport, saveManualisMozgas,
          saveAtmozgatas, onManTipusChange, saveLocation, renderLocations,
@@ -116,6 +119,8 @@ function buildAppUI() {
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'))  ? '' : 'none';
   E('tabBtnKeszlet').style.display     = (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'))  ? '' : 'none';
+  E('tabBtnGepek').style.display       = (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'))      ? '' : 'none';
+  if (E('ujGepWrap')) E('ujGepWrap').style.display = canManageMachines() ? '' : 'none';
   if (E('sztHelyszinBtn')) E('sztHelyszinBtn').style.display = canManageStock() ? '' : 'none';
   E('tabBtnAdmin').style.display       = (isMainAdmin() || canManageUsers() || hasPerm('kozlemenyIras'))                ? '' : 'none';
   E('tabBtnSugo').style.display        = '';
@@ -196,6 +201,7 @@ function switchTab(name, btn) {
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
   if (name === 'keszlet')     initKeszletTab();
+  if (name === 'gepek')       loadMachines();
   if (name === 'dashboard')   { initDashboard(); loadAndDisplayNotice(); }
   if (name === 'sugo')        initHelp();
   if (name === 'elemzes' && !switchTab._elemzesInited) {
@@ -673,7 +679,12 @@ document.addEventListener('DOMContentLoaded', () => {
   E('empDrawerOverlay').addEventListener('click', closeEmpDrawer);
   E('taskDrawerClose').addEventListener('click', closeTaskDrawer);
   E('taskDrawerOverlay').addEventListener('click', closeTaskDrawer);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEmpDrawer(); closeTaskDrawer(); closeWidgetDrawer(); } });
+  E('gepDrawerClose')?.addEventListener('click', closeMachineDrawer);
+  E('gepDrawerOverlay')?.addEventListener('click', closeMachineDrawer);
+  E('ujGepBtn')?.addEventListener('click', () => openGepForm());
+  E('gepSaveBtn')?.addEventListener('click', saveMachine);
+  E('gepCancelBtn')?.addEventListener('click', closeGepForm);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEmpDrawer(); closeTaskDrawer(); closeWidgetDrawer(); closeMachineDrawer(); } });
   E('naptarMutatBtn').addEventListener('click', loadCalendar);
   E('statMutatBtn').addEventListener('click',   loadStatisztika);
   E('statExportBtn').addEventListener('click',  exportCsv);
@@ -688,6 +699,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('online',  _updateOnlineStatus);
   window.addEventListener('offline', _updateOnlineStatus);
   _updateOnlineStatus();
+  // Offline queue szinkron
+  window.addEventListener('online', () => syncOfflineOps());
+  initOfflineBadge();
 
   // ── FAB ──────────────────────────────────────────────
   E('fabBtn').addEventListener('click', () => {

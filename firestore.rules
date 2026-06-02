@@ -158,6 +158,20 @@ service cloud.firestore {
       allow delete: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
     }
 
+    // ── machines (gépek) ──────────────────────────────────────
+    match /machines/{id} {
+      allow read:   if isAuth() && (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'));
+      allow create: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
+      allow delete: if isAuth() && isMainAdmin();
+    }
+    match /machineEvents/{id} {
+      allow read:   if isAuth() && (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'));
+      allow create: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
+      allow delete: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
+      allow update: if false;
+    }
+
     // ── stockLocations (raktárak, helyszínek) ─────────────────
     match /stockLocations/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'));

@@ -147,6 +147,7 @@
     <button class="tab-btn" data-tab="dolgozok" id="tabBtnDolgozok" style="display:none"><span class="tb-i">👷</span><span class="tb-t">Dolgozók</span></button>
     <button class="tab-btn" data-tab="premium" id="tabBtnPremium" style="display:none"><span class="tb-i">💰</span><span class="tb-t">Prémium</span></button>
     <button class="tab-btn" data-tab="keszlet" id="tabBtnKeszlet" style="display:none"><span class="tb-i">📦</span><span class="tb-t">Készlet</span></button>
+    <button class="tab-btn" data-tab="gepek" id="tabBtnGepek" style="display:none"><span class="tb-i">⚙️</span><span class="tb-t">Gépek</span></button>
     <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none"><span class="tb-i">⚙️</span><span class="tb-t">Admin</span></button>
     <button class="tab-btn" data-tab="sugo" id="tabBtnSugo" style="display:none"><span class="tb-i">❓</span><span class="tb-t">Súgó</span></button>
   </nav>
@@ -1029,6 +1030,55 @@
       </div>
     </div>
 
+    <!-- ══ GÉPEK ══ -->
+    <div id="tab-gepek" class="tab-panel">
+      <!-- Offline várakozó műveletek banner -->
+      <div id="offlineBanner2" class="offline-banner" style="display:none;margin-bottom:12px;">
+        <span>📡 Offline műveletek várakoznak szinkronizálásra</span>
+        <span id="offlineCount2" style="font-weight:700;margin-left:8px;"></span>
+      </div>
+      <!-- Form -->
+      <div class="card" id="gepForm" style="display:none;">
+        <div class="card-title"><span class="card-title-icon">📝</span><span id="gepFormTitle">Új gép</span></div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Gép neve *</label><input type="text" id="gepFormNev" placeholder="pl. Darálógép A"></div>
+          <div class="field"><label class="lbl">Típus</label><input type="text" id="gepFormTipus" placeholder="pl. Darálógép, Présgép…"></div>
+        </div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Gyártó</label><input type="text" id="gepFormGyarto" placeholder="Opcionális…"></div>
+          <div class="field"><label class="lbl">Gyártási év</label><input type="number" id="gepFormEv" min="1950" max="2099" placeholder="pl. 2018"></div>
+        </div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Karbantartási ciklus (nap)</label><input type="number" id="gepFormKarb" min="1" placeholder="pl. 90"></div>
+          <div class="field"><label class="lbl">Utolsó karbantartás</label><input type="date" id="gepFormUtolso"></div>
+        </div>
+        <div class="g2">
+          <div class="field"><label class="lbl">Státusz</label>
+            <select id="gepFormStatusz">
+              <option value="uzemel">✅ Üzemel</option>
+              <option value="leallas">🚨 Leállva</option>
+              <option value="karbantartas">🔧 Karbantartás alatt</option>
+            </select>
+          </div>
+          <div class="field"><label class="lbl">Megjegyzés</label><input type="text" id="gepFormMegj" placeholder="Opcionális…"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" id="gepSaveBtn">✓ Mentés</button>
+          <button class="btn btn-ghost btn-sm" id="gepCancelBtn">Mégse</button>
+        </div>
+      </div>
+      <!-- Szűrő + új gomb -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:13px;color:var(--text3);">Gépek, darálók és egyéb berendezések nyilvántartása.</div>
+          <div id="ujGepWrap" style="display:none;">
+            <button class="btn btn-primary btn-sm" id="ujGepBtn">＋ Új gép</button>
+          </div>
+        </div>
+      </div>
+      <div id="gepGrid"><div class="empty-st"><div class="empty-ic">⚙️</div><div class="empty-title">Betöltés…</div></div></div>
+    </div>
+
     <!-- ══ ADMIN ══ -->
     <div id="tab-admin" class="tab-panel">
       <div class="card">
@@ -1090,6 +1140,8 @@
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pFeladatokKezeles"><span class="perm-chk-lbl">Feladatok kezelése</span></span><span class="perm-chk-desc">Feladatok létrehozása, lezárása, törlése</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pKeszletMegtekintes"><span class="perm-chk-lbl">Készlet megtekintés</span></span><span class="perm-chk-desc">Anyagkészlet és mozgások megtekintése</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pKeszletKezeles"><span class="perm-chk-lbl">Készlet kezelése</span></span><span class="perm-chk-desc">Mozgások rögzítése, import, helyszínek</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pGepekMegtekintes"><span class="perm-chk-lbl">Gépek megtekintés</span></span><span class="perm-chk-desc">Gépek és karbantartási napló olvasása</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pGepekKezeles"><span class="perm-chk-lbl">Gépek kezelése</span></span><span class="perm-chk-desc">Gép CRUD, esemény rögzítése</span></label>
               </div>
               <div class="perm-group">
                 <div class="perm-group-hdr">💰 Pénzügyi</div>
@@ -1270,6 +1322,19 @@
     <div id="widgetDrawerTitle" class="emp-drawer-name" style="font-size:15px;padding:0 16px;text-align:center;"></div>
   </div>
   <div id="widgetDrawerBody" class="emp-drawer-body"></div>
+</div>
+
+<!-- ══ GÉP DRAWER ══ -->
+<div id="gepDrawerOverlay" class="emp-drawer-overlay"></div>
+<div id="gepDrawer" class="emp-drawer">
+  <div class="emp-drawer-header">
+    <button id="gepDrawerClose" class="emp-drawer-close">✕</button>
+    <div class="emp-drawer-avatar" style="font-size:22px;background:var(--agl);color:var(--accent);border:1px solid var(--border);">⚙️</div>
+    <div id="gepDrawerName" class="emp-drawer-name"></div>
+    <div id="gepDrawerTipus" class="emp-drawer-dept"></div>
+    <div id="gepDrawerStatus" style="margin-top:6px;"></div>
+  </div>
+  <div id="gepDrawerBody" class="emp-drawer-body"></div>
 </div>
 
 <!-- ══ FELADAT DRAWER ══ -->

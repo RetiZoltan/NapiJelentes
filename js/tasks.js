@@ -2,6 +2,7 @@ import { db, doc, getDoc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { logAction } from './auditlog.js';
+import { queueOp } from './offlineQueue.js';
 import { E, esc, msg, tod, addD, ag, skelHtml } from './utils.js';
 
 let _viewMode   = 'list';  // 'list' | 'kanban'
@@ -175,18 +176,26 @@ export async function saveTask() {
   }
   const cim = E('feladatCim').value.trim();
   if (!cim) { msg('Add meg a feladat címét!', 'error'); E('feladatCim').focus(); return; }
+  const taskData = {
+    cim,
+    leiras:     E('feladatLeiras').value.trim() || '',
+    prioritas:  E('feladatPrio').value || 'normal',
+    datum:      E('feladatDatum').value || null,
+    reszleg:    E('feladatReszleg').value.trim() || '',
+    assignedTo: E('feladatFelelos')?.value || null,
+    statusz:    'nyitott',
+  };
+  if (!navigator.onLine) {
+    queueOp('task.create', taskData);
+    msg('Offline — feladat sorba rakva, szinkronizálódik visszatéréskor.', 'info', 4000);
+    E('feladatCim').value = E('feladatLeiras').value = E('feladatDatum').value = '';
+    if (E('feladatFelelos')) E('feladatFelelos').value = '';
+    const body = E('ujFeladatBody'), chevron = E('ujFeladatChevron');
+    if (body) body.style.display = 'none'; if (chevron) chevron.style.transform = '';
+    return;
+  }
   try {
-    await addDoc(collection(db, 'tasks'), {
-      cim,
-      leiras:     E('feladatLeiras').value.trim() || '',
-      prioritas:  E('feladatPrio').value || 'normal',
-      datum:      E('feladatDatum').value || null,
-      reszleg:    E('feladatReszleg').value.trim() || '',
-      assignedTo: E('feladatFelelos')?.value || null,
-      statusz:    'nyitott',
-      createdBy:  state.appUser.uid,
-      createdAt:  serverTimestamp()
-    });
+    await addDoc(collection(db, 'tasks'), { ...taskData, createdBy: state.appUser.uid, createdAt: serverTimestamp() });
     msg('Feladat hozzáadva.');
     logAction('task.create', { cim });
     E('feladatCim').value = E('feladatLeiras').value = E('feladatDatum').value = '';
@@ -343,6 +352,11 @@ export async function handleTaskClick(e) {
   const moveBtn = e.target.closest('.task-move-btn');
   if (moveBtn) {
     const { id, next } = moveBtn.dataset;
+    if (!navigator.onLine) {
+      queueOp('task.status', { id, statusz: next });
+      msg('Offline — státusz változás sorba rakva.', 'info', 3000);
+      return;
+    }
     const upd = { statusz: next };
     if (next === 'kesz') { upd.doneBy = state.appUser.uid; upd.doneAt = serverTimestamp(); }
     else { upd.doneBy = null; upd.doneAt = null; }
