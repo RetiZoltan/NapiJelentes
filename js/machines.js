@@ -223,7 +223,7 @@ function _renderDrawerBody(m, events) {
   if (canEdit) {
     body += `<div class="emp-drawer-actions">
       <button class="btn btn-primary btn-sm" id="gepDrawerEditBtn">✎ Szerkeszt</button>
-      <button class="btn btn-danger btn-sm" id="gepDrawerDelBtn" style="margin-left:auto;">🗑 Archivál</button>
+      <button class="btn btn-danger btn-sm" id="gepDrawerDelBtn" style="margin-left:auto;">🗑 Töröl</button>
     </div>`;
   }
 
@@ -233,9 +233,13 @@ function _renderDrawerBody(m, events) {
   E('gepEvSaveBtn')?.addEventListener('click', () => _saveEvent(m.id));
   E('gepDrawerEditBtn')?.addEventListener('click', () => { closeMachineDrawer(); openGepForm(m); });
   E('gepDrawerDelBtn')?.addEventListener('click', async () => {
-    if (!confirm(`Archiválod „${m.nev}" gépet?`)) return;
-    try { await updateDoc(doc(db, 'machines', m.id), { aktiv: false }); msg('Gép archiválva.'); closeMachineDrawer(); loadMachines(); }
-    catch (e) { msg('Hiba: ' + e.message, 'error'); }
+    if (!confirm(`Véglegesen törlöd „${m.nev}" gépet? Ez visszafordíthatatlan.`)) return;
+    try {
+      await deleteDoc(doc(db, 'machines', m.id));
+      msg('Gép törölve.');
+      closeMachineDrawer();
+      loadMachines();
+    } catch (e) { msg('Hiba: ' + e.message, 'error'); }
   });
   E('gepDrawerBody').querySelectorAll('.gep-ev-del').forEach(btn => {
     btn.addEventListener('click', async () => {
