@@ -591,6 +591,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     E('wipSuly').value = '';
   });
+  // Rögzítés utáni automatikus WIP prompt
+  let _wipPending = null;
+  document.addEventListener('entry-megkezdett', e => {
+    _wipPending = e.detail;
+    E('wipPromptAnyag').textContent = e.detail.anyag;
+    E('wipPromptSuly').textContent  = e.detail.suly;
+    E('wipPromptBanner').style.display = 'flex';
+    E('wipPromptBanner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  E('wipPromptIgen').addEventListener('click', async () => {
+    if (_wipPending) {
+      await saveWipTransfer(_wipPending);
+      _wipPending = null;
+      E('wipPromptBanner').style.display = 'none';
+    }
+  });
+  E('wipPromptNem').addEventListener('click', () => {
+    E('wipPromptBanner').style.display = 'none';
+    _wipPending = null;
+  });
+
   E('wipList').addEventListener('click', async e => {
     const rollbackBtn = e.target.closest('.wipRollbackBtn');
     const completeBtn = e.target.closest('.wipCompleteBtn');

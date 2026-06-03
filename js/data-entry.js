@@ -198,6 +198,14 @@ export async function rogzit() {
       } else {
         await addDoc(collection(db, 'entries'), entry);
         msg('Adat rögzítve!');
+        const megkezdettSuly = entry.sulyok
+          .filter(s => s.statusz === 'kezdett')
+          .reduce((acc, s) => acc + s.suly, 0);
+        if (megkezdettSuly > 0) {
+          document.dispatchEvent(new CustomEvent('entry-megkezdett', {
+            detail: { anyag: entry.anyag, reszleg: entry.reszleg, nev: entry.nev, datum: entry.datum, muszak: entry.ido, suly: megkezdettSuly }
+          }));
+        }
       }
       clearF(false);
     } catch (e) { msg('Rögzítési hiba: ' + e.message, 'error'); }
