@@ -1147,6 +1147,7 @@
           <button class="stab-btn" data-stab="premium-cfg" id="stab-premium-cfg-btn">💰 Prémium konfig</button>
           <button class="stab-btn" data-stab="data" id="stab-data-btn">💾 Adatok</button>
           <button class="stab-btn" data-stab="audit" id="stab-audit-btn">📋 Audit log</button>
+          <button class="stab-btn" data-stab="belepes" id="stab-belepes-btn">🔑 Belépési napló</button>
         </div>
 
         <!-- Felhasználók -->
@@ -1292,16 +1293,33 @@
 
         <!-- Adatok (főadmin) -->
         <div id="stab-data" class="stab-panel">
-          <div class="btn-row" style="margin-top:0;align-items:center;margin-bottom:14px;">
-            <button class="btn btn-ghost" id="mentFajlBtn">⬇ Mentés fájlba</button>
-            <input type="file" id="fajlInput" accept=".json" style="display:none">
-            <button class="btn btn-ghost" id="fajlKivBtn">⬆ Betöltés fájlból</button>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title"><span class="card-title-icon">📦</span>Teljes adatexport</div>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Excel fájlba exportálja az összes adatot: bejegyzések, dolgozók, hiányzások, feladatok, gépek, készlet, prémium, túlórák.</p>
+            <button class="btn btn-primary" id="exportAllBtn">⬇ Excel exportálás (összes adat)</button>
+          </div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title"><span class="card-title-icon">💾</span>Bejegyzés backup</div>
+            <div class="btn-row" style="margin-top:4px">
+              <button class="btn btn-ghost" id="mentFajlBtn">⬇ Mentés fájlba (JSON)</button>
+              <input type="file" id="fajlInput" accept=".json" style="display:none">
+              <button class="btn btn-ghost" id="fajlKivBtn">⬆ Betöltés fájlból</button>
+            </div>
           </div>
           <div class="danger-box">
             <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:7px;">⚠ Veszélyzóna</div>
             <p>Ez a művelet visszafordíthatatlanul törli az összes tárolt bejegyzést.</p>
             <button class="btn btn-danger" id="mindTorBtn">Minden bejegyzés törlése</button>
           </div>
+        </div>
+
+        <!-- Belépési napló (főadmin) -->
+        <div id="stab-belepes" class="stab-panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <span id="loginLogCount" style="font-size:13px;color:var(--text3)"></span>
+            <button class="btn btn-ghost btn-sm" id="loginLogRefreshBtn">↺ Frissít</button>
+          </div>
+          <div id="loginLogDiv"></div>
         </div>
 
         <!-- Audit log (főadmin) -->

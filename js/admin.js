@@ -1,5 +1,5 @@
 import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-         collection, query, getDocs, orderBy, serverTimestamp, writeBatch } from './firebase.js';
+         collection, query, getDocs, orderBy, limit, serverTimestamp, writeBatch } from './firebase.js';
 import { logAction, loadAuditLog, renderAuditLog, ACTION_LABELS } from './auditlog.js';
 import { state, isMainAdmin, hasPerm, canManageUsers } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
@@ -378,4 +378,107 @@ export async function mindTorol() {
     await batch.commit();
     msg('Minden bejegyzés törölve.');
   } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
+}
+
+/* ── Belépési napló ── */
+function _parseDevice(ua) {
+  if (!ua) return '—';
+  const mobile = /iPhone|iPad|Android|Mobile/i.test(ua);
+  let os = 'Egyéb';
+  if (/Windows NT 1[01]/i.test(ua))   os = 'Windows 10/11';
+  else if (/Windows/i.test(ua))        os = 'Windows';
+  else if (/Mac OS X/i.test(ua))       os = 'macOS';
+  else if (/Android/i.test(ua))        os = 'Android';
+  else if (/iPhone|iPad/i.test(ua))    os = 'iOS';
+  else if (/Linux/i.test(ua))          os = 'Linux';
+  let browser = '';
+  if (/Edg\//i.test(ua))              browser = 'Edge';
+  else if (/OPR\//i.test(ua))         browser = 'Opera';
+  else if (/Chrome\//i.test(ua))      browser = 'Chrome';
+  else if (/Firefox\//i.test(ua))     browser = 'Firefox';
+  else if (/Safari\//i.test(ua))      browser = 'Safari';
+  return `${mobile ? '📱' : '💻'} ${os}${browser ? ' · ' + browser : ''}`;
+}
+
+export async function loadLoginLog() {
+  const div = E('loginLogDiv'); if (!div) return;
+  div.innerHTML = '<div class="spinner" style="margin:24px auto"></div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'auditLog'), orderBy('ts', 'desc'), limit(1000)));
+    const logins = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => e.action === 'auth.login');
+    const cnt = E('loginLogCount');
+    if (cnt) cnt.textContent = logins.length + ' belépés';
+    if (!logins.length) {
+      div.innerHTML = '<div class="empty-st"><div class="empty-ic">🔐</div><div class="empty-title">Nincs belépési adat</div><div class="empty-sub">Az első bejelentkezéstől kezdve rögzül.</div></div>';
+      return;
+    }
+    div.innerHTML = `<div style="overflow-x:auto"><table class="user-tbl">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 12px">Felhasználó</th>
+        <th style="text-align:left;padding:8px 12px">Dátum / Idő</th>
+        <th style="text-align:left;padding:8px 12px">Eszköz</th>
+      </tr></thead>
+      <tbody>
+        ${logins.map(e => {
+          const time = e.ts?.toDate ? e.ts.toDate().toLocaleString('hu-HU', {
+            year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+          }) : '—';
+          return `<tr>
+            <td style="padding:9px 12px">
+              <div style="font-weight:600;font-size:13.5px">${esc(e.userName || '—')}</div>
+              <div style="font-size:11.5px;color:var(--text3)">${esc(e.detail?.email || '')}</div>
+            </td>
+            <td style="padding:9px 12px;font-size:13px;white-space:nowrap;color:var(--text2)">${time}</td>
+            <td style="padding:9px 12px;font-size:13px;color:var(--text2)">${_parseDevice(e.detail?.ua)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+  } catch (e) { div.innerHTML = `<p style="color:var(--red);padding:12px">Hiba: ${esc(e.message)}</p>`; }
+}
+
+/* ── Teljes adatexport (Excel) ── */
+function _flattenDoc(obj, prefix = '') {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v === null || v === undefined)    out[key] = '';
+    else if (v?.toDate)                   out[key] = v.toDate().toLocaleString('hu-HU');
+    else if (Array.isArray(v))            out[key] = JSON.stringify(v);
+    else if (typeof v === 'object')       Object.assign(out, _flattenDoc(v, key));
+    else                                  out[key] = v;
+  }
+  return out;
+}
+
+export async function exportAllDataExcel() {
+  const XLSX = window.XLSX;
+  if (!XLSX) { msg('XLSX könyvtár nem elérhető!', 'error'); return; }
+  try {
+    msg('Export folyamatban…', 'info', 20000);
+    const wb = XLSX.utils.book_new();
+    const SHEETS = [
+      { col: 'entries',        name: 'Bejegyzések' },
+      { col: 'employees',      name: 'Dolgozók' },
+      { col: 'absences',       name: 'Hiányzások' },
+      { col: 'tasks',          name: 'Feladatok' },
+      { col: 'machines',       name: 'Gépek' },
+      { col: 'machineEvents',  name: 'Gép események' },
+      { col: 'stockLocations', name: 'Raktárhelyek' },
+      { col: 'stockMovements', name: 'Készlet mozgások' },
+      { col: 'premiumHistory', name: 'Prémium előzmények' },
+      { col: 'overtimes',      name: 'Túlórák' },
+      { col: 'megkezdettZsakok', name: 'WIP zsákok' },
+    ];
+    for (const { col, name } of SHEETS) {
+      try {
+        const snap = await getDocs(collection(db, col));
+        const rows = snap.docs.map(d => _flattenDoc({ id: d.id, ...d.data() }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ info: 'Nincs adat' }]), name);
+      } catch { /* gyűjtemény kihagyva hiba esetén */ }
+    }
+    const fn = `plexiq_export_${tod()}.xlsx`;
+    XLSX.writeFile(wb, fn);
+    msg(`Export kész: ${fn}`, 'success', 6000);
+  } catch (e) { msg('Export hiba: ' + e.message, 'error'); }
 }

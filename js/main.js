@@ -22,7 +22,7 @@ import { loadTasks, saveTask, handleTaskClick,
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, applyRoleTemplate,
-         loadAuditLogAdmin } from './admin.js';
+         loadAuditLogAdmin, loadLoginLog, exportAllDataExcel } from './admin.js';
 import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh, closeWidgetDrawer } from './dashboard.js';
 import { initHelp } from './help.js';
@@ -131,6 +131,7 @@ function buildAppUI() {
   E('stab-premium-cfg-btn').style.display  = (isMainAdmin() || hasPerm('premiumKezeles')) ? '' : 'none';
   E('stab-data-btn').style.display         = isMainAdmin() ? '' : 'none';
   E('stab-audit-btn').style.display        = isMainAdmin() ? '' : 'none';
+  E('stab-belepes-btn').style.display     = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
 
@@ -164,7 +165,7 @@ function buildAppUI() {
   loadLists().then(() => _updateFeladatReszlegF());
   addSuly(); addZsak();
   // Login logolás + lastLoginAt mentés
-  logAction('auth.login', { email: state.appUser.email });
+  logAction('auth.login', { email: state.appUser.email, ua: navigator.userAgent.slice(0, 300) });
   updateDoc(doc(db, 'users', state.appUser.uid), { lastLoginAt: serverTimestamp() }).catch(() => {});
 
   // Vázlat ellenőrzés
@@ -359,6 +360,7 @@ function switchAdminSubtab(name) {
   if (name === 'kozlemeny')    loadNoticeAdmin();
   if (name === 'premium-cfg')  initPremiumAdmin();
   if (name === 'audit')        loadAuditLogAdmin();
+  if (name === 'belepes')      loadLoginLog();
 }
 
 /* ── Auth helpers ── */
@@ -999,10 +1001,12 @@ document.addEventListener('DOMContentLoaded', () => {
   E('premiumAdminSaveBtn').addEventListener('click', savePremiumAdminConfig);
 
   // Admin — adatok
-  E('mentFajlBtn').addEventListener('click',  mentFajl);
-  E('fajlKivBtn').addEventListener('click',   () => E('fajlInput').click());
-  E('fajlInput').addEventListener('change',   betoltFajl);
-  E('mindTorBtn').addEventListener('click',   mindTorol);
+  E('exportAllBtn').addEventListener('click',       exportAllDataExcel);
+  E('mentFajlBtn').addEventListener('click',        mentFajl);
+  E('fajlKivBtn').addEventListener('click',         () => E('fajlInput').click());
+  E('fajlInput').addEventListener('change',         betoltFajl);
+  E('mindTorBtn').addEventListener('click',         mindTorol);
+  E('loginLogRefreshBtn').addEventListener('click', loadLoginLog);
   E('auditRefreshBtn').addEventListener('click', loadAuditLogAdmin);
   ['auditTipusF','auditUserF','auditTolF','auditIgF'].forEach(id => {
     E(id)?.addEventListener('change', () => {
