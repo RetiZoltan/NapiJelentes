@@ -1,7 +1,7 @@
 {
-  "name": "Napi Jelentés",
-  "short_name": "NapiJel",
-  "description": "Termelési napi nyilvántartó",
+  "name": "Plexiq",
+  "short_name": "Plexiq",
+  "description": "Termelési irányítás és nyilvántartás",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -504,7 +504,7 @@ function nyomtatDiv(divId) {
   pf.innerHTML = '';
   const hdr = document.createElement('div');
   hdr.className = 'pf-hdr';
-  hdr.innerHTML = `<span class="pf-brand">Napi Jelentés – Termelési nyilvántartó</span><span class="pf-meta">Nyomtatva: ${esc(nyomtatva)}</span>`;
+  hdr.innerHTML = `<span class="pf-brand">Plexiq – Termelési nyilvántartó</span><span class="pf-meta">Nyomtatva: ${esc(nyomtatva)}</span>`;
   pf.appendChild(hdr);
   pf.appendChild(clone);
   const ftr = document.createElement('div');

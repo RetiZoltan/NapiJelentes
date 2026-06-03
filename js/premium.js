@@ -384,7 +384,7 @@ function premiumNyomtat() {
   pf.innerHTML = '';
   const hdr = document.createElement('div');
   hdr.className = 'pf-hdr';
-  hdr.innerHTML = `<span class="pf-brand">Napi Jelentés – Prémium összesítő</span><span class="pf-meta">Nyomtatva: ${nyomtatva}</span>`;
+  hdr.innerHTML = `<span class="pf-brand">Plexiq – Prémium összesítő</span><span class="pf-meta">Nyomtatva: ${nyomtatva}</span>`;
   pf.appendChild(hdr);
   const bodyEl = document.createElement('div');
   bodyEl.innerHTML = body;

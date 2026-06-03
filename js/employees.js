@@ -509,7 +509,7 @@ export async function exportEmpPdf(emp) {
       <div style="font-size:13px;color:${LM.t2};font-style:italic;white-space:pre-wrap;">${esc(emp.megjegyzes)}</div>
     </div>` : ''}
     <div style="text-align:right;font-size:10px;color:${LM.t3};margin-top:4px;">
-      Generálva: ${new Date().toLocaleDateString('hu-HU',{year:'numeric',month:'long',day:'numeric'})} — Napi Jelentés
+      Generálva: ${new Date().toLocaleDateString('hu-HU',{year:'numeric',month:'long',day:'numeric'})} — Plexiq
     </div>`;
 
   document.body.appendChild(wrap);

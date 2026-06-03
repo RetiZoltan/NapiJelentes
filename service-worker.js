@@ -1,4 +1,4 @@
-const CACHE    = 'napi-jelentes-v64';
+const CACHE    = 'plexiq-v65';
 const PRECACHE = [
   '/', '/index.html',
   '/css/tokens.css', '/css/components.css', '/css/report.css',
