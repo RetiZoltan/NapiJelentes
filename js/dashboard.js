@@ -20,7 +20,25 @@ const ALL_WIDGETS = [
 
 let _inited            = false;
 let _autoRefreshTimer  = null;
-let _lastCtx           = null;   // utolsó betöltött ctx cache
+let _lastCtx           = null;
+let _dragQaId          = null;   // drag & drop state
+
+/* ── Egyéni gyors műveletek (custom QA) ── */
+const _CQA_KEY = 'nj_cqa';
+function _getCustomQA() { try { return JSON.parse(localStorage.getItem(_CQA_KEY) || '[]'); } catch { return []; } }
+function _saveCustomQA(list) { localStorage.setItem(_CQA_KEY, JSON.stringify(list)); }
+
+/* ── Egyéni szöveges widgetek ── */
+const _CW_KEY = 'nj_cw';
+function _getCustomWidgets() { try { return JSON.parse(localStorage.getItem(_CW_KEY) || '[]'); } catch { return []; } }
+function _saveCustomWidgets(list) { localStorage.setItem(_CW_KEY, JSON.stringify(list)); }
+
+/* ── Widget-specifikus beállítások ── */
+const _WST_KEY = 'nj_wst';
+function _getWidgetSettings(wid) { try { return (JSON.parse(localStorage.getItem(_WST_KEY) || '{}'))[wid] || {}; } catch { return {}; } }
+function _saveWidgetSettings(wid, s) {
+  try { const all = JSON.parse(localStorage.getItem(_WST_KEY) || '{}'); all[wid] = { ...(all[wid] || {}), ...s }; localStorage.setItem(_WST_KEY, JSON.stringify(all)); } catch {}
+}
 
 const DRAWER_WIDGETS = ['maiOssz','haviOssz','nyitottF','topDolg','sajatTelj','anyagRangsor'];
 
@@ -41,9 +59,15 @@ function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id
 
 /* ── Widget beállítások ── */
 function _getEnabled() {
+  const customIds = _getCustomWidgets().map(w => w.id);
   const saved = state.userData?.dashboardWidgets;
-  if (Array.isArray(saved) && saved.length) return saved.filter(id => _canSeeWidget(id));
-  return _availableWidgets().filter(w => w.def).map(w => w.id);
+  if (Array.isArray(saved) && saved.length) {
+    const valid = saved.filter(id => _canSeeWidget(id) || customIds.includes(id));
+    // Ha van új custom widget amit még nem mentettünk, hozzáfűzzük
+    customIds.forEach(id => { if (!valid.includes(id)) valid.push(id); });
+    return valid;
+  }
+  return [..._availableWidgets().filter(w => w.def).map(w => w.id), ...customIds];
 }
 async function _saveConfig(ids) {
   if (state.userData) state.userData.dashboardWidgets = ids;
@@ -380,22 +404,75 @@ export function setAutoRefresh(minutes) {
 }
 
 /* ── Konfig panel ── */
+const _WST_DEFS = {
+  anyagRangsor: { key: 'topN',   label: 'Megjelenített anyagok',   opts: [['3','3'],['5','5'],['8','8']], def: '5' },
+  topDolg:      { key: 'period', label: 'Időszak',                 opts: [['havi','Ebben a hónapban'],['heti','Ezen a héten']], def: 'havi' },
+  szulNapok:    { key: 'days',   label: 'Előre nézett napok',      opts: [['14','14 nap'],['30','30 nap'],['60','60 nap']], def: '30' },
+  nyitottF:     { key: 'scope',  label: 'Megjelenítés',            opts: [['nyitott','Csak nyitott'],['all','Minden aktív']], def: 'nyitott' },
+};
+
 function _renderConfig() {
   const enabled = _getEnabled();
   const sizes   = _getWidgetSizes();
-  E('dashConfigWidgets').innerHTML = _availableWidgets().map(w => {
-    const isEnabled = enabled.includes(w.id);
-    const isLarge   = sizes[w.id] === 'large';
-    return `<label class="dash-cfg-lbl">
-      <input type="checkbox" data-wid="${w.id}"${isEnabled ? ' checked' : ''}>
-      <span>${w.icon} ${w.label}</span>
-      ${isEnabled ? `<button class="dash-size-btn" type="button" data-wid="${w.id}" title="${isLarge ? 'Váltás kis méretre' : 'Váltás nagy méretre'}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>` : ''}
-    </label>`;
-  }).join('');
+  const customW = _getCustomWidgets();
 
-  E('dashConfigWidgets').querySelectorAll('input').forEach(cb => {
+  /* ── Widgetek szekció ── */
+  const widgetHtml = [
+    ..._availableWidgets().map(w => {
+      const isEnabled = enabled.includes(w.id);
+      const isLarge   = sizes[w.id] === 'large';
+      const wstDef    = _WST_DEFS[w.id];
+      const wst       = wstDef ? _getWidgetSettings(w.id) : null;
+      const curVal    = wst?.[wstDef?.key] ?? wstDef?.def ?? '';
+      const settingsHtml = (isEnabled && wstDef) ? `
+        <div class="cfg-wst-row">
+          <span class="cfg-wst-lbl">${wstDef.label}:</span>
+          <select class="cfg-wst-sel" data-wid="${w.id}" data-key="${wstDef.key}">
+            ${wstDef.opts.map(([v,l]) => `<option value="${v}"${curVal===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>` : '';
+      return `<div class="dash-cfg-item">
+        <label class="dash-cfg-lbl">
+          <input type="checkbox" data-wid="${w.id}"${isEnabled ? ' checked' : ''}>
+          <span>${w.icon} ${w.label}</span>
+          ${isEnabled ? `<button class="dash-size-btn" type="button" data-wid="${w.id}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>` : ''}
+        </label>
+        ${settingsHtml}
+      </div>`;
+    }),
+    ...customW.map(cw => `
+      <div class="dash-cfg-item">
+        <label class="dash-cfg-lbl">
+          <input type="checkbox" data-wid="${cw.id}" checked>
+          <span>${cw.icon} ${esc(cw.title)}</span>
+          <button class="cw-del-btn" type="button" data-cwid="${cw.id}" title="Törlés">✕</button>
+        </label>
+      </div>`)
+  ].join('');
+
+  E('dashConfigWidgets').innerHTML = widgetHtml + `
+    <div class="cfg-add-section" id="cfgCwSection">
+      <button class="cfg-add-toggle" id="cfgCwToggle">＋ Saját szöveges widget</button>
+      <div id="cfgCwForm" class="cfg-add-form" style="display:none">
+        <div class="g2" style="margin-bottom:6px">
+          <input type="text" id="cfgCwIcon"  placeholder="Ikon (pl. 📝)" maxlength="4" style="width:80px">
+          <input type="text" id="cfgCwTitle" placeholder="Cím (pl. Fontos infó)">
+        </div>
+        <textarea id="cfgCwContent" placeholder="Tartalom szövege…" style="min-height:60px;margin-bottom:6px;resize:vertical"></textarea>
+        <button class="btn btn-primary btn-sm" id="cfgCwAddBtn">Hozzáad</button>
+      </div>
+    </div>`;
+
+  // Widget checkbox events
+  E('dashConfigWidgets').querySelectorAll('input[data-wid]').forEach(cb => {
     cb.addEventListener('change', async () => {
-      const ids = [...E('dashConfigWidgets').querySelectorAll('input:checked')].map(c => c.dataset.wid);
+      const allCwIds = _getCustomWidgets().map(c => c.id);
+      const ids = [...E('dashConfigWidgets').querySelectorAll('input[data-wid]:checked')].map(c => c.dataset.wid);
+      // Custom widgetek mindig benne maradnak ha be van pipálva, de ha kivesszük töröljük
+      if (!cb.checked && allCwIds.includes(cb.dataset.wid)) {
+        if (!confirm('Törlöd ezt a saját widgetet?')) { cb.checked = true; return; }
+        _saveCustomWidgets(_getCustomWidgets().filter(c => c.id !== cb.dataset.wid));
+      }
       await _saveConfig(ids);
       _renderConfig();
       await _loadWidgets();
@@ -404,33 +481,136 @@ function _renderConfig() {
   E('dashConfigWidgets').querySelectorAll('.dash-size-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.preventDefault(); e.stopPropagation();
-      const curr = _getWidgetSizes();
-      const wid  = btn.dataset.wid;
-      const next = { ...curr };
+      const curr = _getWidgetSizes(); const wid = btn.dataset.wid; const next = { ...curr };
       if (curr[wid] === 'large') delete next[wid]; else next[wid] = 'large';
-      await _saveWidgetSizes(next);
-      _renderConfig();
+      await _saveWidgetSizes(next); _renderConfig(); await _loadWidgets();
+    });
+  });
+  E('dashConfigWidgets').querySelectorAll('.cfg-wst-sel').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      _saveWidgetSettings(sel.dataset.wid, { [sel.dataset.key]: sel.value });
       await _loadWidgets();
     });
   });
-
-  // ── Gyors műveletek konfig szekció ──
-  const qaContainer = E('dashQaConfigWidgets');
-  if (qaContainer) {
-    const enabledQA = _getEnabledQA();
-    qaContainer.innerHTML = _availableQA().map(a => `
-      <label class="dash-cfg-lbl">
-        <input type="checkbox" data-qaid="${a.id}"${enabledQA.includes(a.id) ? ' checked' : ''}>
-        <span>${a.icon} ${a.label}</span>
-      </label>`).join('');
-    qaContainer.querySelectorAll('input').forEach(cb => {
-      cb.addEventListener('change', async () => {
-        const ids = [...qaContainer.querySelectorAll('input:checked')].map(c => c.dataset.qaid);
-        await _saveQAConfig(ids);
-        _renderQuickActions();
-      });
+  E('dashConfigWidgets').querySelectorAll('.cw-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Törlöd ezt a widgetet?')) return;
+      const list = _getCustomWidgets().filter(c => c.id !== btn.dataset.cwid);
+      _saveCustomWidgets(list);
+      const ids = _getEnabled().filter(id => id !== btn.dataset.cwid);
+      await _saveConfig(ids);
+      _renderConfig(); await _loadWidgets();
     });
-  }
+  });
+  // Custom widget form toggle + add
+  E('cfgCwToggle').addEventListener('click', () => {
+    const f = E('cfgCwForm'); f.style.display = f.style.display === 'none' ? '' : 'none';
+  });
+  E('cfgCwAddBtn').addEventListener('click', async () => {
+    const icon    = E('cfgCwIcon').value.trim()    || '📝';
+    const title   = E('cfgCwTitle').value.trim();
+    const content = E('cfgCwContent').value.trim();
+    if (!title) { E('cfgCwTitle').focus(); return; }
+    const id      = 'cw_' + Date.now();
+    const list    = [..._getCustomWidgets(), { id, icon, title, content }];
+    _saveCustomWidgets(list);
+    const ids = [..._getEnabled(), id];
+    await _saveConfig(ids);
+    _renderConfig(); await _loadWidgets();
+  });
+
+  /* ── Gyors műveletek szekció ── */
+  const enabledQA = _getEnabledQA();
+  const allQA     = _allQA();
+  const customQA  = _getCustomQA();
+
+  // Engedélyezett elemek drag-gal, a többi alatta checkbox
+  const enabledItems  = enabledQA.map(id => allQA.find(a => a.id === id)).filter(Boolean);
+  const disabledItems = allQA.filter(a => !enabledQA.includes(a.id));
+
+  const qaHtml = `
+    <div id="qaEnabledList" class="qa-drag-list">
+      ${enabledItems.map(a => `
+        <div class="qa-drag-item" draggable="true" data-qaid="${a.id}">
+          <span class="qa-drag-handle">⠿</span>
+          <input type="checkbox" data-qaid="${a.id}" checked>
+          <span>${a.icon} ${esc(a.label)}</span>
+          ${a.isCustom ? `<button class="cqa-del-btn btn btn-ghost btn-xs" data-cqaid="${a.id}" type="button">✕</button>` : ''}
+        </div>`).join('')}
+    </div>
+    ${disabledItems.length ? `<div class="qa-disabled-list">
+      ${disabledItems.map(a => `
+        <label class="dash-cfg-lbl qa-disabled-item">
+          <input type="checkbox" data-qaid="${a.id}">
+          <span>${a.icon} ${esc(a.label)}</span>
+        </label>`).join('')}
+    </div>` : ''}
+    <div class="cfg-add-section">
+      <button class="cfg-add-toggle" id="cfgCqaToggle">＋ Egyéni link hozzáadása</button>
+      <div id="cfgCqaForm" class="cfg-add-form" style="display:none">
+        <div class="g2" style="margin-bottom:6px">
+          <input type="text" id="cfgCqaIcon"  placeholder="Ikon (pl. 🔗)" maxlength="4" style="width:80px">
+          <input type="text" id="cfgCqaLabel" placeholder="Felirat (pl. Google Sheet)">
+        </div>
+        <input type="url" id="cfgCqaUrl" placeholder="URL (pl. https://…)" style="margin-bottom:6px">
+        <button class="btn btn-primary btn-sm" id="cfgCqaAddBtn">Hozzáad</button>
+      </div>
+    </div>`;
+
+  E('dashQaConfigWidgets').innerHTML = qaHtml;
+
+  // QA drag & drop
+  let _dragOver = null;
+  E('qaEnabledList').querySelectorAll('.qa-drag-item').forEach(item => {
+    item.addEventListener('dragstart', e => { _dragQaId = item.dataset.qaid; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    item.addEventListener('dragend',   () => { item.classList.remove('dragging'); E('qaEnabledList').querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('drag-over')); });
+    item.addEventListener('dragover',  e => { e.preventDefault(); if (item.dataset.qaid !== _dragQaId) { if (_dragOver) _dragOver.classList.remove('drag-over'); item.classList.add('drag-over'); _dragOver = item; } });
+    item.addEventListener('drop',      async e => {
+      e.preventDefault(); item.classList.remove('drag-over');
+      if (!_dragQaId || _dragQaId === item.dataset.qaid) return;
+      const order = [...enabledQA];
+      const fromI = order.indexOf(_dragQaId);
+      const toI   = order.indexOf(item.dataset.qaid);
+      if (fromI < 0 || toI < 0) return;
+      order.splice(fromI, 1); order.splice(toI, 0, _dragQaId);
+      await _saveQAConfig(order);
+      _renderConfig(); _renderQuickActions();
+    });
+  });
+
+  // QA checkbox events
+  E('dashQaConfigWidgets').querySelectorAll('input[data-qaid]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      let ids = _getEnabledQA();
+      if (cb.checked) ids = [...ids, cb.dataset.qaid];
+      else ids = ids.filter(id => id !== cb.dataset.qaid);
+      await _saveQAConfig(ids); _renderConfig(); _renderQuickActions();
+    });
+  });
+
+  // Custom QA delete
+  E('dashQaConfigWidgets').querySelectorAll('.cqa-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      _saveCustomQA(_getCustomQA().filter(c => c.id !== btn.dataset.cqaid));
+      let ids = _getEnabledQA().filter(id => id !== btn.dataset.cqaid);
+      await _saveQAConfig(ids); _renderConfig(); _renderQuickActions();
+    });
+  });
+
+  // Custom QA form
+  E('cfgCqaToggle').addEventListener('click', () => {
+    const f = E('cfgCqaForm'); f.style.display = f.style.display === 'none' ? '' : 'none';
+  });
+  E('cfgCqaAddBtn').addEventListener('click', async () => {
+    const icon  = E('cfgCqaIcon').value.trim()  || '🔗';
+    const label = E('cfgCqaLabel').value.trim();
+    const url   = E('cfgCqaUrl').value.trim();
+    if (!label || !url) { msg('Töltsd ki a feliratot és az URL-t!', 'error'); return; }
+    const id   = 'cqa_' + Date.now();
+    _saveCustomQA([..._getCustomQA(), { id, icon, label, url }]);
+    let ids = [..._getEnabledQA(), id];
+    await _saveQAConfig(ids); _renderConfig(); _renderQuickActions();
+  });
 
   const sel = E('dashAutoRefreshSel');
   if (sel) sel.value = String(parseInt(localStorage.getItem('nj_autorefresh') || '0', 10));
@@ -464,13 +644,24 @@ const ALL_QUICK_ACTIONS = [
   { id: 'keszlet',     icon: '📦', label: 'Készlet',       tab: 'keszlet',      perm: () => isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles') },
 ];
 
-function _availableQA() { return ALL_QUICK_ACTIONS.filter(a => a.perm()); }
+function _allQA() {
+  return [
+    ...ALL_QUICK_ACTIONS.filter(a => a.perm()),
+    ..._getCustomQA().map(c => ({ ...c, isCustom: true, perm: () => true }))
+  ];
+}
+function _availableQA() { return _allQA(); }
 
 function _getEnabledQA() {
+  const all = _allQA();
   const saved = state.userData?.dashboardQuickActions;
-  if (Array.isArray(saved)) return saved.filter(id => _availableQA().some(a => a.id === id));
-  // Alapértelmezett: első 4 elérhető akció
-  return _availableQA().slice(0, 4).map(a => a.id);
+  if (Array.isArray(saved)) {
+    const valid = saved.filter(id => all.some(a => a.id === id));
+    // Új custom QA-k hozzáfűzése ha még nem szerepelnek
+    _getCustomQA().forEach(c => { if (!valid.includes(c.id)) valid.push(c.id); });
+    return valid;
+  }
+  return _allQA().slice(0, 4).map(a => a.id);
 }
 
 async function _saveQAConfig(ids) {
@@ -483,11 +674,10 @@ async function _saveQAConfig(ids) {
 function _renderQuickActions() {
   const el = E('dashQuickActions'); if (!el) return;
   const enabled = _getEnabledQA();
-  const actions = _availableQA().filter(a => enabled.includes(a.id));
-
+  const actions = _allQA().filter(a => enabled.includes(a.id));
   if (!actions.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="dash-qa">${actions.map(a =>
-    `<button class="dash-qa-btn" data-tab="${a.tab || ''}" data-action="${a.action || ''}">
+    `<button class="dash-qa-btn" data-tab="${a.tab || ''}" data-action="${a.action || ''}" data-url="${esc(a.url || '')}">
       <span class="dash-qa-icon">${a.icon}</span>
       <span class="dash-qa-label">${esc(a.label)}</span>
     </button>`
@@ -770,6 +960,13 @@ function _trendBadge(diff) {
 }
 
 function _buildWidget(id, ctx, large = false) {
+  // Egyéni szöveges widget
+  const customW = _getCustomWidgets().find(w => w.id === id);
+  if (customW) {
+    return _card(customW.icon, esc(customW.title),
+      `<span style="font-size:14px;font-weight:500;color:var(--text2);white-space:pre-wrap;">${esc(customW.content || '')}</span>`,
+      '', '', large);
+  }
   const { today, weekStart, prevWeekS, monthStart, todayEntries, thisWeekEntries, prevWeekEntries, monthEntries, empSnap, tasksSnap, sumKg, kgOf } = ctx;
 
   if (id === 'maiOssz') {
@@ -806,10 +1003,14 @@ function _buildWidget(id, ctx, large = false) {
   }
 
   if (id === 'topDolg') {
+    const wst  = _getWidgetSettings('topDolg');
+    const pool = wst.period === 'heti' ? thisWeekEntries : monthEntries;
+    const periodLabel = wst.period === 'heti' ? 'Ezen a héten' : 'Ebben a hónapban';
     const byW = {};
-    monthEntries.forEach(e => { byW[e.nev] = (byW[e.nev] || 0) + kgOf(e); });
+    pool.forEach(e => { byW[e.nev] = (byW[e.nev] || 0) + kgOf(e); });
     const rank = Object.entries(byW).sort((a, b) => b[1] - a[1]).slice(0, large ? 5 : 3);
     if (!rank.length) return _card('🏅', 'Havi legjobb', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    const topLabel = `Top ${rank.length} · ${periodLabel}`;
     // Stilizált medál badge-ek
     const medalGrad = [
       'linear-gradient(135deg,#FFD700,#E6A000)',
@@ -825,7 +1026,7 @@ function _buildWidget(id, ctx, large = false) {
         <span style="font-size:${i===0?'13.5':'12.5'}px;font-weight:${i===0?700:600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(nev)}</span>
         <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i===0?600:400};">${(kg/1000).toFixed(2)} t</span>
       </div>`).join('');
-    return _card('🏅', 'Havi legjobb', '', `Top ${rank.length} · ebben a hónapban`, `<div style="margin-top:6px;">${rows}</div>`, large);
+    return _card('🏅', 'Havi legjobb', '', topLabel, `<div style="margin-top:6px;">${rows}</div>`, large);
   }
 
   if (id === 'sajatTelj') {
@@ -977,12 +1178,14 @@ function _buildWidget(id, ctx, large = false) {
 
   /* ── Anyag rangsor ── */
   if (id === 'anyagRangsor') {
+    const wst  = _getWidgetSettings('anyagRangsor');
+    const topN = parseInt(wst.topN || '5', 10);
     const byMat = {};
     monthEntries.forEach(e => {
       const mat = (e.anyag || '').trim();
       if (mat) byMat[mat] = (byMat[mat] || 0) + kgOf(e);
     });
-    const rank = Object.entries(byMat).sort((a, b) => b[1] - a[1]).slice(0, large ? 6 : 4);
+    const rank = Object.entries(byMat).sort((a, b) => b[1] - a[1]).slice(0, large ? topN + 2 : topN);
     if (!rank.length) return _card('📦', 'Anyag rangsor', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
     const maxKg = rank[0][1];
     const rows  = rank.map(([mat, kg], i) => {

@@ -928,6 +928,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = e.target.closest('.dash-qa-btn'); if (!btn) return;
     const tab    = btn.dataset.tab;
     const action = btn.dataset.action;
+    const url    = btn.dataset.url;
+    if (url) { window.open(url, '_blank', 'noopener,noreferrer'); return; }
     if (tab) {
       const tabBtn = E('tabBtn' + tab.charAt(0).toUpperCase() + tab.slice(1));
       if (tabBtn) switchTab(tab, tabBtn);

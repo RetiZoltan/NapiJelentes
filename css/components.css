@@ -994,6 +994,26 @@ html { overflow-x: clip; }
   .emp-drawer-name { font-size:14px; }
 }
 
+/* ── Dashboard konfig bővítések ── */
+.dash-cfg-item { margin-bottom:4px; }
+.cfg-wst-row { display:flex; align-items:center; gap:8px; padding:4px 0 4px 24px; }
+.cfg-wst-lbl { font-size:11.5px; color:var(--text3); white-space:nowrap; }
+.cfg-wst-sel { font-size:12px; padding:2px 6px; border-radius:var(--rsm); border:1px solid var(--border2); background:var(--surf2); color:var(--text); }
+
+.cfg-add-section { margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); }
+.cfg-add-toggle { background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer; padding:4px 0; }
+.cfg-add-toggle:hover { color:var(--accent2); }
+.cfg-add-form { background:var(--surf2); border:1px solid var(--border); border-radius:var(--r); padding:12px; margin-top:8px; }
+
+.qa-drag-list { display:flex; flex-direction:column; gap:4px; margin-bottom:6px; }
+.qa-drag-item { display:flex; align-items:center; gap:8px; background:var(--surf); border:1px solid var(--border); border-radius:var(--rsm); padding:6px 10px; cursor:default; user-select:none; transition:background var(--tr); }
+.qa-drag-item.dragging { opacity:.5; }
+.qa-drag-item.drag-over { border-color:var(--accent); background:var(--agl); }
+.qa-drag-handle { font-size:14px; color:var(--text3); cursor:grab; flex-shrink:0; }
+.qa-drag-handle:active { cursor:grabbing; }
+.qa-disabled-list { display:flex; flex-direction:column; gap:3px; padding-top:4px; opacity:.75; }
+.qa-disabled-item { padding:4px 0; }
+
 @media(max-width:400px) {
   /* Legkisebb képernyők: csak ikonok a tabokon */
   .tb-t { display:none; }
