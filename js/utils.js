@@ -26,17 +26,24 @@ export function msg(text, type='success', ms=2800) {
   toastT = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+function _setThemeBtn(isDark) {
+  const icon = document.getElementById('themeBtnIcon');
+  const lbl  = document.querySelector('.theme-lbl');
+  if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+  if (lbl)  lbl.textContent  = isDark ? ' Világos' : ' Sötét';
+}
+
 export function toggleTheme() {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
-  E('themeBtn').textContent = dark ? '🌙 Sötét' : '☀️ Világos';
+  _setThemeBtn(!dark);
   localStorage.setItem('napiJelentesTheme', dark ? 'light' : 'dark');
 }
 
 export function initTheme() {
   const t = localStorage.getItem('napiJelentesTheme') || 'light';
   document.documentElement.setAttribute('data-theme', t);
-  E('themeBtn').textContent = t === 'dark' ? '☀️ Világos' : '🌙 Sötét';
+  _setThemeBtn(t === 'dark');
 }
 
 export function applyLayout(name) {
