@@ -27,6 +27,26 @@
   background-image: radial-gradient(ellipse 80% 45% at 50% 0%, rgba(96,165,232,.05) 0%, transparent 60%);
 }
 
+/* ── Plexiq (brand téma — navy + narancs) ── */
+[data-color="plexiq"]{
+  --accent:#E8691A; --accent2:#C85510; --agl:rgba(232,105,26,.12);
+  --amber:#D97706; --amberl:#FEF3C7;
+}
+[data-color="plexiq"]:not([data-theme="dark"]){
+  --bg:#EBF0FA; --surf:#FFFFFF; --surf2:#F4F7FD; --surf3:#E4EAF8;
+  --border:#C8D6EE; --border2:#A8BEDE; --border3:#7090C0;
+  --text:#1A2B5C; --text2:#374B80; --text3:#7A90C0;
+}
+[data-theme="dark"][data-color="plexiq"]{
+  --accent:#FF8C3A; --accent2:#FFA55A; --agl:rgba(255,140,58,.16);
+  --bg:#060C1A; --surf:#0D1628; --surf2:#14203A; --surf3:#1A2A48;
+  --border:#1E3060; --border2:#2C4480; --border3:#4060A0;
+  --text:#EEF4FF; --text2:#8AAAD8; --text3:#4A6898;
+}
+[data-theme="dark"][data-color="plexiq"] body {
+  background-image: radial-gradient(ellipse 80% 45% at 50% 0%, rgba(232,105,26,.07) 0%, transparent 60%);
+}
+
 /* ── Forest ── */
 [data-color="forest"]{--accent:#2E7D32;--accent2:#1B5E20;--agl:rgba(46,125,50,.10);}
 [data-color="forest"]:not([data-theme="dark"]){--bg:#F0F5F0;--surf2:#F3F8F3;--surf3:#E8F0E8;}

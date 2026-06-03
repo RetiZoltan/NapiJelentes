@@ -159,7 +159,7 @@ function buildAppUI() {
   E('evesEvInput').value    = yr;
 
 
-  applyColorTheme(state.userData.colorTheme || 'blueprint');
+  applyColorTheme(state.userData.colorTheme || 'plexiq');
   applyLayout(state.userData.layout || 'classic');
   loadLists().then(() => _updateFeladatReszlegF());
   addSuly(); addZsak();

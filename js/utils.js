@@ -58,7 +58,7 @@ export function initLayout() {
 }
 
 export function applyColorTheme(name) {
-  const c = name || 'blueprint';
+  const c = name || 'plexiq';
   if (c === 'blueprint') {
     document.documentElement.removeAttribute('data-color');
   } else {
@@ -72,7 +72,7 @@ export function applyColorTheme(name) {
 }
 
 export function initColorTheme() {
-  const c = localStorage.getItem('napiJelentesDizajn') || 'blueprint';
+  const c = localStorage.getItem('napiJelentesDizajn') || 'plexiq';
   applyColorTheme(c);
 }
 
