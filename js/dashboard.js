@@ -463,15 +463,19 @@ function _renderConfig() {
       </div>
     </div>`;
 
-  // Widget checkbox events
+  // Widget checkbox events — a meglévő sorrendet megőrzi
   E('dashConfigWidgets').querySelectorAll('input[data-wid]').forEach(cb => {
     cb.addEventListener('change', async () => {
       const allCwIds = _getCustomWidgets().map(c => c.id);
-      const ids = [...E('dashConfigWidgets').querySelectorAll('input[data-wid]:checked')].map(c => c.dataset.wid);
-      // Custom widgetek mindig benne maradnak ha be van pipálva, de ha kivesszük töröljük
-      if (!cb.checked && allCwIds.includes(cb.dataset.wid)) {
-        if (!confirm('Törlöd ezt a saját widgetet?')) { cb.checked = true; return; }
-        _saveCustomWidgets(_getCustomWidgets().filter(c => c.id !== cb.dataset.wid));
+      let ids = _getEnabled(); // meglévő sorrend megőrzése
+      if (cb.checked) {
+        if (!ids.includes(cb.dataset.wid)) ids = [...ids, cb.dataset.wid];
+      } else {
+        if (allCwIds.includes(cb.dataset.wid)) {
+          if (!confirm('Törlöd ezt a saját widgetet?')) { cb.checked = true; return; }
+          _saveCustomWidgets(_getCustomWidgets().filter(c => c.id !== cb.dataset.wid));
+        }
+        ids = ids.filter(id => id !== cb.dataset.wid);
       }
       await _saveConfig(ids);
       _renderConfig();
