@@ -418,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('pendingLogoutBtn').addEventListener('click', () => signOut(auth));
 
   // App header
+  E('brandHome').addEventListener('click', () => switchTab('dashboard', E('tabBtnDashboard')));
   E('themeBtn').addEventListener('click', toggleTheme);
   E('logoutBtn').addEventListener('click', () => { if (confirm('Biztosan kijelentkezel?')) signOut(auth); });
 
