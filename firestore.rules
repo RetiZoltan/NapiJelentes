@@ -206,6 +206,14 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // ── megkezdettZsakok (WIP zsák átadás) ───────────────────────
+    match /megkezdettZsakok/{id} {
+      allow read:   if isAuth() && (isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes'));
+      allow create: if isAuth() && hasPerm('adatbevitel');
+      allow update: if isAuth() && hasPerm('adatbevitel');
+      allow delete: if isAuth() && (isMainAdmin() || hasPerm('adatbevitel'));
+    }
+
     // ── auditLog (audit napló) ─────────────────────────────────
     match /auditLog/{logId} {
       allow read:   if isAuth() && isMainAdmin();

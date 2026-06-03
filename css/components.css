@@ -882,6 +882,29 @@ html:not([data-layout]) .card {
 .role-tpl-btn{background:var(--surf2);border:1px solid var(--border2);color:var(--text2);border-radius:var(--rsm);padding:5px 12px;font-size:12.5px;font-family:'Source Sans 3',sans-serif;cursor:pointer;transition:all var(--tr);}
 .role-tpl-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--agl);}
 
+/* ── WIP (Gépen lévő zsákok) ── */
+.wip-card{border-left:3px solid var(--amber);background:color-mix(in srgb,var(--amber) 5%,var(--surf));}
+.wip-badge{background:var(--amber);color:#fff;font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:8px;vertical-align:middle;}
+.wip-item{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;}
+.wip-item:last-child{margin-bottom:0;}
+.wip-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.wip-meta{flex:1;display:flex;flex-direction:column;gap:2px;}
+.wip-anyag{font-weight:700;font-size:14px;color:var(--text);}
+.wip-reszleg{font-size:12px;color:var(--text3);}
+.wip-last{font-size:11.5px;color:var(--text3);font-style:italic;}
+.wip-suly{font-size:22px;font-weight:800;color:var(--amber);flex-shrink:0;}
+.wip-details{margin-bottom:10px;}
+.wip-details summary{font-size:12px;color:var(--text3);cursor:pointer;user-select:none;padding:2px 0;}
+.wip-details summary:hover{color:var(--accent);}
+.wip-history{margin-top:6px;display:flex;flex-direction:column;gap:3px;padding-left:8px;border-left:2px solid var(--border);}
+.wip-hist-item{font-size:12px;color:var(--text2);}
+.wip-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.wip-complete-row{display:flex;align-items:center;gap:6px;flex:1;min-width:200px;}
+.wip-final-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--input,var(--surf));color:var(--text);font-size:14px;font-family:inherit;}
+.wip-final-input:focus{outline:none;border-color:var(--accent);}
+.wip-hint{font-size:12px;color:var(--text3);margin:6px 0 10px;line-height:1.5;}
+.wip-transfer-title:hover{color:var(--accent);}
+
 /* Vizuális szerepkör kártyák */
 .role-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;margin-bottom:10px;box-shadow:var(--sh);}
 .role-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
