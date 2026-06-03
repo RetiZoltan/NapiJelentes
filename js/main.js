@@ -889,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const willDisable = disBtn.dataset.isDisabled !== '1';
       try {
         await updateDoc(doc(db, 'users', uid), { isDisabled: willDisable });
-        logAction(willDisable ? 'user.disable' : 'user.enable', { targetUid: uid });
+        logAction(willDisable ? 'user.disable' : 'user.enable', { nev: disBtn.dataset.name || uid });
         msg(willDisable ? 'Fiók letiltva.' : 'Fiók aktiválva.');
         loadAdminUsers();
       } catch (ex) { msg('Hiba: ' + ex.message, 'error'); }

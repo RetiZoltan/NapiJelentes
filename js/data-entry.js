@@ -2,6 +2,7 @@ import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './fireb
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
 import { saveNapiFor, loadNapiFor, autoAddToList } from './db.js';
+import { logAction } from './auditlog.js';
 
 const OFFLINE_KEY = 'nj_offlineQueue';
 const DRAFT_TTL   = 24 * 60 * 60 * 1000; // 24 óra
@@ -194,6 +195,7 @@ export async function rogzit() {
       if (state.editingEntryId) {
         const { createdBy: _cb, createdAt: _ca, ...fields } = entry;
         await updateDoc(doc(db, 'entries', state.editingEntryId), { ...fields, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
+        logAction('entry.edit', { nev: entry.nev, datum: entry.datum });
         msg('Bejegyzés szerkesztve!');
       } else {
         await addDoc(collection(db, 'entries'), entry);

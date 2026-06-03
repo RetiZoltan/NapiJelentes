@@ -1,4 +1,4 @@
-import { db, doc, addDoc, updateDoc, deleteDoc,
+import { db, doc, getDoc, addDoc, updateDoc, deleteDoc,
          collection, query, where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, hasPerm, isMainAdmin } from './state.js';
 import { logAction } from './auditlog.js';
@@ -630,7 +630,10 @@ export async function handleAbsenceClick(e) {
   const btn = e.target.closest('.abs-del-btn'); if (!btn) return;
   if (!confirm('Törlöd ezt a hiányzást?')) return;
   try {
+    const absSnap = await getDoc(doc(db,'absences',btn.dataset.id));
+    const absData = absSnap.exists() ? absSnap.data() : {};
     await deleteDoc(doc(db,'absences',btn.dataset.id));
+    logAction('absence.delete', { dolgozoNev: absData.nev || '—', datum: absData.tol || '—' });
     msg('Hiányzás törölve.'); loadAbsences();
     _loadSzabadsagMap().then(() => renderEmployeeGrid());
   } catch (e) { msg('Törlési hiba','error'); }
@@ -962,7 +965,7 @@ function _renderTulora(list) {
         <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(t.dolgozoNev)}</div>
         <div style="font-size:12px;color:var(--text3);">${esc(t.datum)} · <strong>${t.oraSzam} óra</strong>${t.megjegyzes ? ' · ' + esc(t.megjegyzes) : ''}</div>
       </div>
-      ${canDel ? `<button class="btn btn-danger btn-xs tulora-del-btn" data-id="${t.id}">✕</button>` : ''}
+      ${canDel ? `<button class="btn btn-danger btn-xs tulora-del-btn" data-id="${t.id}" data-nev="${esc(t.dolgozoNev||'')}" data-datum="${esc(t.datum||'')}">✕</button>` : ''}
     </div>`;
   });
   h += '</div>';
@@ -994,7 +997,7 @@ export async function handleTuloraClick(e) {
   if (!confirm('Törlöd ezt a túlóra bejegyzést?')) return;
   try {
     await deleteDoc(doc(db, 'overtimes', btn.dataset.id));
-    logAction('overtime.delete', {});
+    logAction('overtime.delete', { dolgozoNev: btn.dataset.nev || '—', datum: btn.dataset.datum || '—' });
     msg('Túlóra törölve.'); loadTulora();
   } catch (e) { msg('Törlési hiba', 'error'); }
 }

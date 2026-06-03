@@ -40,7 +40,7 @@ export async function loadAdminUsers() {
       if (isMainAdmin() && !u.isMainAdmin) {
         const opts = Object.values(roles).map(r => `<option value="${esc(r.id)}" ${u.roleId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
         actions += `<select class="role-select" data-uid="${u.id}" style="font-size:12px;padding:4px 24px 4px 7px;margin-right:4px;"><option value="">— Nincs —</option>${opts}</select>`;
-        actions += `<button class="btn btn-xs ${u.isDisabled ? 'btn-ghost' : 'btn-danger'} dis-toggle-btn" data-uid="${u.id}" data-is-disabled="${u.isDisabled ? '1' : '0'}" ${isMe ? 'disabled' : ''}>${u.isDisabled ? '▶ Aktivál' : '⏸ Letilt'}</button> `;
+        actions += `<button class="btn btn-xs ${u.isDisabled ? 'btn-ghost' : 'btn-danger'} dis-toggle-btn" data-uid="${u.id}" data-is-disabled="${u.isDisabled ? '1' : '0'}" data-name="${esc(u.displayName||u.email||'')}" ${isMe ? 'disabled' : ''}>${u.isDisabled ? '▶ Aktivál' : '⏸ Letilt'}</button> `;
         actions += `<button class="btn btn-danger btn-xs" data-del-user="${u.id}" ${isMe ? 'disabled' : ''}>Töröl</button>`;
       }
       const tr = document.createElement('tr');
@@ -179,8 +179,10 @@ export async function handleRoleListClick(e) {
     E('saveRoleBtn').textContent = 'Frissítés';
   } else if (delBtn) {
     if (!confirm('Törlöd ezt a szerepkört?')) return;
+    const roleSnap = await getDoc(doc(db, 'roles', delBtn.dataset.delRole));
+    const roleName = roleSnap.exists() ? roleSnap.data().name : '—';
     await deleteDoc(doc(db, 'roles', delBtn.dataset.delRole));
-    logAction('role.delete', {});
+    logAction('role.delete', { nev: roleName });
     msg('Szerepkör törölve.'); loadRoles();
   }
 }
@@ -239,14 +241,17 @@ function _renderAdminNotices(list) {
           ${n.createdByName ? `<span style="color:var(--text3);">— ${esc(n.createdByName)}</span>` : ''}
         </div>
       </div>
-      <button class="btn btn-danger btn-xs notice-adm-del" data-id="${n.id}" style="position:absolute;top:12px;right:12px;">✕</button>
+      <button class="btn btn-danger btn-xs notice-adm-del" data-id="${n.id}" data-szoveg="${esc(n.szoveg?.slice(0,60)||'')}" style="position:absolute;top:12px;right:12px;">✕</button>
     </div>`;
   }).join('');
   E('noticeListDiv').querySelectorAll('.notice-adm-del').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('Törlöd ezt a közleményt?')) return;
-      try { await deleteDoc(doc(db, 'notices', btn.dataset.id)); msg('Közlemény törölve.'); loadNoticeAdmin(); }
-      catch (err) { msg('Hiba: ' + err.message, 'error'); }
+      try {
+        await deleteDoc(doc(db, 'notices', btn.dataset.id));
+        logAction('notice.delete', { szoveg: btn.dataset.szoveg || '—' });
+        msg('Közlemény törölve.'); loadNoticeAdmin();
+      } catch (err) { msg('Hiba: ' + err.message, 'error'); }
     });
   });
 }
@@ -268,6 +273,7 @@ export async function saveNotice() {
       createdByName: state.userData?.displayName || state.appUser.email || 'Admin',
       createdAt:    serverTimestamp()
     });
+    logAction('notice.create', { szoveg: szoveg.slice(0, 60) });
     msg('Közlemény közzétéve.');
     E('noticeInput').value = '';
     if (E('noticeLejarat')) E('noticeLejarat').value = '';

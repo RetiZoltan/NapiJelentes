@@ -114,9 +114,9 @@ function _renderList(list, statuszF) {
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;" onclick="event.stopPropagation()">
-        ${canMove && nextSt ? `<button class="btn btn-primary btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}" title="→ ${STATUS_LABEL[nextSt]}">→</button>` : ''}
+        ${canMove && nextSt ? `<button class="btn btn-primary btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}" data-cim="${t.cim||''}" title="→ ${STATUS_LABEL[nextSt]}">→</button>` : ''}
         ${kesz && isMainAdmin() ? `<button class="btn btn-ghost btn-xs task-reopen-btn" data-id="${t.id}" title="Újranyit">↩</button>` : ''}
-        ${canDel ? `<button class="btn btn-danger btn-xs task-del-btn" data-id="${t.id}">✕</button>` : ''}
+        ${canDel ? `<button class="btn btn-danger btn-xs task-del-btn" data-id="${t.id}" data-cim="${t.cim||''}">✕</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -145,7 +145,7 @@ function _renderKanban(list) {
         ${assignee  ? `<span>👤 ${esc(assignee)}</span>` : ''}
       </div>
       ${canMove && nextSt ? `<div style="text-align:right;margin-top:7px;" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}">→ ${STATUS_LABEL[nextSt]}</button>
+        <button class="btn btn-ghost btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}" data-cim="${t.cim||''}">→ ${STATUS_LABEL[nextSt]}</button>
       </div>` : ''}
     </div>`;
   }
@@ -360,8 +360,11 @@ export async function handleTaskClick(e) {
     const upd = { statusz: next };
     if (next === 'kesz') { upd.doneBy = state.appUser.uid; upd.doneAt = serverTimestamp(); }
     else { upd.doneBy = null; upd.doneAt = null; }
-    try { await updateDoc(doc(db, 'tasks', id), upd); loadTasks(); }
-    catch (err) { msg('Hiba: ' + err.message, 'error'); }
+    try {
+      await updateDoc(doc(db, 'tasks', id), upd);
+      logAction('task.status', { cim: moveBtn.dataset.cim || '—', statusz: next });
+      loadTasks();
+    } catch (err) { msg('Hiba: ' + err.message, 'error'); }
     return;
   }
 
@@ -379,7 +382,7 @@ export async function handleTaskClick(e) {
     if (!confirm('Törlöd ezt a feladatot?')) return;
     try {
       await deleteDoc(doc(db, 'tasks', delBtn.dataset.id));
-      logAction('task.delete', { id: delBtn.dataset.id });
+      logAction('task.delete', { cim: delBtn.dataset.cim || '—' });
       msg('Feladat törölve.'); loadTasks();
     } catch (err) { msg('Hiba: ' + err.message, 'error'); }
     return;

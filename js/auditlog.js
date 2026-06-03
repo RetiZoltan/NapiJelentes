@@ -8,7 +8,6 @@ export const ACTION_LABELS = {
   'employee.create':     'Dolgozó hozzáadva',
   'employee.update':     'Dolgozó módosítva',
   'employee.delete':     'Dolgozó törölve',
-  'employee.archive':    'Dolgozó archiválva',
   'task.create':         'Feladat létrehozva',
   'task.delete':         'Feladat törölve',
   'task.status':         'Feladat állapot változott',
@@ -64,7 +63,7 @@ export async function loadAuditLog(limitN = 200) {
 export function renderAuditLog(list, filters = {}) {
   const { tipusF = '', userF = '', tolF = '', igF = '' } = filters;
 
-  let filtered = list;
+  let filtered = list.filter(e => e.action !== 'auth.login');
   if (tipusF) filtered = filtered.filter(e => (e.action || '').startsWith(tipusF + '.'));
   if (userF)  filtered = filtered.filter(e => e.userId === userF || e.userName === userF);
   if (tolF)   filtered = filtered.filter(e => {
@@ -102,8 +101,11 @@ function _formatDetail(action, d) {
   const parts = [];
   if (d.nev)         parts.push(`<strong>${_esc(d.nev)}</strong>`);
   if (d.cim)         parts.push(`<strong>${_esc(d.cim)}</strong>`);
-  if (d.datum)       parts.push(_esc(d.datum));
+  if (d.szoveg)      parts.push(`„${_esc(d.szoveg)}"`);
   if (d.dolgozoNev)  parts.push(_esc(d.dolgozoNev));
+  if (d.datum)       parts.push(_esc(d.datum));
+  if (d.oraSzam)     parts.push(`${d.oraSzam} óra`);
+  if (d.statusz)     parts.push(`→ ${_esc(d.statusz)}`);
   if (d.email)       parts.push(_esc(d.email));
   if (d.count > 1)   parts.push(`${d.count} db`);
   return parts.length ? '— ' + parts.join(', ') : '';
