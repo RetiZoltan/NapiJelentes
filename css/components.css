@@ -994,6 +994,29 @@ html { overflow-x: clip; }
   .emp-drawer-name { font-size:14px; }
 }
 
+/* ── Widget vezérlő gombok (frissítés, fullscreen) ── */
+.dash-ctrl-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:var(--rsm);transition:color var(--tr),background var(--tr);line-height:1;flex-shrink:0;}
+.dash-ctrl-btn:hover{color:var(--accent);background:var(--agl);}
+.dash-ctrl-btn:disabled{opacity:.4;cursor:default;}
+.dash-fs-btn{font-size:14px;}
+
+/* ── Anomália jelzés ── */
+.dash-widget-warn{border-color:color-mix(in srgb,var(--red) 40%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--red) 15%,transparent),var(--sh)!important;}
+.dash-widget-good{border-color:color-mix(in srgb,var(--green) 40%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--green) 15%,transparent),var(--sh)!important;}
+.dash-anomaly-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;margin-bottom:8px;display:inline-block;}
+.dash-anomaly-warn{background:var(--redl);color:var(--red);}
+.dash-anomaly-good{background:var(--greenl);color:var(--green);}
+
+/* ── Widget fullscreen overlay ── */
+.wf-overlay{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;}
+.wf-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
+.wf-content{position:relative;background:var(--surf);border-radius:var(--rlg);padding:32px 28px 28px;max-width:620px;width:92%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.45);}
+.wf-close{position:absolute;top:14px;right:14px;background:none;border:1px solid var(--border2);color:var(--text3);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all var(--tr);}
+.wf-close:hover{background:var(--surf2);color:var(--text);}
+.wf-body .dash-widget{border:none;box-shadow:none;padding:0;animation:none;}
+.wf-body .dash-w-value{font-size:36px;}
+.wf-body .dash-w-title{font-size:16px;}
+
 /* ── Dashboard konfig bővítések ── */
 .dash-cfg-item { margin-bottom:4px; }
 .cfg-wst-row { display:flex; align-items:center; gap:8px; padding:4px 0 4px 24px; }

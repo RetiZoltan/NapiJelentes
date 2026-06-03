@@ -105,6 +105,21 @@ export function closeWidgetDrawer() {
   document.body.style.overflow = '';
 }
 
+/* ── Widget fullscreen ── */
+function _openFullscreen(wid) {
+  if (!_lastCtx) return;
+  const body = E('dashFullscreenBody'); if (!body) return;
+  body.innerHTML = _buildWidget(wid, _lastCtx, true);
+  E('dashFullscreen').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+export function closeDashFullscreen() {
+  const fs = E('dashFullscreen'); if (!fs) return;
+  fs.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
 const _WD_META = {
   maiOssz:     { icon:'⚖️', title:'Mai össztermelés – részletes' },
   haviOssz:    { icon:'📊', title:'Havi összesítő – részletes' },
@@ -747,8 +762,21 @@ export async function initDashboard() {
       await _loadWidgets();
     });
 
-    // Widget klikk → detail drawer
+    // Widget klikk → refresh / fullscreen / detail drawer
     E('dashWidgets').addEventListener('click', async e => {
+      // Egyéni frissítés
+      const refreshBtn = e.target.closest('.dash-refresh-btn');
+      if (refreshBtn) {
+        const icon = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<span style="display:inline-block;animation:spin .6s linear infinite">↺</span>';
+        refreshBtn.disabled = true;
+        await _loadWidgets();
+        return;
+      }
+      // Teljes képernyő
+      const fsBtn = e.target.closest('.dash-fs-btn');
+      if (fsBtn) { _openFullscreen(fsBtn.dataset.wid); return; }
+
       if (e.target.closest('.dash-move-btn')) return;
       if (e.target.tagName === 'SELECT' || e.target.closest('select')) return;
       if (e.target.closest('button')) return;
@@ -756,9 +784,12 @@ export async function initDashboard() {
       if (w?.dataset.wid) { await _openWidgetDrawer(w.dataset.wid); return; }
     });
 
-    // Widget drawer bezárás
+    // Widget drawer + fullscreen bezárás
     E('widgetDrawerClose')?.addEventListener('click', closeWidgetDrawer);
     E('widgetDrawerOverlay')?.addEventListener('click', closeWidgetDrawer);
+    E('dashFsClose')?.addEventListener('click', closeDashFullscreen);
+    E('dashFsBd')?.addEventListener('click', closeDashFullscreen);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDashFullscreen(); });
 
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
@@ -837,15 +868,16 @@ async function _loadWidgets() {
     `<div class="dash-last-update">Frissítve: ${now.toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })}${nextHint}</div>`
   );
 
-  // Nyíl gombok injektálása minden widgetbe
+  // Vezérlő + nyíl gombok injektálása minden widgetbe
   const wNodes = [...grid.querySelectorAll('.dash-widget')];
   wNodes.forEach((w, i) => {
-    // Staggered fade-in delay
     w.style.setProperty('--wi-delay', `${i * 0.07}s`);
     const hdr = w.querySelector('.dash-w-hdr'); if (!hdr) return;
     const mv  = document.createElement('div');
     mv.className = 'dash-w-move';
     mv.innerHTML = `
+      <button class="dash-ctrl-btn dash-refresh-btn" data-wid="${enabled[i]}" title="Frissítés">↺</button>
+      <button class="dash-ctrl-btn dash-fs-btn"      data-wid="${enabled[i]}" title="Teljes képernyő">⛶</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
     hdr.appendChild(mv);
@@ -974,8 +1006,14 @@ function _animateCounters(grid) {
 /* ── Widget sorrend (nyíl gombok) ── */
 
 /* ── Widget builder ── */
-function _card(icon, title, value, sub = '', extra = '', large = false) {
-  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}">
+function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null) {
+  const anomCls   = anomaly ? ` dash-widget-${anomaly}` : '';
+  const anomBadge = anomaly === 'warn'
+    ? `<div class="dash-anomaly-badge dash-anomaly-warn">⚠️ Átlag alatt</div>`
+    : anomaly === 'good'
+    ? `<div class="dash-anomaly-badge dash-anomaly-good">🏆 Rekord nap</div>` : '';
+  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}${anomCls}">
+    ${anomBadge}
     <div class="dash-w-hdr">
       <span class="dash-w-icon">${icon}</span>
       <span class="dash-w-title">${title}</span>
@@ -1014,7 +1052,10 @@ function _buildWidget(id, ctx, large = false) {
     const val  = kg > 0
       ? `<span class="${vcls}" data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t ${_trendBadge(diff)}`
       : `<span style="color:var(--text3);font-size:20px;">—</span>`;
-    return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', '', large);
+    // Anomália: legalább 3 aktív nap kell az átlaghoz, ±25% küszöb
+    const anomaly = (diff !== null && kg > 0 && activeDays.length >= 3)
+      ? (diff < -25 ? 'warn' : diff > 25 ? 'good' : null) : null;
+    return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', '', large, anomaly);
   }
 
   if (id === 'haviOssz') {
