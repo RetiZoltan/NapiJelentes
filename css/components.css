@@ -471,6 +471,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 }
 [data-layout="sidebar"] .sb-brand .brand-title { font-size: 15px; }
 [data-layout="sidebar"] .sb-brand .brand-sub   { font-size: 10px; }
+[data-layout="sidebar"] .sb-brand > div        { display: none; }
+[data-layout="sidebar"] .sb-brand              { justify-content: center; padding: 14px 6px; }
+[data-layout="sidebar"] .sb-brand .brand-logo  { width: 38px; height: 38px; }
+[data-layout="sidebar"] .sb-brand:hover .brand-logo { opacity: .8; }
 
 /* Sidebar tab buttons */
 [data-layout="sidebar"] .tab-btn {
