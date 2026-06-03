@@ -703,7 +703,8 @@ async function _saveQAConfig(ids) {
 function _renderQuickActions() {
   const el = E('dashQuickActions'); if (!el) return;
   const enabled = _getEnabledQA();
-  const actions = _allQA().filter(a => enabled.includes(a.id));
+  // map: az enabled tömb SORRENDJÉT követi, nem az allQA eredeti sorrendjét
+  const actions = enabled.map(id => _allQA().find(a => a.id === id)).filter(Boolean);
   if (!actions.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="dash-qa">${actions.map(a =>
     `<button class="dash-qa-btn" data-tab="${a.tab || ''}" data-action="${a.action || ''}" data-url="${esc(a.url || '')}">
