@@ -512,10 +512,10 @@ function _renderConfig() {
     const content = E('cfgCwContent').value.trim();
     if (!title) { E('cfgCwTitle').focus(); return; }
     const id      = 'cw_' + Date.now();
-    const list    = [..._getCustomWidgets(), { id, icon, title, content }];
-    _saveCustomWidgets(list);
-    const ids = [..._getEnabled(), id];
-    await _saveConfig(ids);
+    // _getEnabled() ELŐTT mentjük a custom widget-et, hogy ne duplikáljon
+    const prevIds = _getEnabled();
+    _saveCustomWidgets([..._getCustomWidgets(), { id, icon, title, content }]);
+    await _saveConfig([...prevIds, id]);
     _renderConfig(); await _loadWidgets();
   });
 
@@ -559,23 +559,50 @@ function _renderConfig() {
 
   E('dashQaConfigWidgets').innerHTML = qaHtml;
 
-  // QA drag & drop
-  let _dragOver = null;
-  E('qaEnabledList').querySelectorAll('.qa-drag-item').forEach(item => {
-    item.addEventListener('dragstart', e => { _dragQaId = item.dataset.qaid; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    item.addEventListener('dragend',   () => { item.classList.remove('dragging'); E('qaEnabledList').querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('drag-over')); });
-    item.addEventListener('dragover',  e => { e.preventDefault(); if (item.dataset.qaid !== _dragQaId) { if (_dragOver) _dragOver.classList.remove('drag-over'); item.classList.add('drag-over'); _dragOver = item; } });
-    item.addEventListener('drop',      async e => {
-      e.preventDefault(); item.classList.remove('drag-over');
-      if (!_dragQaId || _dragQaId === item.dataset.qaid) return;
-      const order = [...enabledQA];
-      const fromI = order.indexOf(_dragQaId);
-      const toI   = order.indexOf(item.dataset.qaid);
-      if (fromI < 0 || toI < 0) return;
-      order.splice(fromI, 1); order.splice(toI, 0, _dragQaId);
-      await _saveQAConfig(order);
-      _renderConfig(); _renderQuickActions();
+  // QA drag & drop — event delegation a konténeren, csak handle-ről indítható
+  const qaDragList = E('qaEnabledList');
+  qaDragList.querySelectorAll('.qa-drag-item').forEach(item => {
+    // Drag csak a ⠿ handle-ről indul
+    item.addEventListener('mousedown', e => {
+      item.draggable = !!e.target.closest('.qa-drag-handle');
     });
+  });
+  qaDragList.addEventListener('dragstart', e => {
+    const item = e.target.closest('.qa-drag-item'); if (!item) return;
+    _dragQaId = item.dataset.qaid;
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragQaId);
+  });
+  qaDragList.addEventListener('dragend', () => {
+    qaDragList.querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('dragging', 'drag-over'));
+    _dragQaId = null;
+  });
+  qaDragList.addEventListener('dragover', e => {
+    e.preventDefault();
+    const item = e.target.closest('.qa-drag-item');
+    if (!item || item.dataset.qaid === _dragQaId) return;
+    qaDragList.querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('drag-over'));
+    item.classList.add('drag-over');
+  });
+  qaDragList.addEventListener('dragleave', e => {
+    if (!qaDragList.contains(e.relatedTarget)) {
+      qaDragList.querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('drag-over'));
+    }
+  });
+  qaDragList.addEventListener('drop', async e => {
+    e.preventDefault();
+    const target = e.target.closest('.qa-drag-item');
+    qaDragList.querySelectorAll('.qa-drag-item').forEach(i => i.classList.remove('drag-over'));
+    if (!target || !_dragQaId || target.dataset.qaid === _dragQaId) return;
+    const order = [...enabledQA];
+    const fromI = order.indexOf(_dragQaId);
+    const toI   = order.indexOf(target.dataset.qaid);
+    if (fromI < 0 || toI < 0) return;
+    order.splice(fromI, 1); order.splice(toI, 0, _dragQaId);
+    _dragQaId = null;
+    await _saveQAConfig(order);
+    _renderConfig(); _renderQuickActions();
   });
 
   // QA checkbox events
@@ -606,10 +633,12 @@ function _renderConfig() {
     const label = E('cfgCqaLabel').value.trim();
     const url   = E('cfgCqaUrl').value.trim();
     if (!label || !url) { msg('Töltsd ki a feliratot és az URL-t!', 'error'); return; }
-    const id   = 'cqa_' + Date.now();
+    const id = 'cqa_' + Date.now();
+    // _getEnabledQA() ELŐTT mentjük a custom QA-t, hogy ne duplikáljon
+    const prevIds = _getEnabledQA();
     _saveCustomQA([..._getCustomQA(), { id, icon, label, url }]);
-    let ids = [..._getEnabledQA(), id];
-    await _saveQAConfig(ids); _renderConfig(); _renderQuickActions();
+    await _saveQAConfig([...prevIds, id]);
+    _renderConfig(); _renderQuickActions();
   });
 
   const sel = E('dashAutoRefreshSel');
