@@ -557,9 +557,13 @@ export async function evesRiport() {
   }
 
   let html = `<div class="r-head">${ev}. év${_filterBadges()}</div>`;
+  if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
+  if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('barChart'))      html += _riportBarChart(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
   if (getRiportSet('haviAtlag'))     html += haviAtlagHtml(hA);
