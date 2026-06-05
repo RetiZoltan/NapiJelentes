@@ -12,7 +12,7 @@ import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount } from './data-entry.js';
-import { napiRiport, haviRiport, evesRiport, egyeniRiport,
+import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
          napiKepMent, idoszakosKepMent,
          napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
          napiNyomtat, idoszakosNyomtat,
@@ -158,6 +158,13 @@ function buildAppUI() {
   const mo  = now.getMonth() + 1;
   E('haviHonapInput').value = `${yr}-${String(mo).padStart(2, '0')}`;
   E('evesEvInput').value    = yr;
+  // Aktuális ISO hét beállítása
+  const _isoWk = (() => {
+    const d = new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate()+4-(d.getDay()||7));
+    const y1 = new Date(d.getFullYear(),0,1);
+    return `${d.getFullYear()}-W${String(Math.ceil(((d-y1)/86400000+1)/7)).padStart(2,'0')}`;
+  })();
+  if (E('hetiHetInput')) E('hetiHetInput').value = _isoWk;
 
 
   applyColorTheme(state.userData.colorTheme || 'plexiq');
@@ -636,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Időszakos jelentés
   function updateIdoszakInputs() {
     const v = E('idoszakTipus').value;
+    E('hetiInputWrap').style.display    = v === 'heti'   ? '' : 'none';
     E('haviInputWrap').style.display    = v === 'havi'   ? '' : 'none';
     E('evesInputWrap').style.display    = v === 'eves'   ? '' : 'none';
     E('egyeniTolWrap').style.display    = v === 'egyeni' ? '' : 'none';
@@ -646,8 +654,9 @@ document.addEventListener('DOMContentLoaded', () => {
   updateIdoszakInputs();
   E('idoszakosBtn').addEventListener('click', () => {
     const v = E('idoszakTipus').value;
-    if (v === 'havi') haviRiport();
-    else if (v === 'eves') evesRiport();
+    if (v === 'havi')  haviRiport();
+    else if (v === 'heti')  hetiRiport();
+    else if (v === 'eves')  evesRiport();
     else egyeniRiport();
   });
   E('idoszakosKepMentBtn').addEventListener('click', idoszakosKepMent);

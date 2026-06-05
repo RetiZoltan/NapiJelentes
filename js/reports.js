@@ -239,6 +239,49 @@ export async function haviRiport() {
   _setIdoszakBtns(false);
 }
 
+/* ── Heti riport ── */
+function _weekToRange(weekStr) {
+  const [yr, wk] = weekStr.split('-W').map(Number);
+  const jan4 = new Date(yr, 0, 4);
+  const dow  = jan4.getDay() || 7;
+  const mon  = new Date(jan4);
+  mon.setDate(jan4.getDate() - dow + 1 + (wk - 1) * 7);
+  const sun  = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt  = d => d.toISOString().slice(0, 10);
+  return { from: fmt(mon), to: fmt(sun), yr, wk };
+}
+
+export async function hetiRiport() {
+  const raw = E('hetiHetInput').value;
+  if (!raw) { msg('Válassz hetet!', 'error'); return; }
+  const { from, to, yr, wk } = _weekToRange(raw);
+  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
+
+  E('idoszakosRiportDiv').innerHTML = skelHtml('report');
+  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
+  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  if (!hA.length) {
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    _setIdoszakBtns(true); return;
+  }
+
+  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
+  let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${reszlegBadge}</div>`;
+  if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  html += reszlegOsszesitoHtml(hA);
+  if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
+  if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
+  if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
+  if (getRiportSet('muszak'))        html += muszakHtml(hA);
+  if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
+  if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
+  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
+  E('idoszakosRiportDiv').innerHTML = html;
+  _setIdoszakBtns(false);
+}
+
 /* ── Egyéni tartomány riport ── */
 export async function egyeniRiport() {
   const from = E('egyeniTolInput').value;
