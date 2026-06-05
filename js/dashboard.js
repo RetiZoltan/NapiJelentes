@@ -769,23 +769,7 @@ export async function initDashboard() {
 
     // Widget drawer + fullscreen bezárás
     E('widgetDrawerClose')?.addEventListener('click', closeWidgetDrawer);
-    E('widgetDrawerOverlay')?.addEventListener('click', e => {
-      // elementsFromPoint: az összes elemet visszaadja ezen a ponton (overlay + mögötte)
-      const els = document.elementsFromPoint(e.clientX, e.clientY);
-      let targetWidget = null;
-      for (const el of els) {
-        const w = el.closest?.('.dash-widget-clickable');
-        if (w?.dataset?.wid && DRAWER_WIDGETS.includes(w.dataset.wid)) {
-          targetWidget = w; break;
-        }
-      }
-      if (targetWidget) {
-        // Widget van mögötte: tartalom csere bezárás nélkül (nincs animáció-villanás)
-        _openWidgetDrawer(targetWidget.dataset.wid);
-      } else {
-        closeWidgetDrawer();
-      }
-    });
+    E('widgetDrawerOverlay')?.addEventListener('click', closeWidgetDrawer);
 
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
