@@ -25,10 +25,15 @@ export async function loadLocations() {
 }
 
 function _fillLocSelects() {
-  const locOpts = _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('');
-  const allOpts = '<option value="">— Mind —</option>' + locOpts;
-  const selOpts = '<option value="">— Válassz —</option>' + locOpts;
-  ['keszletHelyF', 'elozHelyF'].forEach(id => {
+  const locOpts    = _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('');
+  const allOpts    = '<option value="">— Mind —</option>' + locOpts;
+  const belsoOpts  = '<option value="">— Mind —</option><option value="_belso_">🏭 Belső készlet</option>' + locOpts;
+  const selOpts    = '<option value="">— Válassz —</option>' + locOpts;
+
+  const keszletEl = E('keszletHelyF');
+  if (keszletEl) { const p = keszletEl.value; keszletEl.innerHTML = belsoOpts; if (p) keszletEl.value = p; }
+
+  ['elozHelyF'].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = allOpts; if (prev) el.value = prev;
   });
@@ -91,13 +96,16 @@ export async function renderLocations() {
 ══════════════════════════════════════ */
 async function _calcStock(anyagF = '', helyF = '') {
   const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('createdAt', 'desc')));
-  const stock   = {};
-  const batches = {}; // key → [{ datum, zsakSzam, zsakSulyok }]
+  const stock        = {};
+  const batches      = {};
+  const importedRefs = new Set();
 
   snap.docs.forEach(d => {
     const m    = { id: d.id, ...d.data() };
     const zsak = m.zsakSzam    || 0;
     const kg   = m.mennyisegKg || 0;
+
+    if (m.forrás === 'termelés') (m.termelesRef || []).forEach(id => importedRefs.add(id));
 
     const add = (anyag, hely, sign) => {
       const key = `${anyag}|${hely}`;
@@ -123,14 +131,32 @@ async function _calcStock(anyagF = '', helyF = '') {
     }
   });
 
+  // Betárolatlan termelési bejegyzések → virtuális '_termelés_' helyszín
+  const allEntries = await fetchEntries({});
+  allEntries
+    .filter(e => e.zsakSulyok?.length > 0 && !importedRefs.has(e.id))
+    .forEach(e => {
+      const mat = (e.anyag || '').trim() || '—';
+      const key = `${mat}|_termelés_`;
+      if (!stock[key]) stock[key] = { anyag: mat, hely: '_termelés_', zsakSzam: 0, kg: 0, belso: true };
+      stock[key].zsakSzam += e.zsakSulyok.length;
+      stock[key].kg       += e.zsakSulyok.reduce((s, v) => s + v, 0);
+      if (!batches[key]) batches[key] = [];
+      batches[key].push({ datum: e.datum || '', zsakSzam: e.zsakSulyok.length, zsakSulyok: e.zsakSulyok });
+    });
+
+  const belsoFilter = helyF === '_belso_';
+
   return Object.values(stock)
     .filter(s => s.zsakSzam > 0 || s.kg > 0)
-    .filter(s => (!anyagF || s.anyag === anyagF) && (!helyF || s.hely === helyF))
-    .map(s => ({ ...s, batches: (batches[`${s.anyag}|${s.hely}`] || []).sort((a,b) => a.datum.localeCompare(b.datum)) }))
+    .filter(s => !anyagF || s.anyag === anyagF)
+    .filter(s => belsoFilter ? s.belso : (!helyF || s.hely === helyF))
+    .map(s => ({ ...s, batches: (batches[`${s.anyag}|${s.hely}`] || []).sort((a, b) => a.datum.localeCompare(b.datum)) }))
     .sort((a, b) => b.zsakSzam - a.zsakSzam || a.anyag.localeCompare(b.anyag, 'hu'));
 }
 
 function _locName(locMap, id) {
+  if (id === '_termelés_') return '🏭 Termelés';
   return esc(locMap[id] || id || '—');
 }
 
