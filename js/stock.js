@@ -546,7 +546,6 @@ export function switchKeszletTab(name) {
   E('ksTab-' + name)?.classList.add('active');
 
   if (name === 'sztkeszlet')    loadKeszlet();
-  if (name === 'sztmozgas')     _refreshMozgasKeszlet();
   if (name === 'sztbevetelez')  { /* belső készlet csak kézzel nyílik */ }
   if (name === 'sztelozmenyek') loadElozmenyek();
   if (name === 'sztbeallitas')  renderLocations();
