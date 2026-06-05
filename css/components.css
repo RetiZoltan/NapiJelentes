@@ -306,6 +306,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .stock-zsak-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .stock-zsak-chip{background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--text3);white-space:nowrap;}
 .mozg-tipus-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.stock-row-clickable{cursor:pointer;}
+.stock-row-clickable:hover td{background:var(--surf2);}
+.stock-det-arrow{transition:transform .15s;display:inline-block;}
+.stock-det-row td{border-top:none;}
 .stock-summary-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
 .ssc{flex:1;min-width:80px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 14px;text-align:center;}
 .ssc-val{font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}

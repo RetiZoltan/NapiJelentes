@@ -91,7 +91,8 @@ export async function renderLocations() {
 ══════════════════════════════════════ */
 async function _calcStock(anyagF = '', helyF = '') {
   const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('createdAt', 'desc')));
-  const stock = {};
+  const stock   = {};
+  const batches = {}; // key → [{ datum, zsakSzam, zsakSulyok }]
 
   snap.docs.forEach(d => {
     const m    = { id: d.id, ...d.data() };
@@ -107,7 +108,14 @@ async function _calcStock(anyagF = '', helyF = '') {
     };
 
     const t = m.tipus;
-    if (t === 'bevitel')                                     add(m.anyag, m.forrasHely,  1);
+    if (t === 'bevitel') {
+      add(m.anyag, m.forrasHely, 1);
+      if (m.zsakSulyok?.length) {
+        const key = `${m.anyag}|${m.forrasHely}`;
+        if (!batches[key]) batches[key] = [];
+        batches[key].push({ datum: m.datum || '', zsakSzam: m.zsakSzam || m.zsakSulyok.length, zsakSulyok: m.zsakSulyok });
+      }
+    }
     if (t === 'kiszallitas' || t === 'selejt' || t === 'kivitel') add(m.anyag, m.forrasHely, -1);
     if (t === 'atadas') {
       add(m.anyag, m.forrasHely, -1);
@@ -118,6 +126,7 @@ async function _calcStock(anyagF = '', helyF = '') {
   return Object.values(stock)
     .filter(s => s.zsakSzam > 0 || s.kg > 0)
     .filter(s => (!anyagF || s.anyag === anyagF) && (!helyF || s.hely === helyF))
+    .map(s => ({ ...s, batches: (batches[`${s.anyag}|${s.hely}`] || []).sort((a,b) => a.datum.localeCompare(b.datum)) }))
     .sort((a, b) => b.zsakSzam - a.zsakSzam || a.anyag.localeCompare(b.anyag, 'hu'));
 }
 
@@ -158,20 +167,46 @@ export async function loadKeszlet() {
         <th style="text-align:right;">Zsák (db)</th>
         <th style="text-align:right;">Súly</th>
         <th>Forrás</th>
+        <th style="width:22px;"></th>
       </tr></thead><tbody>`;
 
-    stock.forEach(s => {
-      h += `<tr>
+    stock.forEach((s, idx) => {
+      const detId  = `kdet_${idx}`;
+      const hasDet = s.batches.length > 0;
+      h += `<tr class="${hasDet ? 'stock-row-clickable' : ''}" data-det="${hasDet ? detId : ''}">
         <td style="font-weight:600;color:var(--text);">${esc(s.anyag)}</td>
         <td style="color:var(--text2);">${_locName(locMap, s.hely)}</td>
         <td style="text-align:right;"><span class="stock-badge-zsak">${s.zsakSzam} db</span></td>
         <td style="text-align:right;">${s.kg > 0 ? fmtKg(s.kg) : '—'}</td>
         <td><span style="font-size:11px;font-weight:600;color:${s.belso ? 'var(--green)' : 'var(--text3)'};">${s.belso ? '🏭 belső' : '📥 külső'}</span></td>
+        <td style="width:22px;text-align:center;color:var(--text3);font-size:12px;">${hasDet ? '<span class="stock-det-arrow">▶</span>' : ''}</td>
       </tr>`;
+      if (hasDet) {
+        const batchRows = s.batches.map(b =>
+          `<div style="padding:5px 0;border-bottom:1px dashed var(--border2);">
+            <div style="font-size:11.5px;color:var(--text3);margin-bottom:4px;">📅 ${esc(b.datum)} · ${b.zsakSzam} zsák</div>
+            <div class="stock-zsak-chips">${b.zsakSulyok.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>
+          </div>`
+        ).join('');
+        h += `<tr id="${detId}" class="stock-det-row" style="display:none;">
+          <td colspan="6" style="padding:10px 14px;background:var(--surf2);">${batchRows}</td>
+        </tr>`;
+      }
     });
 
     h += `</tbody></table></div>`;
     div.innerHTML = h;
+
+    div.querySelectorAll('.stock-row-clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        const det   = document.getElementById(row.dataset.det);
+        const arrow = row.querySelector('.stock-det-arrow');
+        if (!det) return;
+        const open = det.style.display !== 'none';
+        det.style.display = open ? 'none' : '';
+        if (arrow) arrow.textContent = open ? '▶' : '▼';
+      });
+    });
   } catch (e) { msg('Készlet betöltési hiba: ' + e.message, 'error'); }
 }
 
@@ -199,11 +234,16 @@ async function _refreshMozgasKeszlet() {
     const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
     div.innerHTML =
       `<div style="font-size:10.5px;color:var(--text3);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Aktuális készlet</div>` +
-      stock.map(s => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;">
-          <span style="color:var(--text2);">${esc(s.anyag)} · <span style="color:var(--text3);">${_locName(locMap, s.hely)}</span></span>
-          <span class="stock-badge-zsak">${s.zsakSzam} db</span>
-        </div>`).join('');
+      stock.map(s => {
+        const allChips = s.batches.flatMap(b => b.zsakSulyok);
+        return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+            <span style="color:var(--text2);">${esc(s.anyag)} · <span style="color:var(--text3);">${_locName(locMap, s.hely)}</span></span>
+            <span class="stock-badge-zsak">${s.zsakSzam} db</span>
+          </div>
+          ${allChips.length ? `<div class="stock-zsak-chips" style="margin-top:5px;">${allChips.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>` : ''}
+        </div>`;
+      }).join('');
   } catch {}
 }
 
