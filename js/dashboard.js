@@ -58,16 +58,30 @@ function _canSeeWidget(id) {
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
 
 /* ── Widget beállítások ── */
+const WIDGET_COLORS = [
+  { id: '',       dot: 'transparent', border: '' },
+  { id: 'accent', dot: 'var(--accent)', border: 'var(--accent)' },
+  { id: 'green',  dot: 'var(--green)',  border: 'var(--green)'  },
+  { id: 'amber',  dot: 'var(--amber)',  border: 'var(--amber)'  },
+  { id: 'red',    dot: 'var(--red)',    border: 'var(--red)'    },
+  { id: 'purple', dot: '#8B5CF6',       border: '#8B5CF6'       },
+];
+
 function _getEnabled() {
   const customIds = _getCustomWidgets().map(w => w.id);
   const saved = state.userData?.dashboardWidgets;
+  let list;
   if (Array.isArray(saved) && saved.length) {
     const valid = saved.filter(id => _canSeeWidget(id) || customIds.includes(id));
-    // Ha van új custom widget amit még nem mentettünk, hozzáfűzzük
     customIds.forEach(id => { if (!valid.includes(id)) valid.push(id); });
-    return valid;
+    list = valid;
+  } else {
+    list = [..._availableWidgets().filter(w => w.def).map(w => w.id), ...customIds];
   }
-  return [..._availableWidgets().filter(w => w.def).map(w => w.id), ...customIds];
+  // Rögzített widgetek a lista elejére kerülnek
+  const pinned = list.filter(id => _getWidgetSettings(id).pinned);
+  const rest   = list.filter(id => !_getWidgetSettings(id).pinned);
+  return [...pinned, ...rest];
 }
 async function _saveConfig(ids) {
   if (state.userData) state.userData.dashboardWidgets = ids;
@@ -423,8 +437,11 @@ function _renderConfig() {
       const isEnabled = enabled.includes(w.id);
       const isLarge   = sizes[w.id] === 'large';
       const wstDef    = _WST_DEFS[w.id];
-      const wst       = wstDef ? _getWidgetSettings(w.id) : null;
-      const curVal    = wst?.[wstDef?.key] ?? wstDef?.def ?? '';
+      const wst       = _getWidgetSettings(w.id);
+      const curVal    = wst[wstDef?.key] ?? wstDef?.def ?? '';
+      const isPinned  = !!wst.pinned;
+      const curColor  = wst.color || '';
+      const curTitle  = wst.customTitle || '';
       const settingsHtml = (isEnabled && wstDef) ? `
         <div class="cfg-wst-row">
           <span class="cfg-wst-lbl">${wstDef.label}:</span>
@@ -432,13 +449,22 @@ function _renderConfig() {
             ${wstDef.opts.map(([v,l]) => `<option value="${v}"${curVal===v?' selected':''}>${l}</option>`).join('')}
           </select>
         </div>` : '';
+      const personHtml = isEnabled ? `
+        <div class="cfg-person-row">
+          <input type="text" class="cfg-title-inp" data-wid="${w.id}" value="${esc(curTitle)}" placeholder="Egyéni cím…">
+          <div class="cfg-color-dots">
+            ${WIDGET_COLORS.map(c => `<button type="button" class="cfg-color-dot${curColor===c.id?' active':''}" data-wid="${w.id}" data-color="${c.id}" style="background:${c.dot||'var(--border2)'}" title="${c.id||'Alapértelmezett'}"></button>`).join('')}
+          </div>
+        </div>` : '';
       return `<div class="dash-cfg-item">
         <label class="dash-cfg-lbl">
           <input type="checkbox" data-wid="${w.id}"${isEnabled ? ' checked' : ''}>
           <span>${w.icon} ${w.label}</span>
-          ${isEnabled ? `<button class="dash-size-btn" type="button" data-wid="${w.id}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>` : ''}
+          ${isEnabled ? `
+            <button class="dash-size-btn" type="button" data-wid="${w.id}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>
+            <button class="cfg-pin-btn${isPinned?' active':''}" type="button" data-wid="${w.id}" title="${isPinned?'Rögzített':'Rögzítés'}">📌</button>` : ''}
         </label>
-        ${settingsHtml}
+        ${settingsHtml}${personHtml}
       </div>`;
     }),
     ...customW.map(cw => `
@@ -489,6 +515,34 @@ function _renderConfig() {
       const curr = _getWidgetSizes(); const wid = btn.dataset.wid; const next = { ...curr };
       if (curr[wid] === 'large') delete next[wid]; else next[wid] = 'large';
       await _saveWidgetSizes(next); _renderConfig(); await _loadWidgets();
+    });
+  });
+  // Egyéni cím mentése (debounced)
+  let _titleT = null;
+  E('dashConfigWidgets').querySelectorAll('.cfg-title-inp').forEach(inp => {
+    inp.addEventListener('input', () => {
+      clearTimeout(_titleT);
+      _titleT = setTimeout(async () => {
+        _saveWidgetSettings(inp.dataset.wid, { customTitle: inp.value.trim() });
+        await _loadWidgets();
+      }, 600);
+    });
+  });
+  // Szín pontok
+  E('dashConfigWidgets').querySelectorAll('.cfg-color-dot').forEach(dot => {
+    dot.addEventListener('click', async () => {
+      _saveWidgetSettings(dot.dataset.wid, { color: dot.dataset.color });
+      _renderConfig();
+      await _loadWidgets();
+    });
+  });
+  // Pin gomb (config panelben)
+  E('dashConfigWidgets').querySelectorAll('.cfg-pin-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const wst = _getWidgetSettings(btn.dataset.wid);
+      _saveWidgetSettings(btn.dataset.wid, { pinned: !wst.pinned });
+      _renderConfig();
+      await _loadWidgets();
     });
   });
   E('dashConfigWidgets').querySelectorAll('.cfg-wst-sel').forEach(sel => {
@@ -748,8 +802,31 @@ export async function initDashboard() {
       await _loadWidgets();
     });
 
-    // Widget klikk → refresh / fullscreen / detail drawer
+    // Widget klikk → pin / collapse / refresh / detail drawer
     E('dashWidgets').addEventListener('click', async e => {
+      // Rögzítés
+      const pinBtn = e.target.closest('.dash-pin-btn');
+      if (pinBtn) {
+        const wid  = pinBtn.dataset.wid;
+        const wst  = _getWidgetSettings(wid);
+        _saveWidgetSettings(wid, { pinned: !wst.pinned });
+        await _loadWidgets();
+        return;
+      }
+      // Összecsukás
+      const colBtn = e.target.closest('.dash-collapse-btn');
+      if (colBtn) {
+        const wid     = colBtn.dataset.wid;
+        const wst     = _getWidgetSettings(wid);
+        const newColl = !wst.collapsed;
+        _saveWidgetSettings(wid, { collapsed: newColl });
+        const widget  = colBtn.closest('.dash-widget');
+        const body    = widget?.querySelector('.dash-w-body');
+        if (body) body.style.display = newColl ? 'none' : '';
+        colBtn.textContent = newColl ? '▸' : '▾';
+        colBtn.title       = newColl ? 'Kibont' : 'Összecsuk';
+        return;
+      }
       // Egyéni frissítés
       const refreshBtn = e.target.closest('.dash-refresh-btn');
       if (refreshBtn) {
@@ -855,10 +932,19 @@ async function _loadWidgets() {
     const hdr = w.querySelector('.dash-w-hdr'); if (!hdr) return;
     const mv  = document.createElement('div');
     mv.className = 'dash-w-move';
+    const wst_i   = _getWidgetSettings(enabled[i]);
+    const isPinned    = !!wst_i.pinned;
+    const isCollapsed = !!wst_i.collapsed;
     mv.innerHTML = `
+      <button class="dash-ctrl-btn dash-pin-btn${isPinned ? ' active' : ''}" data-wid="${enabled[i]}" title="${isPinned ? 'Rögzítve' : 'Rögzítés'}">📌</button>
+      <button class="dash-ctrl-btn dash-collapse-btn" data-wid="${enabled[i]}" title="${isCollapsed ? 'Kibont' : 'Összecsuk'}">${isCollapsed ? '▸' : '▾'}</button>
       <button class="dash-ctrl-btn dash-refresh-btn" data-wid="${enabled[i]}" title="Frissítés">↺</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
+    if (isCollapsed) {
+      const body = w.querySelector('.dash-w-body');
+      if (body) body.style.display = 'none';
+    }
     hdr.appendChild(mv);
   });
   // Kattintható widgetek jelölése + ctx mentése
@@ -985,21 +1071,24 @@ function _animateCounters(grid) {
 /* ── Widget sorrend (nyíl gombok) ── */
 
 /* ── Widget builder ── */
-function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null) {
+function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null, wColor = '') {
   const anomCls   = anomaly ? ` dash-widget-${anomaly}` : '';
+  const colorStyle = wColor ? `border-left:3px solid ${wColor};` : '';
   const anomBadge = anomaly === 'warn'
     ? `<div class="dash-anomaly-badge dash-anomaly-warn">⚠️ Átlag alatt</div>`
     : anomaly === 'good'
     ? `<div class="dash-anomaly-badge dash-anomaly-good">🏆 Rekord nap</div>` : '';
-  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}${anomCls}">
+  return `<div class="dash-widget${large ? ' dash-widget-large' : ''}${anomCls}" style="${colorStyle}">
     ${anomBadge}
     <div class="dash-w-hdr">
       <span class="dash-w-icon">${icon}</span>
       <span class="dash-w-title">${title}</span>
     </div>
-    <div class="dash-w-value">${value}</div>
-    ${sub   ? `<div class="dash-w-sub">${sub}</div>` : ''}
-    ${extra}
+    <div class="dash-w-body">
+      <div class="dash-w-value">${value}</div>
+      ${sub   ? `<div class="dash-w-sub">${sub}</div>` : ''}
+      ${extra}
+    </div>
   </div>`;
 }
 
@@ -1039,12 +1128,18 @@ function _trendBadge(diff) {
 }
 
 function _buildWidget(id, ctx, large = false) {
+  // Egyéni widgetbeállítások (cím, szín)
+  const wst   = _getWidgetSettings(id);
+  const wCol  = WIDGET_COLORS.find(c => c.id === (wst.color || ''))?.border || '';
+  const _wcrd = (icon, defTitle, val, sub, extra, lg, anomaly) =>
+    _card(icon, wst.customTitle || defTitle, val, sub, extra, lg, anomaly, wCol);
+
   // Egyéni szöveges widget
   const customW = _getCustomWidgets().find(w => w.id === id);
   if (customW) {
-    return _card(customW.icon, esc(customW.title),
+    return _card(customW.icon, wst.customTitle || esc(customW.title),
       `<span style="font-size:14px;font-weight:500;color:var(--text2);white-space:pre-wrap;">${esc(customW.content || '')}</span>`,
-      '', '', large);
+      '', '', large, null, wCol);
   }
   const { today, weekStart, prevWeekS, monthStart, todayEntries, thisWeekEntries, prevWeekEntries, monthEntries, empSnap, tasksSnap, sumKg, kgOf } = ctx;
 
@@ -1067,7 +1162,7 @@ function _buildWidget(id, ctx, large = false) {
     [...prevWeekEntries, ...thisWeekEntries].forEach(e => { spkMap14[e.datum] = (spkMap14[e.datum] || 0) + kgOf(e); });
     const spk14 = Array.from({length: 14}, (_, i) => ({ datum: addD(today, -(13 - i)), kg: spkMap14[addD(today, -(13 - i))] || 0 }));
     const spkExtra = _sparkline(spk14) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>−14 nap</span><span>Ma</span></div>`;
-    return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', spkExtra, large, anomaly);
+    return _wcrd('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', spkExtra, large, anomaly);
   }
 
   if (id === 'haviOssz') {
@@ -1085,7 +1180,7 @@ function _buildWidget(id, ctx, large = false) {
       return { datum: d, kg: spkMapM[d] || 0 };
     });
     const spkExtra = _sparkline(spkMonth) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>1.</span><span>${daysInMonth}.</span></div>`;
-    return _card('📊', 'Havi összesítő', val, kg > 0 ? `${days} aktív nap · átlag ${((kg/1000)/days).toFixed(2)} t/nap` : 'Még nincs adat', spkExtra, large);
+    return _wcrd('📊', 'Havi összesítő', val, kg > 0 ? `${days} aktív nap · átlag ${((kg/1000)/days).toFixed(2)} t/nap` : 'Még nincs adat', spkExtra, large);
   }
 
   if (id === 'hetiTrend') {
@@ -1096,7 +1191,7 @@ function _buildWidget(id, ctx, large = false) {
     const val    = thisKg > 0
       ? `<span class="${vcls}">${(thisKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
       : `<span style="color:var(--text3);font-size:20px;">—</span>`;
-    return _card('📈', 'Heti trend', val, prevKg > 0 ? `Előző hét: ${(prevKg/1000).toFixed(2)} t` : 'Hét összesítő', '', large);
+    return _wcrd('📈', 'Heti trend', val, prevKg > 0 ? `Előző hét: ${(prevKg/1000).toFixed(2)} t` : 'Hét összesítő', '', large);
   }
 
   if (id === 'topDolg') {
@@ -1106,7 +1201,7 @@ function _buildWidget(id, ctx, large = false) {
     const byW = {};
     pool.forEach(e => { byW[e.nev] = (byW[e.nev] || 0) + kgOf(e); });
     const rank = Object.entries(byW).sort((a, b) => b[1] - a[1]).slice(0, large ? 5 : 3);
-    if (!rank.length) return _card('🏅', 'Havi legjobb', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    if (!rank.length) return _wcrd('🏅', 'Havi legjobb', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
     const topLabel = `Top ${rank.length} · ${periodLabel}`;
     // Stilizált medál badge-ek
     const medalGrad = [
@@ -1123,7 +1218,7 @@ function _buildWidget(id, ctx, large = false) {
         <span style="font-size:${i===0?'13.5':'12.5'}px;font-weight:${i===0?700:600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(nev)}</span>
         <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i===0?600:400};">${(kg/1000).toFixed(2)} t</span>
       </div>`).join('');
-    return _card('🏅', 'Havi legjobb', '', topLabel, `<div style="margin-top:6px;">${rows}</div>`, large);
+    return _wcrd('🏅', 'Havi legjobb', '', topLabel, `<div style="margin-top:6px;">${rows}</div>`, large);
   }
 
   if (id === 'sajatTelj') {
@@ -1142,7 +1237,7 @@ function _buildWidget(id, ctx, large = false) {
     </div>`;
 
     if (!selected) {
-      return _card('👤', 'Saját teljesítmény',
+      return _wcrd('👤', 'Saját teljesítmény',
         `<span style="color:var(--text3);font-size:14px;">Válassz dolgozót a megjelenítéshez</span>`,
         '', workerSel, large);
     }
@@ -1176,7 +1271,7 @@ function _buildWidget(id, ctx, large = false) {
       .forEach(e => { spkMapS[e.datum] = (spkMapS[e.datum] || 0) + kgOf(e); });
     const spk14S = Array.from({length: 14}, (_, i) => ({ datum: addD(today, -(13 - i)), kg: spkMapS[addD(today, -(13 - i))] || 0 }));
     const spkS = _sparkline(spk14S) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>−14 nap</span><span>Ma</span></div>`;
-    return _card('👤', 'Saját teljesítmény', val, sub, extra + spkS, large);
+    return _wcrd('👤', 'Saját teljesítmény', val, sub, extra + spkS, large);
   }
 
   if (id === 'nyitottF') {
@@ -1184,21 +1279,21 @@ function _buildWidget(id, ctx, large = false) {
     const open     = allTasks.filter(d => d.data().statusz === 'nyitott').length;
     const expired  = allTasks.filter(d => { const t = d.data(); return t.statusz === 'nyitott' && t.datum && t.datum < today; }).length;
     const col = open === 0 ? 'var(--green)' : expired > 0 ? 'var(--red)' : 'var(--text)';
-    return _card('📌', 'Nyitott feladatok', `<span style="color:${col};" data-count="${open}">${open}</span>`, expired > 0 ? `⚠️ ${expired} lejárt határidő` : open === 0 ? '✓ Minden kész' : 'Nincs lejárt feladat', '', large);
+    return _wcrd('📌', 'Nyitott feladatok', `<span style="color:${col};" data-count="${open}">${open}</span>`, expired > 0 ? `⚠️ ${expired} lejárt határidő` : open === 0 ? '✓ Minden kész' : 'Nincs lejárt feladat', '', large);
   }
 
   if (id === 'aktivDolg') {
-    if (!empSnap) return _card('👷', 'Aktív dolgozók', '—', 'Nincs jogosultság', '', large);
+    if (!empSnap) return _wcrd('👷', 'Aktív dolgozók', '—', 'Nincs jogosultság', '', large);
     const aktiv = empSnap.docs.filter(d => d.data().statusz === 'aktiv').length;
     const ossz  = empSnap.docs.length;
-    return _card('👷', 'Aktív dolgozók', `<span data-count="${aktiv}">${aktiv}</span>`, `${ossz} dolgozó összesen`, '', large);
+    return _wcrd('👷', 'Aktív dolgozók', `<span data-count="${aktiv}">${aktiv}</span>`, `${ossz} dolgozó összesen`, '', large);
   }
 
   if (id === 'utobbiBeir') {
     const last = [...monthEntries]
       .sort((a, b) => b.datum.localeCompare(a.datum) || ((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)))
       .slice(0, 5);
-    if (!last.length) return _card('📋', 'Utóbbi bejegyzések', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    if (!last.length) return _wcrd('📋', 'Utóbbi bejegyzések', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
     const rows = last.map(e => {
       const kg = kgOf(e);
       return `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border);">
@@ -1206,12 +1301,12 @@ function _buildWidget(id, ctx, large = false) {
         <span style="color:var(--text3);">${esc(e.datum)} · <span style="color:var(--text);font-weight:600;">${(kg/1000).toFixed(2)} t</span></span>
       </div>`;
     }).join('');
-    return _card('📋', 'Utóbbi bejegyzések', '', '', `<div style="margin-top:4px;">${rows}</div>`, large);
+    return _wcrd('📋', 'Utóbbi bejegyzések', '', '', `<div style="margin-top:4px;">${rows}</div>`, large);
   }
 
   /* ── Közelgő születésnapok ── */
   if (id === 'szulNapok') {
-    if (!empSnap) return _card('🎂', 'Közelgő születésnapok', '—', 'Nincs jogosultság', '', large);
+    if (!empSnap) return _wcrd('🎂', 'Közelgő születésnapok', '—', 'Nincs jogosultság', '', large);
     const todayD = new Date(today + 'T12:00:00');
     const [ty]   = today.split('-').map(Number);
 
@@ -1229,7 +1324,7 @@ function _buildWidget(id, ctx, large = false) {
       .sort((a, b) => a.days - b.days);
 
     if (!upcoming.length)
-      return _card('🎂', 'Közelgő születésnapok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
+      return _wcrd('🎂', 'Közelgő születésnapok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
 
     const rows = upcoming.slice(0, large ? 5 : 3).map(e => {
       const isToday = e.days === 0;
@@ -1241,12 +1336,12 @@ function _buildWidget(id, ctx, large = false) {
         <span style="font-size:11px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
       </div>`;
     }).join('');
-    return _card('🎂', 'Közelgő születésnapok', `<span data-count="${upcoming.length}">${upcoming.length}</span>`, `${upcoming.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
+    return _wcrd('🎂', 'Közelgő születésnapok', `<span data-count="${upcoming.length}">${upcoming.length}</span>`, `${upcoming.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
   }
 
   /* ── Belépési jubileumok ── */
   if (id === 'jubileum') {
-    if (!empSnap) return _card('🎖️', 'Belépési jubileumok', '—', 'Nincs jogosultság', '', large);
+    if (!empSnap) return _wcrd('🎖️', 'Belépési jubileumok', '—', 'Nincs jogosultság', '', large);
     const todayD = new Date(today + 'T12:00:00');
     const [ty]   = today.split('-').map(Number);
     const jubileumok = empSnap.docs
@@ -1264,7 +1359,7 @@ function _buildWidget(id, ctx, large = false) {
       .sort((a, b) => a.days - b.days);
 
     if (!jubileumok.length)
-      return _card('🎖️', 'Belépési jubileumok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
+      return _wcrd('🎖️', 'Belépési jubileumok', `<span style="color:var(--green);">✓</span>`, 'Nincs közelgő (30 napon belül)', '', large);
 
     const rows = jubileumok.slice(0, large ? 5 : 3).map(e => {
       const isToday = e.days === 0;
@@ -1276,7 +1371,7 @@ function _buildWidget(id, ctx, large = false) {
         <span style="font-size:11px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
       </div>`;
     }).join('');
-    return _card('🎖️', 'Belépési jubileumok', `<span data-count="${jubileumok.length}">${jubileumok.length}</span>`, `${jubileumok.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
+    return _wcrd('🎖️', 'Belépési jubileumok', `<span data-count="${jubileumok.length}">${jubileumok.length}</span>`, `${jubileumok.length} fő (30 napon belül)`, `<div style="margin-top:8px;">${rows}</div>`, large);
   }
 
   /* ── Anyag rangsor ── */
@@ -1289,7 +1384,7 @@ function _buildWidget(id, ctx, large = false) {
       if (mat) byMat[mat] = (byMat[mat] || 0) + kgOf(e);
     });
     const rank = Object.entries(byMat).sort((a, b) => b[1] - a[1]).slice(0, large ? topN + 2 : topN);
-    if (!rank.length) return _card('📦', 'Anyag rangsor', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
+    if (!rank.length) return _wcrd('📦', 'Anyag rangsor', `<span style="color:var(--text3);font-size:20px;">—</span>`, 'Még nincs adat', '', large);
     const maxKg = rank[0][1];
     const rows  = rank.map(([mat, kg], i) => {
       const barW = Math.round(kg / maxKg * 70);
@@ -1302,7 +1397,7 @@ function _buildWidget(id, ctx, large = false) {
         </div>
       </div>`;
     }).join('');
-    return _card('📦', 'Anyag rangsor', '', `Havi top ${rank.length} anyag`, `<div style="margin-top:6px;">${rows}</div>`, large);
+    return _wcrd('📦', 'Anyag rangsor', '', `Havi top ${rank.length} anyag`, `<div style="margin-top:6px;">${rows}</div>`, large);
   }
 
   /* ── Heti mini-grafikon ── */
@@ -1336,7 +1431,7 @@ function _buildWidget(id, ctx, large = false) {
 
     const svg = `<svg viewBox="0 0 ${svgW} ${BAR_H + 16}" style="width:100%;margin-top:10px;overflow:visible;">${bars}</svg>`;
     const sub = totalKg > 0 ? `${(totalKg/1000).toFixed(2)} t ezen a héten` : 'Még nincs adat ezen a héten';
-    return _card('📉', 'Heti bontás', '', sub, svg, large);
+    return _wcrd('📉', 'Heti bontás', '', sub, svg, large);
   }
 
   return '';

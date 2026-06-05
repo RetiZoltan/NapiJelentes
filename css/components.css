@@ -998,7 +998,22 @@ html { overflow-x: clip; }
 .dash-ctrl-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:var(--rsm);transition:color var(--tr),background var(--tr);line-height:1;flex-shrink:0;}
 .dash-ctrl-btn:hover{color:var(--accent);background:var(--agl);}
 .dash-ctrl-btn:disabled{opacity:.4;cursor:default;}
-.dash-fs-btn{font-size:14px;}
+.dash-pin-btn{font-size:11px;opacity:.35;transition:opacity var(--tr);}
+.dash-pin-btn.active{opacity:1;}
+.dash-pin-btn:hover{opacity:.8;}
+.dash-w-body{display:block;}
+
+/* ── Widget config panel személyre szabás ── */
+.cfg-person-row{display:flex;align-items:center;gap:8px;padding:5px 0 3px 24px;flex-wrap:wrap;}
+.cfg-title-inp{flex:1;min-width:100px;font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--rsm);background:var(--surf);color:var(--text);font-family:inherit;}
+.cfg-title-inp:focus{outline:none;border-color:var(--accent);}
+.cfg-color-dots{display:flex;gap:5px;flex-shrink:0;}
+.cfg-color-dot{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0;}
+.cfg-color-dot:hover{transform:scale(1.25);}
+.cfg-color-dot.active{border-color:var(--text);transform:scale(1.15);}
+.cfg-pin-btn{background:none;border:none;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:var(--rsm);opacity:.4;transition:opacity var(--tr);flex-shrink:0;}
+.cfg-pin-btn.active{opacity:1;}
+.cfg-pin-btn:hover{opacity:.8;}
 
 /* ── Anomália jelzés ── */
 .dash-widget-warn{border-color:color-mix(in srgb,var(--red) 40%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--red) 15%,transparent),var(--sh)!important;}
