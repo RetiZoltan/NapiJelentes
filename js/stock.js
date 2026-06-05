@@ -290,38 +290,53 @@ export async function loadBelsoKeszlet() {
   _updateBelsoSelection();
 
   try {
-    const stock = await _calcStock('', '');
-    const belso = stock.filter(s => s.belso && s.zsakSzam > 0);
+    // Már betárolt entry ID-k
+    const importedSnap = await getDocs(
+      query(collection(db, 'stockMovements'), where('forrás', '==', 'termelés'))
+    );
+    const importedRefs = new Set();
+    importedSnap.docs.forEach(d => (d.data().termelesRef || []).forEach(id => importedRefs.add(id)));
 
-    if (!belso.length) {
-      div.innerHTML = emptyHtml('🏭', 'Nincs belső készlet', 'Nincs termelésből érkezett anyag a készletben.');
+    // Összes termelési bejegyzés zsák adattal
+    const allEntries = await fetchEntries({});
+    const withZsak = allEntries.filter(e => e.zsakSulyok?.length > 0 && !importedRefs.has(e.id));
+
+    if (!withZsak.length) {
+      div.innerHTML = emptyHtml('✅', 'Nincs betárolatlan belső készlet', 'Minden termelési zsák már be van tárolva.');
       return;
     }
 
-    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
+    // Csoportosítás anyag szerint
+    const byAnyag = {};
+    withZsak.forEach(e => {
+      const mat = (e.anyag || '').trim() || '—';
+      if (!byAnyag[mat]) byAnyag[mat] = [];
+      byAnyag[mat].push(e);
+    });
 
-    div.innerHTML = belso.map(s => {
-      const weights = s.batches.flatMap(b => b.zsakSulyok).slice(0, s.zsakSzam);
-      const chips   = weights.length > 0
-        ? weights
-        : Array.from({ length: s.zsakSzam }, () => null);
-
-      return `<div style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:2px solid var(--accent);margin-bottom:8px;">
-          <span style="font-weight:700;font-size:14px;color:var(--text);">📦 ${esc(s.anyag)}</span>
-          <span style="font-size:12px;color:var(--text3);">📍 ${_locName(locMap, s.hely)}</span>
-          <span class="stock-badge-zsak" style="margin-left:auto;">${s.zsakSzam} db</span>
-        </div>
-        <div class="stock-zsak-chips">
-          ${chips.map((w, i) =>
-            `<span class="stock-zsak-chip belso-chip" style="cursor:pointer;"
-               data-anyag="${esc(s.anyag)}" data-hely="${s.hely}" data-suly="${w || 0}">
-              ${w != null ? w.toFixed(0) + ' kg' : '? kg'}
-            </span>`
-          ).join('')}
-        </div>
-      </div>`;
-    }).join('');
+    div.innerHTML = Object.entries(byAnyag)
+      .sort(([a],[b]) => a.localeCompare(b,'hu'))
+      .map(([mat, entries]) => {
+        const allWeights = entries.flatMap(e => e.zsakSulyok);
+        return `<div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:2px solid var(--accent);margin-bottom:8px;">
+            <span style="font-weight:700;font-size:14px;color:var(--text);">📦 ${esc(mat)}</span>
+            <span class="stock-badge-zsak" style="margin-left:auto;">${allWeights.length} db</span>
+          </div>
+          <div class="stock-zsak-chips">
+            ${allWeights.map((w, globalIdx) => {
+              // melyik entry-hez tartozik ez a zsák
+              let eid = '', cumul = 0;
+              for (const e of entries) {
+                if (globalIdx < cumul + e.zsakSulyok.length) { eid = e.id; break; }
+                cumul += e.zsakSulyok.length;
+              }
+              return `<span class="stock-zsak-chip belso-chip" style="cursor:pointer;"
+                data-anyag="${esc(mat)}" data-suly="${w}" data-eid="${eid}">${w.toFixed(0)} kg</span>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('');
 
     div.querySelectorAll('.belso-chip').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -348,40 +363,41 @@ function _updateBelsoSelection() {
 }
 
 export async function saveBelsoAttalolas() {
-  const celHely  = E('belsoHelyF')?.value;
-  if (!celHely) { msg('Válassz cél helyszínt!', 'error'); return; }
+  const celHely = E('belsoHelyF')?.value;
+  if (!celHely) { msg('Válassz helyszínt!', 'error'); return; }
 
   const selected = [...document.querySelectorAll('.belso-chip.selected')];
   if (!selected.length) { msg('Jelölj ki zsákokat!', 'error'); return; }
 
-  const byGroup = {};
+  // Csoportosítás anyag szerint (+ entry-referenciák gyűjtése)
+  const byAnyag = {};
   selected.forEach(chip => {
-    const key = `${chip.dataset.anyag}|${chip.dataset.hely}`;
-    if (!byGroup[key]) byGroup[key] = { anyag: chip.dataset.anyag, forrasHely: chip.dataset.hely, sulyok: [] };
-    byGroup[key].sulyok.push(parseFloat(chip.dataset.suly || 0));
+    const mat = chip.dataset.anyag;
+    if (!byAnyag[mat]) byAnyag[mat] = { sulyok: [], refs: new Set() };
+    byAnyag[mat].sulyok.push(parseFloat(chip.dataset.suly || 0));
+    if (chip.dataset.eid) byAnyag[mat].refs.add(chip.dataset.eid);
   });
-
-  for (const data of Object.values(byGroup)) {
-    if (data.forrasHely === celHely) { msg('Forrás és cél helyszín nem lehet ugyanaz!', 'error'); return; }
-  }
 
   try {
     const datum = tod();
-    for (const data of Object.values(byGroup)) {
+    for (const [mat, data] of Object.entries(byAnyag)) {
       await addDoc(collection(db, 'stockMovements'), {
-        tipus:       'atadas',
-        anyag:       data.anyag,
-        forrasHely:  data.forrasHely,
-        celHely,
+        tipus:       'bevitel',
+        anyag:       mat,
+        forrasHely:  celHely,
+        celHely:     null,
         zsakSzam:    data.sulyok.length,
         mennyisegKg: parseFloat(data.sulyok.reduce((s,v) => s+v, 0).toFixed(2)),
         zsakSulyok:  data.sulyok,
-        datum, megjegyzes: '',
-        forrás: 'manuális', termelesRef: [],
-        createdBy: state.appUser.uid, createdAt: serverTimestamp()
+        datum,
+        megjegyzes:  'Termelésből betárolva',
+        forrás:      'termelés',
+        termelesRef: [...data.refs],
+        createdBy:   state.appUser.uid,
+        createdAt:   serverTimestamp()
       });
     }
-    msg(`✅ ${selected.length} zsák áttárolva.`);
+    msg(`✅ ${selected.length} zsák betárolva.`);
     loadBelsoKeszlet();
     loadKeszlet();
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
