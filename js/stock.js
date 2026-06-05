@@ -72,14 +72,14 @@ export async function renderLocations() {
         ${l.aktiv !== false
           ? `<span style="font-size:11px;color:var(--green);font-weight:600;">Aktív</span>`
           : `<span style="font-size:11px;color:var(--text3);">Archivált</span>`}
-        ${canManageStock() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">✕</button>` : ''}
+        ${canManageStock() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
       </div>`).join('');
     div.querySelectorAll('.loc-del-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Archivál (nem töröl, mert mozgások hivatkoznak rá)?')) return;
+        if (!confirm('Véglegesen törlöd ezt a helyszínt?')) return;
         try {
-          await updateDoc(doc(db, 'stockLocations', btn.dataset.id), { aktiv: false });
-          msg('Helyszín archiválva.'); loadLocations(); renderLocations();
+          await deleteDoc(doc(db, 'stockLocations', btn.dataset.id));
+          msg('Helyszín törölve.'); loadLocations(); renderLocations();
         } catch (e) { msg('Hiba: ' + e.message, 'error'); }
       });
     });
