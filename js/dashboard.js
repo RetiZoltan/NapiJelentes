@@ -1003,6 +1003,34 @@ function _card(icon, title, value, sub = '', extra = '', large = false, anomaly 
   </div>`;
 }
 
+/* ── Mini sparkline (grafikonos widgetekhez) ── */
+function _sparkline(perDay, h = 48) {
+  if (!perDay || perDay.length < 2) return '';
+  const vals = perDay.map(d => d.kg);
+  const maxV = Math.max(...vals, 1);
+  const W = 300, H = h, pad = 2;
+  const n = perDay.length;
+  const xP = i => (i / Math.max(n - 1, 1)) * W;
+  const yP = v => H - pad - ((v / maxV) * (H - pad * 2));
+  const linePts  = perDay.map((d, i) => `${xP(i).toFixed(1)} ${yP(d.kg).toFixed(1)}`).join(' L ');
+  const areaPath = `M ${xP(0).toFixed(1)} ${H} L ${linePts} L ${xP(n-1).toFixed(1)} ${H} Z`;
+  const uid = Math.random().toString(36).slice(2, 6);
+  // Ahol 0 az érték: szaggatott jelzővonal
+  const zeroLine = maxV > 0 ? `<line x1="0" y1="${H - pad}" x2="${W}" y2="${H - pad}"
+    stroke="var(--border)" stroke-width="0.5" stroke-dasharray="3 2"/>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+    style="width:100%;height:${h}px;display:block;margin-top:10px;overflow:visible;">
+    <defs><linearGradient id="spk_${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--accent)" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity=".01"/>
+    </linearGradient></defs>
+    ${zeroLine}
+    <path d="${areaPath}" fill="url(#spk_${uid})"/>
+    <path d="M ${linePts}" fill="none" stroke="var(--accent)" stroke-width="1.8"
+      stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
 function _trendBadge(diff) {
   if (diff === null || isNaN(diff)) return '';
   const sign = diff >= 0 ? '+' : '';
@@ -1034,7 +1062,12 @@ function _buildWidget(id, ctx, large = false) {
     // Anomália: legalább 3 aktív nap kell az átlaghoz, ±25% küszöb
     const anomaly = (diff !== null && kg > 0 && activeDays.length >= 3)
       ? (diff < -25 ? 'warn' : diff > 25 ? 'good' : null) : null;
-    return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', '', large, anomaly);
+    // Sparkline: utolsó 14 nap
+    const spkMap14 = {};
+    [...prevWeekEntries, ...thisWeekEntries].forEach(e => { spkMap14[e.datum] = (spkMap14[e.datum] || 0) + kgOf(e); });
+    const spk14 = Array.from({length: 14}, (_, i) => ({ datum: addD(today, -(13 - i)), kg: spkMap14[addD(today, -(13 - i))] || 0 }));
+    const spkExtra = _sparkline(spk14) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>−14 nap</span><span>Ma</span></div>`;
+    return _card('⚖️', 'Mai össztermelés', val, kg > 0 ? `${kg.toFixed(0)} kg · ${todayEntries.length} bejegyzés` : 'Még nincs mai adat', spkExtra, large, anomaly);
   }
 
   if (id === 'haviOssz') {
@@ -1042,7 +1075,17 @@ function _buildWidget(id, ctx, large = false) {
     const days = [...new Set(monthEntries.map(e => e.datum))].length;
     const t    = kg / 1000;
     const val  = kg > 0 ? `<span data-count="${t.toFixed(2)}">${t.toFixed(2)}</span> t` : `<span style="color:var(--text3);font-size:20px;">—</span>`;
-    return _card('📊', 'Havi összesítő', val, kg > 0 ? `${days} aktív nap · átlag ${((kg/1000)/days).toFixed(2)} t/nap` : 'Még nincs adat', '', large);
+    // Sparkline: a hónap minden napja (jövőbeli = 0)
+    const [yr, mo] = today.split('-').map(Number);
+    const daysInMonth = new Date(yr, mo, 0).getDate();
+    const spkMapM = {};
+    monthEntries.forEach(e => { spkMapM[e.datum] = (spkMapM[e.datum] || 0) + kgOf(e); });
+    const spkMonth = Array.from({length: daysInMonth}, (_, i) => {
+      const d = `${today.slice(0, 7)}-${String(i + 1).padStart(2, '0')}`;
+      return { datum: d, kg: spkMapM[d] || 0 };
+    });
+    const spkExtra = _sparkline(spkMonth) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>1.</span><span>${daysInMonth}.</span></div>`;
+    return _card('📊', 'Havi összesítő', val, kg > 0 ? `${days} aktív nap · átlag ${((kg/1000)/days).toFixed(2)} t/nap` : 'Még nincs adat', spkExtra, large);
   }
 
   if (id === 'hetiTrend') {
@@ -1127,7 +1170,13 @@ function _buildWidget(id, ctx, large = false) {
         <div style="font-size:15px;font-weight:700;color:var(--text);">${monthAvg > 0 ? (monthAvg/1000).toFixed(2) + ' t' : '—'}</div>
       </div>
     </div>`;
-    return _card('👤', 'Saját teljesítmény', val, sub, extra, large);
+    // Sparkline: dolgozó utolsó 14 napja
+    const spkMapS = {};
+    [...prevWeekEntries, ...thisWeekEntries].filter(e => e.nev === selected)
+      .forEach(e => { spkMapS[e.datum] = (spkMapS[e.datum] || 0) + kgOf(e); });
+    const spk14S = Array.from({length: 14}, (_, i) => ({ datum: addD(today, -(13 - i)), kg: spkMapS[addD(today, -(13 - i))] || 0 }));
+    const spkS = _sparkline(spk14S) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>−14 nap</span><span>Ma</span></div>`;
+    return _card('👤', 'Saját teljesítmény', val, sub, extra + spkS, large);
   }
 
   if (id === 'nyitottF') {
