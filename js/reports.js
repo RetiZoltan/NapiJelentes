@@ -18,6 +18,101 @@ function getRiportSet(key) {
   catch { return RIPORT_DEF[key] ?? true; }
 }
 
+/* ── Napi termelés vonaldiagram ── */
+function _riportLineChart(hA) {
+  const byDay = {};
+  hA.forEach(e => {
+    const kg = (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    byDay[e.datum] = (byDay[e.datum] || 0) + kg;
+  });
+  const days = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([datum, kg]) => ({ datum, kg }));
+  if (days.length < 2) return '';
+
+  const W = 600, H = 140, PL = 46, PR = 12, PT = 14, PB = 26;
+  const cW = W - PL - PR, cH = H - PT - PB;
+  const vals = days.map(d => d.kg);
+  const maxV = Math.max(...vals, 1);
+  const n    = days.length;
+  const xP   = i => PL + (i / Math.max(n - 1, 1)) * cW;
+  const yP   = v => PT + cH - (v / maxV) * cH;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(p => {
+    const y = PT + cH - p * cH;
+    return `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="var(--border)" stroke-width="0.6"/>
+    <text x="${PL - 5}" y="${y + 3.5}" font-size="9.5" text-anchor="end" fill="var(--text3)">${((p * maxV) / 1000).toFixed(1)}t</text>`;
+  }).join('');
+
+  const linePts  = days.map((d, i) => `${xP(i)} ${yP(d.kg)}`).join(' L ');
+  const areaPath = `M ${xP(0)} ${PT + cH} L ${linePts} L ${xP(n - 1)} ${PT + cH} Z`;
+  const dots     = n <= 60
+    ? days.map((d, i) => `<circle cx="${xP(i)}" cy="${yP(d.kg)}" r="${n > 30 ? 2 : 3}" fill="var(--accent)" opacity=".85"/>`)
+      .join('')
+    : '';
+
+  const step    = Math.max(1, Math.ceil(n / 7));
+  const xLabels = days
+    .filter((_, i) => i % step === 0 || i === n - 1)
+    .map(d => {
+      const i = days.indexOf(d);
+      return `<text x="${xP(i)}" y="${H - 5}" font-size="9" text-anchor="middle" fill="var(--text3)">${d.datum.slice(5)}</text>`;
+    }).join('');
+
+  const uid = Math.random().toString(36).slice(2, 7);
+  return `<div class="r-section">
+    <div class="r-sec-title">📈 Napi termelés</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+      <defs><linearGradient id="rlcg_${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity=".02"/>
+      </linearGradient></defs>
+      ${gridLines}
+      <path d="${areaPath}" fill="url(#rlcg_${uid})"/>
+      <path d="M ${linePts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${xLabels}
+    </svg>
+  </div>`;
+}
+
+/* ── Dolgozói sávdiagram ── */
+function _riportBarChart(hA) {
+  const byW = {};
+  hA.forEach(e => {
+    const kg = (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (e.nev && kg > 0) byW[e.nev] = (byW[e.nev] || 0) + kg;
+  });
+  const rank = Object.entries(byW).sort((a, b) => b[1] - a[1]);
+  if (!rank.length) return '';
+
+  const maxKg  = rank[0][1];
+  const BAR_H  = 28, GAP = 8, PL = 130, PR = 60, PT = 8;
+  const W      = 600;
+  const H      = PT + rank.length * (BAR_H + GAP) + 4;
+
+  const bars = rank.map(([nev, kg], i) => {
+    const y      = PT + i * (BAR_H + GAP);
+    const barW   = Math.max(2, Math.round((kg / maxKg) * (W - PL - PR)));
+    const alpha  = 0.9 - i * (0.55 / Math.max(rank.length - 1, 1));
+    const valLbl = `${(kg / 1000).toFixed(2)} t`;
+    const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+    return `
+      <text x="${PL - 8}" y="${y + BAR_H * 0.65}" font-size="11.5" text-anchor="end" fill="var(--text2)"
+        style="font-family:'Source Sans 3',sans-serif">${esc(nev.length > 16 ? nev.slice(0, 15) + '…' : nev)}</text>
+      <text x="4" y="${y + BAR_H * 0.65}" font-size="11" text-anchor="start" fill="var(--text3)">${medal}</text>
+      <rect x="${PL}" y="${y}" width="${barW}" height="${BAR_H}" rx="4"
+        fill="var(--accent)" opacity="${alpha.toFixed(2)}"/>
+      <text x="${PL + barW + 6}" y="${y + BAR_H * 0.65}" font-size="11" fill="var(--text2)"
+        style="font-family:'Source Sans 3',sans-serif;font-weight:600">${valLbl}</text>`;
+  }).join('');
+
+  return `<div class="r-section">
+    <div class="r-sec-title">📊 Dolgozói rangsor</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+      ${bars}
+    </svg>
+  </div>`;
+}
+
 export function cleanupNapiListener() {
   if (unsubNapi) { unsubNapi(); unsubNapi = null; }
 }
@@ -223,8 +318,10 @@ export async function haviRiport() {
 
   let html = `<div class="r-head">${ev}. ${honNev[honap]}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('barChart'))      html += _riportBarChart(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
   if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
@@ -283,8 +380,10 @@ export async function hetiRiport() {
 
   let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('barChart'))      html += _riportBarChart(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
   if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
@@ -312,8 +411,10 @@ export async function egyeniRiport() {
 
   let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
+  if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
+  if (getRiportSet('barChart'))      html += _riportBarChart(hA);
   if (getRiportSet('anyagOssz'))     html += anyagOsszesitoHtml(hA);
   if (getRiportSet('napiAtlag'))     html += napiAtlagHtml(hA);
   if (getRiportSet('dolgNapiAtlag')) html += dolgNapiAtlagHtml(hA);
