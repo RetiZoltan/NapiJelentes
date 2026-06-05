@@ -33,6 +33,25 @@ export function refreshListUI() {
   fillSel(E('reszlegLista'), state.reszlegek);
   updDolgSzuro();
   updReszlegSzuro();
+  updIdoszakosFilters();
+}
+
+export function updIdoszakosFilters() {
+  const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const dEl = E('idoszakosDolgozoSzuro');
+  if (dEl) {
+    const prev = dEl.value;
+    dEl.innerHTML = '<option value="">— Mindenki —</option>' +
+      srt(state.nevek).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    if (prev) dEl.value = prev;
+  }
+  const aEl = E('idoszakosAnyagSzuro');
+  if (aEl) {
+    const prev = aEl.value;
+    aEl.innerHTML = '<option value="">— Mind —</option>' +
+      srt(state.anyagok).map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    if (prev) aEl.value = prev;
+  }
 }
 
 export function fillSel(sel, list) {

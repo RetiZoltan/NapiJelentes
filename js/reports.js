@@ -213,18 +213,15 @@ export async function haviRiport() {
   const lastDay = new Date(ev, honap + 1, 0).getDate();
   const from = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
   const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
-  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
   E('idoszakosRiportDiv').innerHTML = skelHtml('report');
-  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  let hA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: from, datumTo: to }));
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
     _setIdoszakBtns(true); return;
   }
 
-  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
-  let html = `<div class="r-head">${ev}. ${honNev[honap]}${reszlegBadge}</div>`;
+  let html = `<div class="r-head">${ev}. ${honNev[honap]}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
@@ -243,31 +240,48 @@ export async function haviRiport() {
 function _weekToRange(weekStr) {
   const [yr, wk] = weekStr.split('-W').map(Number);
   const jan4 = new Date(yr, 0, 4);
-  const dow  = jan4.getDay() || 7;
-  const mon  = new Date(jan4);
-  mon.setDate(jan4.getDate() - dow + 1 + (wk - 1) * 7);
-  const sun  = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  const fmt  = d => d.toISOString().slice(0, 10);
-  return { from: fmt(mon), to: fmt(sun), yr, wk };
+  const dow  = jan4.getDay() || 7; // 1=Hétfő…7=Vasárnap
+  // Helyi dátum számítás (timezone-safe)
+  const monD = new Date(yr, 0, jan4.getDate() - dow + 1 + (wk - 1) * 7);
+  const sunD = new Date(yr, 0, jan4.getDate() - dow + 7 + (wk - 1) * 7);
+  const fmt  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return { from: fmt(monD), to: fmt(sunD), yr, wk };
+}
+
+function _applyIdoszakosFilters(hA) {
+  const rF = E('idoszakosReszlegSzuro')?.value || '';
+  const dF = E('idoszakosDolgozoSzuro')?.value || '';
+  const aF = E('idoszakosAnyagSzuro')?.value   || '';
+  const mF = E('idoszakosMuszakSzuro')?.value  || '';
+  if (rF) hA = hA.filter(a => (a.reszleg || '') === rF);
+  if (dF) hA = hA.filter(a => (a.nev     || '') === dF);
+  if (aF) hA = hA.filter(a => (a.anyag   || '') === aF);
+  if (mF) hA = hA.filter(a => (a.ido     || '') === mF);
+  return hA;
+}
+
+function _filterBadges() {
+  return [
+    E('idoszakosReszlegSzuro')?.value,
+    E('idoszakosDolgozoSzuro')?.value,
+    E('idoszakosAnyagSzuro')?.value,
+    E('idoszakosMuszakSzuro')?.value,
+  ].filter(Boolean).map(v => `<span class="r-shift">· ${esc(v)}</span>`).join('');
 }
 
 export async function hetiRiport() {
   const raw = E('hetiHetInput').value;
   if (!raw) { msg('Válassz hetet!', 'error'); return; }
   const { from, to, yr, wk } = _weekToRange(raw);
-  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
   E('idoszakosRiportDiv').innerHTML = skelHtml('report');
-  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  let hA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: from, datumTo: to }));
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre</div>`;
     _setIdoszakBtns(true); return;
   }
 
-  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
-  let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${reszlegBadge}</div>`;
+  let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
@@ -288,18 +302,15 @@ export async function egyeniRiport() {
   const to   = E('egyeniIgInput').value;
   if (!from || !to) { msg('Add meg a kezdő és záró dátumot!', 'error'); return; }
   if (from > to) { msg('A kezdő dátum nem lehet nagyobb a záró dátumnál!', 'error'); return; }
-  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
 
   E('idoszakosRiportDiv').innerHTML = skelHtml('report');
-  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  let hA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: from, datumTo: to }));
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a megadott időszakra${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a megadott időszakra</div>`;
     _setIdoszakBtns(true); return;
   }
 
-  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
-  let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${reszlegBadge}</div>`;
+  let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
@@ -319,18 +330,14 @@ export async function evesRiport() {
   const ev = parseInt(E('evesEvInput').value);
   if (!ev) { msg('Válassz évet!', 'error'); return; }
   const from = `${ev}-01-01`, to = `${ev}-12-31`;
-  const reszlegF = E('idoszakosReszlegSzuro')?.value || '';
-
   E('idoszakosRiportDiv').innerHTML = skelHtml('report');
-  let hA = await fetchEntries({ datumFrom: from, datumTo: to });
-  if (reszlegF) hA = hA.filter(a => (a.reszleg || '') === reszlegF);
+  let hA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: from, datumTo: to }));
   if (!hA.length) {
-    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre${reszlegF ? ' (' + esc(reszlegF) + ')' : ''}</div>`;
+    E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`;
     _setIdoszakBtns(true); return;
   }
 
-  const reszlegBadge = reszlegF ? `<span class="r-shift">· ${esc(reszlegF)}</span>` : '';
-  let html = `<div class="r-head">${ev}. év${reszlegBadge}</div>`;
+  let html = `<div class="r-head">${ev}. év${_filterBadges()}</div>`;
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   html += reszlegOsszesitoHtml(hA);
   if (getRiportSet('dolgRangsor'))   html += dolgRangsorHtml(hA);
