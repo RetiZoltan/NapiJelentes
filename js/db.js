@@ -36,6 +36,14 @@ export function refreshListUI() {
   updIdoszakosFilters();
 }
 
+export async function getWorkerMaterials(workerName) {
+  try {
+    const snap = await getDocs(query(collection(db, 'entries'), where('nev', '==', workerName)));
+    return [...new Set(snap.docs.map(d => d.data().anyag).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'hu'));
+  } catch { return []; }
+}
+
 export function updIdoszakosFilters() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   const dEl = E('idoszakosDolgozoSzuro');

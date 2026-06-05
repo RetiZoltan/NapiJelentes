@@ -8,7 +8,8 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, autoAddToList, delFromList, editItem } from './db.js';
+         addToList, autoAddToList, delFromList, editItem,
+         getWorkerMaterials, updIdoszakosFilters } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount } from './data-entry.js';
@@ -663,6 +664,22 @@ document.addEventListener('DOMContentLoaded', () => {
   E('idoszakosPdfBtn').addEventListener('click', idoszakosPdfMent);
   E('idoszakosXlsxBtn').addEventListener('click', idoszakosXlsxMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
+
+  // Dolgozó szűrő → anyag lista dinamikus szűkítése
+  E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
+    const worker = E('idoszakosDolgozoSzuro').value;
+    const aEl    = E('idoszakosAnyagSzuro');
+    if (!worker) {
+      updIdoszakosFilters();   // Visszaállítja a teljes anyag listát
+      return;
+    }
+    aEl.innerHTML = '<option value="">— Betöltés… —</option>';
+    const materials = await getWorkerMaterials(worker);
+    const prev = aEl.value;
+    aEl.innerHTML = '<option value="">— Mind —</option>' +
+      materials.map(m => `<option value="${esc(m)}"${m === prev ? ' selected' : ''}>${esc(m)}</option>`).join('');
+    if (prev && !materials.includes(prev)) aEl.value = '';
+  });
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
   // Időszakos — szekció beállítások
