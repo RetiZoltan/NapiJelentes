@@ -813,20 +813,6 @@ export async function initDashboard() {
         await _loadWidgets();
         return;
       }
-      // Összecsukás
-      const colBtn = e.target.closest('.dash-collapse-btn');
-      if (colBtn) {
-        const wid     = colBtn.dataset.wid;
-        const wst     = _getWidgetSettings(wid);
-        const newColl = !wst.collapsed;
-        _saveWidgetSettings(wid, { collapsed: newColl });
-        const widget  = colBtn.closest('.dash-widget');
-        const body    = widget?.querySelector('.dash-w-body');
-        if (body) body.style.display = newColl ? 'none' : '';
-        colBtn.textContent = newColl ? '▸' : '▾';
-        colBtn.title       = newColl ? 'Kibont' : 'Összecsuk';
-        return;
-      }
       // Egyéni frissítés
       const refreshBtn = e.target.closest('.dash-refresh-btn');
       if (refreshBtn) {
@@ -932,19 +918,13 @@ async function _loadWidgets() {
     const hdr = w.querySelector('.dash-w-hdr'); if (!hdr) return;
     const mv  = document.createElement('div');
     mv.className = 'dash-w-move';
-    const wst_i   = _getWidgetSettings(enabled[i]);
-    const isPinned    = !!wst_i.pinned;
-    const isCollapsed = !!wst_i.collapsed;
+    const wst_i  = _getWidgetSettings(enabled[i]);
+    const isPinned = !!wst_i.pinned;
     mv.innerHTML = `
       <button class="dash-ctrl-btn dash-pin-btn${isPinned ? ' active' : ''}" data-wid="${enabled[i]}" title="${isPinned ? 'Rögzítve' : 'Rögzítés'}">📌</button>
-      <button class="dash-ctrl-btn dash-collapse-btn" data-wid="${enabled[i]}" title="${isCollapsed ? 'Kibont' : 'Összecsuk'}">${isCollapsed ? '▸' : '▾'}</button>
       <button class="dash-ctrl-btn dash-refresh-btn" data-wid="${enabled[i]}" title="Frissítés">↺</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
-    if (isCollapsed) {
-      const body = w.querySelector('.dash-w-body');
-      if (body) body.style.display = 'none';
-    }
     hdr.appendChild(mv);
   });
   // Kattintható widgetek jelölése + ctx mentése
