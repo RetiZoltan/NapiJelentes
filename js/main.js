@@ -33,7 +33,7 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
          closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadElozmenyek,
-         loadImportFromProduction, executeImport, saveBevetelez,
+         loadBelsoKeszlet, saveBelsoAttalolas, saveBevetelez,
          saveMozgas, onMozgTipusChange, saveLocation,
          canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
@@ -978,8 +978,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('keszletFrissitBtn').addEventListener('click', loadKeszlet);
   E('elozMutatBtn').addEventListener('click', loadElozmenyek);
-  E('importLekerdezBtn').addEventListener('click', loadImportFromProduction);
-  E('importMentBtn').addEventListener('click', executeImport);
+  E('belsoAttalolBtn').addEventListener('click', saveBelsoAttalolas);
+  E('belsoTorlesBtn').addEventListener('click', () => {
+    document.querySelectorAll('.belso-chip.selected').forEach(c => c.classList.remove('selected'));
+    loadBelsoKeszlet();
+  });
   E('bevSaveBtn').addEventListener('click', saveBevetelez);
   E('mozgSaveBtn').addEventListener('click', saveMozgas);
   document.querySelectorAll('.mozg-tipus-btn').forEach(btn => {

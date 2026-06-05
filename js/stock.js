@@ -32,7 +32,7 @@ function _fillLocSelects() {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = allOpts; if (prev) el.value = prev;
   });
-  ['importHelyF', 'mozgForrasHely', 'mozgCelHely', 'bevHelyF'].forEach(id => {
+  ['belsoHelyF', 'mozgForrasHely', 'mozgCelHely', 'bevHelyF'].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = selOpts; if (prev) el.value = prev;
   });
@@ -282,135 +282,109 @@ export async function saveMozgas() {
 }
 
 /* ══════════════════════════════════════
-   TAB 3 — BEVÉTELEZÉS
+   TAB 3 — BEVÉTELEZÉS / BELSŐ KÉSZLET
 ══════════════════════════════════════ */
-export async function loadImportFromProduction() {
-  const div   = E('importListDiv'); if (!div) return;
-  const honap = E('importHonapF')?.value;
-  if (!honap) { msg('Válassz hónapot!', 'error'); return; }
-
+export async function loadBelsoKeszlet() {
+  const div = E('belsoKeszletDiv'); if (!div) return;
   div.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  if (E('importActionDiv')) E('importActionDiv').style.display = 'none';
+  _updateBelsoSelection();
 
   try {
-    const importedSnap = await getDocs(
-      query(collection(db, 'stockMovements'), where('forrás', '==', 'termelés'))
-    );
-    const importedRefs = new Set();
-    importedSnap.docs.forEach(d => (d.data().termelesRef || []).forEach(id => importedRefs.add(id)));
+    const stock = await _calcStock('', '');
+    const belso = stock.filter(s => s.belso && s.zsakSzam > 0);
 
-    const [year, month] = honap.split('-').map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
-    const allEntries = await fetchEntries({
-      datumFrom: `${honap}-01`,
-      datumTo:   `${honap}-${String(lastDay).padStart(2, '0')}`
-    });
-
-    const withZsak = allEntries.filter(e => e.zsakSulyok?.length > 0 && !importedRefs.has(e.id));
-    _importCache   = withZsak;
-
-    if (!withZsak.length) {
-      div.innerHTML = emptyHtml('✅', 'Nincs importálandó adat', 'Minden adat importálva van, vagy nincs ilyen bejegyzés.');
+    if (!belso.length) {
+      div.innerHTML = emptyHtml('🏭', 'Nincs belső készlet', 'Nincs termelésből érkezett anyag a készletben.');
       return;
     }
 
-    const byAnyag = {};
-    withZsak.forEach(e => {
-      const mat = (e.anyag || '').trim() || '—';
-      if (!byAnyag[mat]) byAnyag[mat] = [];
-      byAnyag[mat].push(e);
-    });
+    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
 
-    let h = '';
-    Object.entries(byAnyag).sort(([a],[b]) => a.localeCompare(b,'hu')).forEach(([mat, entries]) => {
-      const totZsak = entries.reduce((s, e) => s + e.zsakSulyok.length, 0);
-      const totKg   = entries.reduce((s, e) => s + e.zsakSulyok.reduce((x,v) => x+v, 0), 0);
-      h += `<div style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:2px solid var(--accent);">
-          <input type="checkbox" class="import-grp-chk" data-mat="${esc(mat)}" checked style="accent-color:var(--accent);">
-          <strong style="font-size:14px;color:var(--text);">📦 ${esc(mat)}</strong>
-          <span class="stock-badge-zsak" style="margin-left:auto;">${totZsak} db</span>
-          <span style="font-size:12px;color:var(--text3);">${(totKg/1000).toFixed(2)} t</span>
+    div.innerHTML = belso.map(s => {
+      const weights = s.batches.flatMap(b => b.zsakSulyok).slice(0, s.zsakSzam);
+      const chips   = weights.length > 0
+        ? weights
+        : Array.from({ length: s.zsakSzam }, () => null);
+
+      return `<div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:2px solid var(--accent);margin-bottom:8px;">
+          <span style="font-weight:700;font-size:14px;color:var(--text);">📦 ${esc(s.anyag)}</span>
+          <span style="font-size:12px;color:var(--text3);">📍 ${_locName(locMap, s.hely)}</span>
+          <span class="stock-badge-zsak" style="margin-left:auto;">${s.zsakSzam} db</span>
         </div>
-        ${entries.sort((a,b) => a.datum.localeCompare(b.datum)).map(e => {
-          const zsak = e.zsakSulyok.length;
-          const kg   = e.zsakSulyok.reduce((s,v) => s+v, 0);
-          return `<div style="padding:6px 0 8px 20px;border-bottom:1px solid var(--border);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-              <input type="checkbox" class="import-entry-chk" data-id="${e.id}" data-mat="${esc(mat)}" checked style="accent-color:var(--accent);flex-shrink:0;">
-              <span style="font-size:13px;color:var(--text);font-weight:600;">${esc(e.datum)}</span>
-              <span style="font-size:12px;color:var(--text3);">${esc(e.nev)}</span>
-              <span style="margin-left:auto;font-size:12px;color:var(--text2);">${zsak} zsák · ${(kg/1000).toFixed(2)} t</span>
-            </div>
-            <div class="stock-zsak-chips">${e.zsakSulyok.map(s => `<span class="stock-zsak-chip">${s.toFixed(0)} kg</span>`).join('')}</div>
-          </div>`;
-        }).join('')}
+        <div class="stock-zsak-chips">
+          ${chips.map((w, i) =>
+            `<span class="stock-zsak-chip belso-chip" style="cursor:pointer;"
+               data-anyag="${esc(s.anyag)}" data-hely="${s.hely}" data-suly="${w || 0}">
+              ${w != null ? w.toFixed(0) + ' kg' : '? kg'}
+            </span>`
+          ).join('')}
+        </div>
       </div>`;
-    });
+    }).join('');
 
-    div.innerHTML = h;
-    if (E('importActionDiv')) E('importActionDiv').style.display = '';
-
-    div.querySelectorAll('.import-grp-chk').forEach(grp => {
-      grp.addEventListener('change', () => {
-        div.querySelectorAll(`.import-entry-chk[data-mat="${grp.dataset.mat}"]`)
-           .forEach(cb => { cb.checked = grp.checked; });
-        _updateImportCount();
+    div.querySelectorAll('.belso-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        _updateBelsoSelection();
       });
     });
-    div.querySelectorAll('.import-entry-chk').forEach(cb => cb.addEventListener('change', _updateImportCount));
-    _updateImportCount();
   } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
 }
 
-function _updateImportCount() {
-  const checked = document.querySelectorAll('.import-entry-chk:checked');
-  const cnt = E('importCount');
-  const btn = E('importMentBtn');
-  if (cnt) cnt.textContent = checked.length > 0 ? `${checked.length} sor kijelölve` : '';
-  if (btn) btn.disabled = checked.length === 0;
+function _updateBelsoSelection() {
+  const selected   = [...document.querySelectorAll('.belso-chip.selected')];
+  const infoEl     = E('belsoSzamDiv');
+  const actionDiv  = E('belsoActionDiv');
+  if (infoEl) {
+    if (selected.length) {
+      const kg = selected.reduce((s, c) => s + parseFloat(c.dataset.suly || 0), 0);
+      infoEl.textContent = `${selected.length} zsák kijelölve · ${kg.toFixed(0)} kg`;
+    } else {
+      infoEl.textContent = '';
+    }
+  }
+  if (actionDiv) actionDiv.style.display = selected.length > 0 ? '' : 'none';
 }
 
-export async function executeImport() {
-  const celHely = E('importHelyF')?.value;
+export async function saveBelsoAttalolas() {
+  const celHely  = E('belsoHelyF')?.value;
   if (!celHely) { msg('Válassz cél helyszínt!', 'error'); return; }
-  const checked = [...document.querySelectorAll('.import-entry-chk:checked')];
-  if (!checked.length) { msg('Nincs kijelölt sor!', 'error'); return; }
 
-  const byMat = {};
-  checked.forEach(cb => {
-    const e = _importCache.find(x => x.id === cb.dataset.id); if (!e) return;
-    const mat = cb.dataset.mat;
-    if (!byMat[mat]) byMat[mat] = { zsakSzam: 0, mennyisegKg: 0, refs: [], zsakSulyok: [] };
-    byMat[mat].zsakSzam    += e.zsakSulyok.length;
-    byMat[mat].mennyisegKg += e.zsakSulyok.reduce((s,v) => s+v, 0);
-    byMat[mat].refs.push(e.id);
-    byMat[mat].zsakSulyok.push(...e.zsakSulyok);
+  const selected = [...document.querySelectorAll('.belso-chip.selected')];
+  if (!selected.length) { msg('Jelölj ki zsákokat!', 'error'); return; }
+
+  const byGroup = {};
+  selected.forEach(chip => {
+    const key = `${chip.dataset.anyag}|${chip.dataset.hely}`;
+    if (!byGroup[key]) byGroup[key] = { anyag: chip.dataset.anyag, forrasHely: chip.dataset.hely, sulyok: [] };
+    byGroup[key].sulyok.push(parseFloat(chip.dataset.suly || 0));
   });
+
+  for (const data of Object.values(byGroup)) {
+    if (data.forrasHely === celHely) { msg('Forrás és cél helyszín nem lehet ugyanaz!', 'error'); return; }
+  }
 
   try {
     const datum = tod();
-    for (const [mat, data] of Object.entries(byMat)) {
+    for (const data of Object.values(byGroup)) {
       await addDoc(collection(db, 'stockMovements'), {
-        tipus:       'bevitel',
-        anyag:       mat,
-        forrasHely:  celHely,
-        celHely:     null,
-        zsakSzam:    data.zsakSzam,
-        mennyisegKg: parseFloat(data.mennyisegKg.toFixed(2)),
-        zsakSulyok:  data.zsakSulyok,
-        datum,
-        megjegyzes:  `Import: ${E('importHonapF').value}`,
-        forrás:      'termelés',
-        termelesRef: data.refs,
-        createdBy:   state.appUser.uid,
-        createdAt:   serverTimestamp()
+        tipus:       'atadas',
+        anyag:       data.anyag,
+        forrasHely:  data.forrasHely,
+        celHely,
+        zsakSzam:    data.sulyok.length,
+        mennyisegKg: parseFloat(data.sulyok.reduce((s,v) => s+v, 0).toFixed(2)),
+        zsakSulyok:  data.sulyok,
+        datum, megjegyzes: '',
+        forrás: 'manuális', termelesRef: [],
+        createdBy: state.appUser.uid, createdAt: serverTimestamp()
       });
     }
-    msg(`${Object.keys(byMat).length} anyag importálva, ${checked.length} bejegyzés.`);
-    loadImportFromProduction();
+    msg(`✅ ${selected.length} zsák áttárolva.`);
+    loadBelsoKeszlet();
     loadKeszlet();
-  } catch (e) { msg('Import hiba: ' + e.message, 'error'); }
+  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
 
 export async function saveBevetelez() {
@@ -531,6 +505,7 @@ export function switchKeszletTab(name) {
 
   if (name === 'sztkeszlet')    loadKeszlet();
   if (name === 'sztmozgas')     _refreshMozgasKeszlet();
+  if (name === 'sztbevetelez')  loadBelsoKeszlet();
   if (name === 'sztelozmenyek') loadElozmenyek();
   if (name === 'sztbeallitas')  renderLocations();
 }

@@ -973,24 +973,21 @@
 
       <!-- ⬇️ Bevételezés -->
       <div id="ksTab-sztbevetelez" class="kstab-panel">
-        <!-- Import termelésből -->
+        <!-- Belső készlet -->
         <div class="card">
-          <div class="card-title"><span class="card-title-icon">🏭</span>Import termelésből</div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Hónap</label><input type="month" id="importHonapF"></div>
-            <div class="field"><label class="lbl">Cél helyszín</label>
-              <select id="importHelyF"><option value="">— Válassz —</option></select>
+          <div class="card-title"><span class="card-title-icon">🏭</span>Belső készlet — termelésből</div>
+          <div id="belsoKeszletDiv"><div class="empty-st"><div class="empty-ic">🏭</div><div class="empty-title">Betöltés…</div></div></div>
+          <div id="belsoActionDiv" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;" id="belsoSzamDiv"></div>
+            <div class="g2">
+              <div class="field"><label class="lbl">Cél helyszín</label>
+                <select id="belsoHelyF"><option value="">— Válassz —</option></select>
+              </div>
             </div>
-          </div>
-          <div class="btn-row" style="margin-top:0;">
-            <button class="btn btn-ghost btn-sm" id="importLekerdezBtn">Lekérdez</button>
-          </div>
-        </div>
-        <div id="importListDiv"></div>
-        <div id="importActionDiv" style="display:none;margin-bottom:14px;">
-          <div class="btn-row">
-            <button class="btn btn-primary" id="importMentBtn" disabled>⬇️ Import kiválasztottak</button>
-            <span id="importCount" style="font-size:13px;color:var(--text3);margin-left:8px;"></span>
+            <div class="btn-row">
+              <button class="btn btn-primary btn-sm" id="belsoAttalolBtn">↔️ Áttárol</button>
+              <button class="btn btn-ghost btn-sm" id="belsoTorlesBtn">Kijelölés törlése</button>
+            </div>
           </div>
         </div>
 

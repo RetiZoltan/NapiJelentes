@@ -305,6 +305,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .mozg-selejt{color:var(--text3);}
 .stock-zsak-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .stock-zsak-chip{background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--text3);white-space:nowrap;}
+.belso-chip{transition:all .12s;}
+.belso-chip.selected{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
 .mozg-tipus-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 .stock-row-clickable{cursor:pointer;}
 .stock-row-clickable:hover td{background:var(--surf2);}
