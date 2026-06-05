@@ -686,6 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const RIPORT_SETTINGS_MAP = [
     { id: 'setTeljes',        key: 'teljes',        def: true  },
     { id: 'setDolgRangsor',   key: 'dolgRangsor',   def: true  },
+    { id: 'setRekordok',      key: 'rekordok',      def: true  },
+    { id: 'setKalendarNezet', key: 'kalendarNezet', def: true  },
     { id: 'setLineChart',     key: 'lineChart',     def: true  },
     { id: 'setBarChart',      key: 'barChart',      def: true  },
     { id: 'setAnyagOssz',     key: 'anyagOssz',     def: true  },

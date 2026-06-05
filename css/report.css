@@ -40,6 +40,30 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 .dlink{color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer;background:none;border:none;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;}
 .dlink:hover{color:var(--accent2);}
 
+/* ── Riport szekciók (grafikonok, rekordok, naptár) ── */
+.r-section{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.r-section:last-child{border-bottom:none;}
+.r-sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:12px;}
+
+.r-rekord-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:560px){.r-rekord-grid{grid-template-columns:1fr;}}
+.r-rekord-card{display:flex;align-items:center;gap:12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rlg);padding:14px 16px;}
+.r-rekord-icon{width:42px;height:42px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.r-rekord-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:3px;}
+.r-rekord-value{font-size:15px;font-weight:700;color:var(--text);line-height:1.2;margin-bottom:2px;}
+.r-rekord-sub{font-size:12px;color:var(--text3);}
+
+/* Print: rekord kártyák */
+@media print {
+  .r-rekord-grid{grid-template-columns:repeat(3,1fr);}
+  .r-rekord-card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:10px 12px;}
+  .r-rekord-icon{background:#EFF6FF!important;color:#1565C0!important;}
+  .r-rekord-value{color:#1E293B;}
+  .r-rekord-sub{color:#64748B;}
+  .r-section{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;}
+  .r-sec-title{color:#94A3B8;}
+}
+
 /* ── Print frame (hidden in normal view) ── */
 #print-frame{display:none;}
 

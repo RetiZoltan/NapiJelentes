@@ -113,6 +113,118 @@ function _riportBarChart(hA) {
   </div>`;
 }
 
+/* ── Időszak rekordjai ── */
+function _riportRekordok(hA) {
+  const byDay = {}, byWorker = {}, byMat = {};
+  hA.forEach(e => {
+    const kg = (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    if (kg <= 0) return;
+    byDay[e.datum]     = (byDay[e.datum]     || 0) + kg;
+    if (e.nev)   byWorker[e.nev]   = (byWorker[e.nev]   || 0) + kg;
+    if (e.anyag) byMat[e.anyag]    = (byMat[e.anyag]    || 0) + kg;
+  });
+  const top = obj => Object.entries(obj).sort((a, b) => b[1] - a[1])[0];
+  const bestDay    = top(byDay);
+  const bestWorker = top(byWorker);
+  const bestMat    = top(byMat);
+  if (!bestDay) return '';
+
+  const card = (icon, label, value, sub, color = 'var(--accent)') =>
+    `<div class="r-rekord-card">
+      <div class="r-rekord-icon" style="background:color-mix(in srgb,${color} 12%,var(--surf2));color:${color}">${icon}</div>
+      <div class="r-rekord-body">
+        <div class="r-rekord-label">${label}</div>
+        <div class="r-rekord-value">${value}</div>
+        <div class="r-rekord-sub">${sub}</div>
+      </div>
+    </div>`;
+
+  return `<div class="r-section">
+    <div class="r-sec-title">🏆 Időszak rekordjai</div>
+    <div class="r-rekord-grid">
+      ${bestDay    ? card('📅', 'Legjobb nap',      esc(fmtS(bestDay[0])),    `${(bestDay[1]/1000).toFixed(2)} t`, 'var(--amber)') : ''}
+      ${bestWorker ? card('👤', 'Legjobb dolgozó',   esc(bestWorker[0]),       `${(bestWorker[1]/1000).toFixed(2)} t az időszakban`, 'var(--accent)') : ''}
+      ${bestMat    ? card('📦', 'Vezető anyag',       esc(bestMat[0]),          `${(bestMat[1]/1000).toFixed(2)} t az időszakban`, 'var(--green)') : ''}
+    </div>
+  </div>`;
+}
+
+/* ── Termelés naptár nézet (hőtérkép) ── */
+function _riportKalendarNezet(hA) {
+  const byDay = {};
+  hA.forEach(e => {
+    const kg = (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    byDay[e.datum] = (byDay[e.datum] || 0) + kg;
+  });
+  const datumok = hA.map(e => e.datum).filter(Boolean);
+  if (!datumok.length) return '';
+  const minDate = datumok.reduce((a, b) => a < b ? a : b);
+  const maxDate = datumok.reduce((a, b) => a > b ? a : b);
+  const maxKg   = Math.max(...Object.values(byDay), 1);
+
+  // Hétfőre igazított kezdet
+  const fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const startD   = new Date(minDate + 'T12:00:00');
+  const dow      = startD.getDay() || 7;
+  startD.setDate(startD.getDate() - dow + 1);
+  const endD     = new Date(maxDate + 'T12:00:00');
+
+  const days = [];
+  const cur  = new Date(startD);
+  while (cur <= endD) { days.push(fmtLocal(cur)); cur.setDate(cur.getDate() + 1); }
+
+  const CELL = 13, GAP = 2, ML = 22, MT = 18;
+  const numWeeks = Math.ceil(days.length / 7);
+  const W = ML + numWeeks * (CELL + GAP);
+  const H = MT + 7 * (CELL + GAP) + 4;
+
+  const HU_MONTHS = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
+  const HU_DAYS   = ['H','K','Sz','Cs','P','Sz','V'];
+
+  let lastMonth = -1;
+  const monthLbls = [], cells = [];
+
+  days.forEach((datum, i) => {
+    const wk  = Math.floor(i / 7);
+    const dow = i % 7;
+    const x   = ML + wk * (CELL + GAP);
+    const y   = MT + dow * (CELL + GAP);
+    const d   = new Date(datum + 'T12:00:00');
+    const mo  = d.getMonth();
+    if (dow === 0 && mo !== lastMonth) {
+      lastMonth = mo;
+      monthLbls.push(`<text x="${x}" y="${MT - 4}" font-size="8.5" fill="var(--text3)">${HU_MONTHS[mo]}</text>`);
+    }
+    const inRange = datum >= minDate && datum <= maxDate;
+    const kg      = byDay[datum] || 0;
+    const alpha   = kg > 0 ? (0.2 + (kg / maxKg) * 0.8).toFixed(2) : (inRange ? '0.07' : '0.02');
+    const fill    = kg > 0 ? 'var(--accent)' : 'var(--border2)';
+    const tip     = `${datum}: ${kg > 0 ? (kg/1000).toFixed(2) + ' t' : 'Nincs adat'}`;
+    cells.push(`<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}" opacity="${alpha}"><title>${esc(tip)}</title></rect>`);
+  });
+
+  const dayLbls = [0,2,4,6].map(i =>
+    `<text x="${ML-3}" y="${MT + i*(CELL+GAP) + CELL*0.78}" font-size="8" text-anchor="end" fill="var(--text3)">${HU_DAYS[i]}</text>`
+  ).join('');
+
+  // Jelmagyarázat
+  const legend = [0.07, 0.3, 0.5, 0.7, 1].map(a =>
+    `<rect width="11" height="11" rx="2" fill="var(--accent)" opacity="${a}" style="display:inline-block"/>`
+  ).join('');
+
+  return `<div class="r-section">
+    <div class="r-sec-title">🗓 Termelés naptár nézet</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W,300)}px;height:${H}px;display:block;">
+        ${dayLbls}${monthLbls.join('')}${cells.join('')}
+      </svg>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;color:var(--text3);">
+      Kevés ${legend} Sok
+    </div>
+  </div>`;
+}
+
 export function cleanupNapiListener() {
   if (unsubNapi) { unsubNapi(); unsubNapi = null; }
 }
@@ -317,6 +429,8 @@ export async function haviRiport() {
   }
 
   let html = `<div class="r-head">${ev}. ${honNev[honap]}${_filterBadges()}</div>`;
+  if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
+  if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
@@ -379,6 +493,8 @@ export async function hetiRiport() {
   }
 
   let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
+  if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
+  if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
@@ -410,6 +526,8 @@ export async function egyeniRiport() {
   }
 
   let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
+  if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
+  if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
   if (getRiportSet('lineChart'))     html += _riportLineChart(hA);
   html += reszlegOsszesitoHtml(hA);
