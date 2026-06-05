@@ -547,7 +547,7 @@ export function switchKeszletTab(name) {
 
   if (name === 'sztkeszlet')    loadKeszlet();
   if (name === 'sztmozgas')     _refreshMozgasKeszlet();
-  if (name === 'sztbevetelez')  loadBelsoKeszlet();
+  if (name === 'sztbevetelez')  { /* belső készlet csak kézzel nyílik */ }
   if (name === 'sztelozmenyek') loadElozmenyek();
   if (name === 'sztbeallitas')  renderLocations();
 }

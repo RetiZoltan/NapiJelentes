@@ -983,6 +983,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.belso-chip.selected').forEach(c => c.classList.remove('selected'));
     loadBelsoKeszlet();
   });
+  E('belsoKeszletToggle').addEventListener('click', () => {
+    const body    = E('belsoKeszletBody');
+    const chevron = E('belsoKeszletChevron');
+    const open    = body.style.display !== 'none';
+    body.style.display        = open ? 'none' : '';
+    chevron.style.transform   = open ? '' : 'rotate(90deg)';
+    if (!open) loadBelsoKeszlet();
+  });
   E('bevSaveBtn').addEventListener('click', saveBevetelez);
   E('mozgSaveBtn').addEventListener('click', saveMozgas);
   document.querySelectorAll('.mozg-tipus-btn').forEach(btn => {
