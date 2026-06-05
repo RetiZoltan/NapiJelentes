@@ -1007,15 +1007,6 @@ html { overflow-x: clip; }
 .dash-anomaly-warn{background:var(--redl);color:var(--red);}
 .dash-anomaly-good{background:var(--greenl);color:var(--green);}
 
-/* ── Widget fullscreen overlay ── */
-.wf-overlay{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;}
-.wf-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
-.wf-content{position:relative;background:var(--surf);border-radius:var(--rlg);padding:32px 28px 28px;max-width:620px;width:92%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.45);}
-.wf-close{position:absolute;top:14px;right:14px;background:none;border:1px solid var(--border2);color:var(--text3);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all var(--tr);}
-.wf-close:hover{background:var(--surf2);color:var(--text);}
-.wf-body .dash-widget{border:none;box-shadow:none;padding:0;animation:none;}
-.wf-body .dash-w-value{font-size:36px;}
-.wf-body .dash-w-title{font-size:16px;}
 
 /* ── Dashboard konfig bővítések ── */
 .dash-cfg-item { margin-bottom:4px; }

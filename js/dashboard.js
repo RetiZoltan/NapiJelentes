@@ -105,20 +105,6 @@ export function closeWidgetDrawer() {
   document.body.style.overflow = '';
 }
 
-/* ── Widget fullscreen ── */
-function _openFullscreen(wid) {
-  if (!_lastCtx) return;
-  const body = E('dashFullscreenBody'); if (!body) return;
-  body.innerHTML = _buildWidget(wid, _lastCtx, true);
-  E('dashFullscreen').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-export function closeDashFullscreen() {
-  const fs = E('dashFullscreen'); if (!fs) return;
-  fs.style.display = 'none';
-  document.body.style.overflow = '';
-}
 
 const _WD_META = {
   maiOssz:     { icon:'⚖️', title:'Mai össztermelés – részletes' },
@@ -773,9 +759,6 @@ export async function initDashboard() {
         await _loadWidgets();
         return;
       }
-      // Teljes képernyő
-      const fsBtn = e.target.closest('.dash-fs-btn');
-      if (fsBtn) { _openFullscreen(fsBtn.dataset.wid); return; }
 
       if (e.target.closest('.dash-move-btn')) return;
       if (e.target.tagName === 'SELECT' || e.target.closest('select')) return;
@@ -787,9 +770,6 @@ export async function initDashboard() {
     // Widget drawer + fullscreen bezárás
     E('widgetDrawerClose')?.addEventListener('click', closeWidgetDrawer);
     E('widgetDrawerOverlay')?.addEventListener('click', closeWidgetDrawer);
-    E('dashFsClose')?.addEventListener('click', closeDashFullscreen);
-    E('dashFsBd')?.addEventListener('click', closeDashFullscreen);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDashFullscreen(); });
 
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
@@ -877,7 +857,6 @@ async function _loadWidgets() {
     mv.className = 'dash-w-move';
     mv.innerHTML = `
       <button class="dash-ctrl-btn dash-refresh-btn" data-wid="${enabled[i]}" title="Frissítés">↺</button>
-      <button class="dash-ctrl-btn dash-fs-btn"      data-wid="${enabled[i]}" title="Teljes képernyő">⛶</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="left"  ${i === 0              ? 'disabled' : ''} title="Balra">‹</button>
       <button class="dash-move-btn" data-wid="${enabled[i]}" data-dir="right" ${i >= wNodes.length-1 ? 'disabled' : ''} title="Jobbra">›</button>`;
     hdr.appendChild(mv);

@@ -571,30 +571,6 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (e.target.classList.contains('dZsak') && E('zsakC').querySelectorAll('.wrow').length > 1) e.target.closest('.wrow').remove();
   });
 
-  // Zsák átadása (WIP)
-  E('wipTransferTitle').addEventListener('click', () => {
-    const body  = E('wipTransferBody');
-    const arrow = E('wipTransferArrow');
-    const open  = body.style.display !== 'none';
-    body.style.display    = open ? 'none' : '';
-    arrow.style.transform = open ? '' : 'rotate(180deg)';
-    if (!open) {
-      if (!E('wipAnyag').value)   E('wipAnyag').value   = E('anyag').value;
-      if (!E('wipReszleg').value) E('wipReszleg').value = E('reszleg').value;
-      if (!E('wipNev').value)     E('wipNev').value     = E('nev').value;
-    }
-  });
-  E('wipAtadBtn').addEventListener('click', async () => {
-    await saveWipTransfer({
-      reszleg: E('wipReszleg').value.trim(),
-      anyag:   E('wipAnyag').value.trim(),
-      nev:     E('wipNev').value.trim(),
-      datum:   E('datum').value || tod(),
-      muszak:  E('ido').value || 'Délelőtt',
-      suly:    parseFloat(E('wipSuly').value)
-    });
-    E('wipSuly').value = '';
-  });
   // Rögzítés utáni automatikus WIP prompt
   let _wipPending = null;
   document.addEventListener('entry-megkezdett', e => {
