@@ -769,7 +769,19 @@ export async function initDashboard() {
 
     // Widget drawer + fullscreen bezárás
     E('widgetDrawerClose')?.addEventListener('click', closeWidgetDrawer);
-    E('widgetDrawerOverlay')?.addEventListener('click', closeWidgetDrawer);
+    E('widgetDrawerOverlay')?.addEventListener('click', e => {
+      // Átmenetileg kikapcsoljuk az overlay-t, hogy lássuk mi van mögötte
+      const ol = E('widgetDrawerOverlay');
+      ol.style.pointerEvents = 'none';
+      const behind = document.elementFromPoint(e.clientX, e.clientY);
+      ol.style.pointerEvents = '';
+      closeWidgetDrawer();
+      // Ha widget van mögötte, azt azonnal kinyitjuk
+      const w = behind?.closest('.dash-widget-clickable');
+      if (w?.dataset.wid && DRAWER_WIDGETS.includes(w.dataset.wid)) {
+        _openWidgetDrawer(w.dataset.wid);
+      }
+    });
 
     // Nyíl gombok eseménykezelője (event delegation, egyszer regisztrálva)
     E('dashWidgets').addEventListener('click', async e => {
