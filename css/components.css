@@ -296,10 +296,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .stock-table{width:100%;border-collapse:collapse;font-size:13px;}
 .stock-table th{text-align:left;color:var(--text3);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--surf2);}
 .stock-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
-.stock-table tfoot td{padding:8px 12px;border-top:2px solid var(--border2);font-weight:600;color:var(--text);background:var(--surf3);}
 .stock-table tr:hover td{background:var(--surf2);}
 .stock-badge-zsak{display:inline-flex;align-items:center;background:var(--agl);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;}
-.stock-kamion{font-size:12px;color:var(--text3);}
 .mozg-bevitel{color:var(--green);}
 .mozg-kivitel{color:var(--red);}
 .mozg-atadas{color:var(--accent);}
@@ -307,10 +305,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .mozg-selejt{color:var(--text3);}
 .stock-zsak-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .stock-zsak-chip{background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--text3);white-space:nowrap;}
-.stock-row-clickable{cursor:pointer;}
-.stock-row-clickable:hover td{background:var(--surf2);}
-.stock-det-arrow{transition:transform .2s;display:inline-block;}
-.stock-det-row td{border-top:none;}
+.mozg-tipus-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.stock-summary-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.ssc{flex:1;min-width:80px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 14px;text-align:center;}
+.ssc-val{font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
+.ssc-lbl{font-size:11px;color:var(--text3);margin-top:2px;}
 
 /* ── Súgó / Help ── */
 .help-section{border:1px solid var(--border);border-radius:var(--rlg);margin-bottom:8px;overflow:hidden;box-shadow:var(--sh);}
