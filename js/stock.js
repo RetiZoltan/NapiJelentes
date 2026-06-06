@@ -70,22 +70,60 @@ export async function renderLocations() {
       div.innerHTML = emptyHtml('📍', 'Nincsenek helyszínek', 'Adj hozzá raktárat vagy termelési területet.');
       return;
     }
+    const canEdit = canManageStock();
     div.innerHTML = all.map(l => `
-      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-        <label style="cursor:pointer;flex-shrink:0;" title="Szín beállítása">
-          <input type="color" class="loc-color-inp" data-id="${l.id}" value="${l.szin || '#999999'}"
-                 style="width:0;height:0;border:0;padding:0;position:absolute;opacity:0;">
-          <span style="display:flex;width:26px;height:26px;border-radius:50%;background:${l.szin || 'var(--border)'};border:2px solid var(--border);"></span>
-        </label>
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:13.5px;color:var(--text)${l.aktiv === false ? ';opacity:.45' : ''};">${esc(l.nev)}</div>
-          ${l.leiras ? `<div style="font-size:12px;color:var(--text3);">${esc(l.leiras)}</div>` : ''}
+      <div data-loc-id="${l.id}" style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div class="loc-view" style="display:flex;align-items:center;gap:10px;">
+          <label style="cursor:pointer;flex-shrink:0;" title="Szín beállítása">
+            <input type="color" class="loc-color-inp" data-id="${l.id}" value="${l.szin || '#999999'}"
+                   style="width:0;height:0;border:0;padding:0;position:absolute;opacity:0;">
+            <span style="display:flex;width:26px;height:26px;border-radius:50%;background:${l.szin || 'var(--border)'};border:2px solid var(--border);"></span>
+          </label>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:13.5px;color:var(--text)${l.aktiv === false ? ';opacity:.45' : ''};">${esc(l.nev)}</div>
+            ${l.leiras ? `<div style="font-size:12px;color:var(--text3);">${esc(l.leiras)}</div>` : ''}
+          </div>
+          ${canEdit ? `<button class="btn btn-ghost btn-xs loc-edit-btn" data-id="${l.id}">Szerkeszt</button>` : ''}
+          ${canEdit ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
         </div>
-        ${l.aktiv !== false
-          ? `<span style="font-size:11px;color:var(--green);font-weight:600;">Aktív</span>`
-          : `<span style="font-size:11px;color:var(--text3);">Archivált</span>`}
-        ${canManageStock() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
+        <div class="loc-edit-form" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:6px;">
+          <input class="loc-edit-nev" type="text" value="${esc(l.nev)}" placeholder="Név" style="flex:1;min-width:120px;">
+          <input class="loc-edit-leiras" type="text" value="${esc(l.leiras || '')}" placeholder="Leírás (opcionális)" style="flex:2;min-width:160px;">
+          <button class="btn btn-primary btn-xs loc-save-btn" data-id="${l.id}">Ment</button>
+          <button class="btn btn-ghost btn-xs loc-cancel-btn">Mégse</button>
+        </div>
       </div>`).join('');
+
+    div.querySelectorAll('.loc-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('[data-loc-id]');
+        row.querySelector('.loc-view').style.display = 'none';
+        const form = row.querySelector('.loc-edit-form');
+        form.style.display = 'flex';
+        form.querySelector('.loc-edit-nev').focus();
+      });
+    });
+    div.querySelectorAll('.loc-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('[data-loc-id]');
+        row.querySelector('.loc-view').style.display = 'flex';
+        row.querySelector('.loc-edit-form').style.display = 'none';
+      });
+    });
+    div.querySelectorAll('.loc-save-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const row  = btn.closest('[data-loc-id]');
+        const nev  = row.querySelector('.loc-edit-nev').value.trim();
+        if (!nev) { msg('A név nem lehet üres!', 'error'); return; }
+        const leiras = row.querySelector('.loc-edit-leiras').value.trim();
+        try {
+          await updateDoc(doc(db, 'stockLocations', btn.dataset.id), { nev, leiras });
+          msg('Helyszín frissítve.');
+          await loadLocations();
+          renderLocations();
+        } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+      });
+    });
     div.querySelectorAll('.loc-del-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('Véglegesen törlöd ezt a helyszínt?')) return;
