@@ -387,7 +387,7 @@ function _mozgUpdatePanel() {
   const infoEl  = E('mozgSelInfo');
   const delBtn  = E('mozgDelBtn');
   const saveBtn = E('mozgSaveBtn');
-  if (infoEl)  infoEl.textContent   = `${totalCount} zsák kijelölve${totalKg > 0 ? ` · ${fmtKg(totalKg)}` : ''}`;
+  if (infoEl)  infoEl.innerHTML     = `${totalCount} zsák kijelölve${totalKg > 0 ? ` · ${fmtKg(totalKg)}` : ''}`;
   if (delBtn)  delBtn.style.display = _mozgTipus === 'betarolas' ? 'none' : '';
   if (saveBtn) saveBtn.textContent  = _mozgTipus === 'betarolas' ? '⬇️ Betárol' : '✓ Rögzít';
 }

@@ -27,18 +27,18 @@ service cloud.firestore {
       );
     }
 
-    // ── users ──────────────────────────────────────────────────
+    // â”€â”€ users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /users/{uid} {
-      // Mindenki olvashatja a saját profilját; főadmin + felh.kezelő mindenkit
+      // Mindenki olvashatja a sajĂˇt profiljĂˇt; fĹ‘admin + felh.kezelĹ‘ mindenkit
       allow read: if isAuth() && (
         request.auth.uid == uid ||
         isMainAdmin() ||
         hasPerm('felhasznalokKezelese')
       );
-      // Saját user-dokumentum létrehozása (regisztrációkor)
+      // SajĂˇt user-dokumentum lĂ©trehozĂˇsa (regisztrĂˇciĂłkor)
       allow create: if isAuth() && request.auth.uid == uid
         && request.resource.data.isMainAdmin == false;
-      // Főadmin frissíthet bármit; user a saját profilját (de isMainAdmin-t nem)
+      // FĹ‘admin frissĂ­thet bĂˇrmit; user a sajĂˇt profiljĂˇt (de isMainAdmin-t nem)
       allow update: if isAuth() && (
         isMainAdmin() ||
         (request.auth.uid == uid
@@ -48,13 +48,13 @@ service cloud.firestore {
       allow delete: if isAuth() && isMainAdmin();
     }
 
-    // ── roles ──────────────────────────────────────────────────
+    // â”€â”€ roles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /roles/{roleId} {
       allow read:  if isAuth();
       allow write: if isAuth() && isMainAdmin();
     }
 
-    // ── entries ────────────────────────────────────────────────
+    // â”€â”€ entries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /entries/{entryId} {
       allow read: if isAuth() && (
         isMainAdmin() ||
@@ -72,7 +72,7 @@ service cloud.firestore {
       );
     }
 
-    // ── dailyNotes ─────────────────────────────────────────────
+    // â”€â”€ dailyNotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /dailyNotes/{date} {
       allow read: if isAuth() && (
         isMainAdmin() ||
@@ -85,7 +85,7 @@ service cloud.firestore {
       );
     }
 
-    // ── config/notice (közlemény — csak admin írhat) ──────────
+    // â”€â”€ config/notice (kĂ¶zlemĂ©ny â€” csak admin Ă­rhat) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /config/notice {
       allow read:  if isAuth();
       allow write: if isAuth() && (
@@ -94,7 +94,7 @@ service cloud.firestore {
       );
     }
 
-// ── config/premiumConfig (csak prémium kezelő írhat) ───────
+// â”€â”€ config/premiumConfig (csak prĂ©mium kezelĹ‘ Ă­rhat) â”€â”€â”€â”€â”€â”€â”€
     match /config/premiumConfig {
       allow read:  if isAuth();
       allow write: if isAuth() && (
@@ -103,7 +103,7 @@ service cloud.firestore {
       );
     }
 
-    // ── employees ──────────────────────────────────────────────
+    // â”€â”€ employees â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /employees/{empId} {
       allow read: if isAuth() && (
         isMainAdmin() ||
@@ -116,7 +116,7 @@ service cloud.firestore {
       );
     }
 
-    // ── absences ───────────────────────────────────────────────
+    // â”€â”€ absences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /absences/{absId} {
       allow read: if isAuth() && (
         isMainAdmin() ||
@@ -129,7 +129,7 @@ service cloud.firestore {
       );
     }
 
-    // ── notices (közlemények) ──────────────────────────────────
+    // â”€â”€ notices (kĂ¶zlemĂ©nyek) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /notices/{noticeId} {
       allow read: if isAuth();
       allow create: if isAuth() && (
@@ -146,7 +146,7 @@ service cloud.firestore {
       );
     }
 
-    // ── tasks (feladatok) ──────────────────────────────────────
+    // â”€â”€ tasks (feladatok) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /tasks/{taskId} {
       allow read:   if isAuth();
       allow create: if isAuth() && (isMainAdmin() || hasPerm('feladatokKezeles'));
@@ -158,7 +158,7 @@ service cloud.firestore {
       allow delete: if isAuth() && (isMainAdmin() || resource.data.createdBy == request.auth.uid);
     }
 
-    // ── machines (gépek) ──────────────────────────────────────
+    // â”€â”€ machines (gĂ©pek) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /machines/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
@@ -169,10 +169,10 @@ service cloud.firestore {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
-      allow update: if false;
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
     }
 
-    // ── stockLocations (raktárak, helyszínek) ─────────────────
+    // â”€â”€ stockLocations (raktĂˇrak, helyszĂ­nek) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /stockLocations/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
@@ -180,33 +180,33 @@ service cloud.firestore {
       allow delete: if isAuth() && isMainAdmin();
     }
 
-    // ── stockMovements (anyagmozgások) ─────────────────────────
+    // â”€â”€ stockMovements (anyagmozgĂˇsok) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /stockMovements/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
-      allow update: if false;
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
     }
 
-    // ── premiumHistory (prémium előzmények) ───────────────────
+    // â”€â”€ premiumHistory (prĂ©mium elĹ‘zmĂ©nyek) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /premiumHistory/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('premiumKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('premiumKezeles'));
-      allow update: if false;
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
     }
 
-    // ── overtimes (túlóra) ────────────────────────────────────
+    // â”€â”€ overtimes (tĂşlĂłra) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /overtimes/{id} {
       allow read: if isAuth() && (
         isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')
       );
       allow create: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
-      allow update: if false;
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
     }
 
-    // ── megkezdettZsakok (WIP zsák átadás) ───────────────────────
+    // â”€â”€ megkezdettZsakok (WIP zsĂˇk ĂˇtadĂˇs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /megkezdettZsakok/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes'));
       allow create: if isAuth() && hasPerm('adatbevitel');
@@ -214,14 +214,14 @@ service cloud.firestore {
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('adatbevitel'));
     }
 
-    // ── auditLog (audit napló) ─────────────────────────────────
+    // â”€â”€ auditLog (audit naplĂł) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /auditLog/{logId} {
       allow read:   if isAuth() && isMainAdmin();
       allow create: if isAuth();
       allow update, delete: if false;
     }
 
-    // ── config (nevek/anyagok/gépek listák) ────────────────────
+    // â”€â”€ config (nevek/anyagok/gĂ©pek listĂˇk) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /config/{doc} {
       allow read:  if isAuth();
       allow write: if isAuth() && (
