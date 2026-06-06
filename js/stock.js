@@ -255,16 +255,17 @@ export async function loadMozgasTab() {
     const stock  = await _calcStock(anyagF, helyF);
     const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
 
-    if (!stock.length) {
+    const stockFiltered = stock.filter(s => s.hely !== '_termelés_');
+    if (!stockFiltered.length) {
       div.innerHTML = emptyHtml('📦', 'Nincs készlet', 'Nincs megjeleníthető tétel.');
       return;
     }
 
     let h = '';
-    stock.forEach(s => {
+    stockFiltered.forEach(s => {
       const locLabel   = _locName(locMap, s.hely);
       const totalKgTxt = s.kg > 0 ? ` · ${fmtKg(s.kg)}` : '';
-      const isProd     = s.hely === '_termelés_';
+      const isProd     = false;
 
       const chips = s.batches.flatMap(b => {
         const mid = b.movId   || '';
