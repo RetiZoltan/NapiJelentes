@@ -1000,10 +1000,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Dátum alapértelmezések
   const mozgDatum = E('mozgDatum'); if (mozgDatum) mozgDatum.value = tod();
   const bevDatum  = E('bevDatum');  if (bevDatum)  bevDatum.value  = tod();
-  // Anyag szűrő feltöltése a készlet fülön (anyaglista alapján)
-  E('keszletAnyagF').innerHTML = '<option value="">— Mind —</option>' +
-    (state.anyagok || []).sort((a,b)=>a.localeCompare(b,'hu'))
-      .map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  // Anyag kereső — debounced live szűrés
+  let _keszletAnyagT = null;
+  E('keszletAnyagF').addEventListener('input', () => {
+    clearTimeout(_keszletAnyagT);
+    _keszletAnyagT = setTimeout(loadKeszlet, 280);
+  });
 
   // Prémium al-fülek
   E('premiumSubtabs').addEventListener('click', e => {

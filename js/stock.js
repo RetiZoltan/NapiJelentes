@@ -149,7 +149,7 @@ async function _calcStock(anyagF = '', helyF = '') {
 
   return Object.values(stock)
     .filter(s => s.zsakSzam > 0 || s.kg > 0)
-    .filter(s => !anyagF || s.anyag === anyagF)
+    .filter(s => !anyagF || s.anyag.toLowerCase().includes(anyagF.toLowerCase()))
     .filter(s => belsoFilter ? s.belso : (!helyF || s.hely === helyF))
     .map(s => ({ ...s, batches: (batches[`${s.anyag}|${s.hely}`] || []).sort((a, b) => a.datum.localeCompare(b.datum)) }))
     .sort((a, b) => b.zsakSzam - a.zsakSzam || a.anyag.localeCompare(b.anyag, 'hu'));
