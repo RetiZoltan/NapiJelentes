@@ -25,8 +25,10 @@ export async function loadLocations() {
   } catch (e) { msg('Helyszín betöltési hiba: ' + e.message, 'error'); }
 }
 
+function _locLabel(l) { return (l.ikon ? l.ikon + ' ' : '') + l.nev; }
+
 function _fillLocSelects() {
-  const locOpts    = _locations.map(l => `<option value="${l.id}">${esc(l.nev)}</option>`).join('');
+  const locOpts    = _locations.map(l => `<option value="${l.id}">${esc(_locLabel(l))}</option>`).join('');
   const allOpts    = '<option value="">— Mind —</option>' + locOpts;
   const belsoOpts  = '<option value="">— Mind —</option><option value="_belso_">🏭 Belső készlet</option>' + locOpts;
   const selOpts    = '<option value="">— Válassz —</option>' + locOpts;
@@ -50,13 +52,14 @@ export async function saveLocation() {
   const nev = E('helyszinNev')?.value.trim();
   if (!nev) { msg('Add meg a helyszín nevét!', 'error'); return; }
   const leiras = E('helyszinLeiras')?.value.trim() || '';
+  const ikon   = E('helyszinIkon')?.value.trim()   || '';
   try {
     await addDoc(collection(db, 'stockLocations'), {
-      nev, leiras, aktiv: true,
+      nev, leiras, ikon, aktiv: true,
       createdBy: state.appUser.uid, createdAt: serverTimestamp()
     });
     msg('Helyszín hozzáadva.');
-    E('helyszinNev').value = ''; E('helyszinLeiras').value = '';
+    E('helyszinNev').value = ''; E('helyszinLeiras').value = ''; E('helyszinIkon').value = '';
     loadLocations(); renderLocations();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
@@ -72,7 +75,7 @@ export async function renderLocations() {
     }
     div.innerHTML = all.map(l => `
       <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:16px;">📍</span>
+        <span style="font-size:20px;width:28px;text-align:center;flex-shrink:0;">${l.ikon || '📍'}</span>
         <div style="flex:1;">
           <div style="font-weight:600;font-size:13.5px;color:var(--text)${l.aktiv === false ? ';opacity:.45' : ''};">${esc(l.nev)}</div>
           ${l.leiras ? `<div style="font-size:12px;color:var(--text3);">${esc(l.leiras)}</div>` : ''}
@@ -160,6 +163,8 @@ async function _calcStock(anyagF = '', helyF = '') {
 
 function _locName(locMap, id) {
   if (id === '_termelés_') return '🏭 Termelés';
+  const loc = _locations.find(l => l.id === id);
+  if (loc) return esc(_locLabel(loc));
   return esc(locMap[id] || id || '—');
 }
 
