@@ -125,10 +125,12 @@ async function _calcStock(anyagF = '', helyF = '') {
       if (!batches[bkey]) batches[bkey] = [];
       batches[bkey].push({ datum: m.datum || '', zsakSzam: m.zsakSulyok?.length || m.zsakSzam || 0, zsakSulyok: m.zsakSulyok || [], movId: d.id, entryId: null });
     }
-    if (t === 'kiszallitas' || t === 'selejt' || t === 'kivitel') add(m.anyag, m.forrasHely, -1);
-    if (t === 'atadas') {
-      add(m.anyag, m.forrasHely, -1);
-      if (m.celHely) add(m.anyag, m.celHely, 1);
+    if (!m.sourceUpdated) {
+      if (t === 'kiszallitas' || t === 'selejt' || t === 'kivitel') add(m.anyag, m.forrasHely, -1);
+      if (t === 'atadas') {
+        add(m.anyag, m.forrasHely, -1);
+        if (m.celHely) add(m.anyag, m.celHely, 1);
+      }
     }
   });
 
@@ -409,23 +411,66 @@ export async function saveMozgas() {
 
   if (_mozgTipus === 'atadas' && !cel) { msg('Válassz cél helyszínt!', 'error'); return; }
 
-  // Csoportosítás anyag|forrásHely szerint
-  const byKey = {};
+  // Csoportosítás anyag|forrásHely szerint (mozgás rekordhoz)
+  const byAnyagHely = {};
+  // Csoportosítás movId szerint (forrás dok frissítéséhez)
+  const byMovId = {};
+
   selected.forEach(chip => {
-    const key = `${chip.dataset.anyag}|${chip.dataset.hely}`;
-    if (!byKey[key]) byKey[key] = { anyag: chip.dataset.anyag, hely: chip.dataset.hely, sulyok: [], count: 0 };
-    const suly = parseFloat(chip.dataset.suly || 0);
-    const cnt  = parseInt(chip.dataset.count || 1);
-    if (suly > 0) byKey[key].sulyok.push(suly);
-    byKey[key].count += cnt;
+    const movId = chip.dataset.movid;
+    const anyag = chip.dataset.anyag;
+    const hely  = chip.dataset.hely;
+    const suly  = parseFloat(chip.dataset.suly || 0);
+    const cnt   = parseInt(chip.dataset.count || 1);
+    const hasW  = chip.dataset.hasweight === '1';
+
+    const aKey = `${anyag}|${hely}`;
+    if (!byAnyagHely[aKey]) byAnyagHely[aKey] = { anyag, hely, sulyok: [], count: 0 };
+    if (suly > 0) byAnyagHely[aKey].sulyok.push(suly);
+    byAnyagHely[aKey].count += cnt;
+
+    if (movId) {
+      if (!byMovId[movId]) byMovId[movId] = { sulyok: [], countNoWeight: 0 };
+      if (hasW) byMovId[movId].sulyok.push(suly);
+      else byMovId[movId].countNoWeight += cnt;
+    }
   });
 
-  for (const { hely } of Object.values(byKey)) {
+  for (const { hely } of Object.values(byAnyagHely)) {
     if (_mozgTipus === 'atadas' && hely === cel) { msg('Forrás és cél nem lehet ugyanaz!', 'error'); return; }
   }
 
   try {
-    for (const { anyag, hely, sulyok, count } of Object.values(byKey)) {
+    // 1. Forrás bevitel dokumentumok frissítése/törlése
+    for (const [movId, data] of Object.entries(byMovId)) {
+      const ref  = doc(db, 'stockMovements', movId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const d = snap.data();
+      if (d.zsakSulyok?.length && data.sulyok.length) {
+        let remaining = [...d.zsakSulyok];
+        for (const suly of data.sulyok) {
+          const idx = remaining.indexOf(suly);
+          if (idx > -1) remaining.splice(idx, 1);
+        }
+        if (remaining.length === 0) {
+          await deleteDoc(ref);
+        } else {
+          await updateDoc(ref, {
+            zsakSulyok:  remaining,
+            zsakSzam:    remaining.length,
+            mennyisegKg: parseFloat(remaining.reduce((s, v) => s + v, 0).toFixed(2))
+          });
+        }
+      } else if (data.countNoWeight > 0) {
+        const newCount = (d.zsakSzam || 0) - data.countNoWeight;
+        if (newCount <= 0) await deleteDoc(ref);
+        else await updateDoc(ref, { zsakSzam: newCount });
+      }
+    }
+
+    // 2. Mozgás rekord(ok) létrehozása (sourceUpdated: true → _calcStock nem vonja le újra)
+    for (const { anyag, hely, sulyok, count } of Object.values(byAnyagHely)) {
       await addDoc(collection(db, 'stockMovements'), {
         tipus:       _mozgTipus,
         anyag,
@@ -436,9 +481,29 @@ export async function saveMozgas() {
         zsakSulyok:  sulyok,
         datum, megjegyzes: megj,
         forrás: 'manuális', termelesRef: [],
+        sourceUpdated: true,
         createdBy: state.appUser.uid, createdAt: serverTimestamp()
       });
     }
+
+    // 3. Áttárolás: új bevitel a cél helyszínen
+    if (_mozgTipus === 'atadas' && cel) {
+      for (const { anyag, sulyok, count } of Object.values(byAnyagHely)) {
+        await addDoc(collection(db, 'stockMovements'), {
+          tipus:       'bevitel',
+          anyag,
+          forrasHely:  cel,
+          celHely:     null,
+          zsakSzam:    count,
+          mennyisegKg: sulyok.length ? parseFloat(sulyok.reduce((s, v) => s + v, 0).toFixed(2)) : null,
+          zsakSulyok:  sulyok,
+          datum, megjegyzes: megj,
+          forrás: 'áttárolás', termelesRef: [],
+          createdBy: state.appUser.uid, createdAt: serverTimestamp()
+        });
+      }
+    }
+
     const labels = { atadas: 'Áttárolás rögzítve', kiszallitas: 'Kiszállítás rögzítve', selejt: 'Selejt rögzítve' };
     msg(labels[_mozgTipus] || 'Rögzítve');
     if (E('mozgMegjegyzes')) E('mozgMegjegyzes').value = '';
