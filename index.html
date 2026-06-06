@@ -906,7 +906,6 @@
         <button class="stab-btn active" data-ks-tab="sztkeszlet">📊 Készlet</button>
         <button class="stab-btn" data-ks-tab="sztmozgas">↔️ Mozgás</button>
         <button class="stab-btn" data-ks-tab="sztbevetelez">⬇️ Bevételezés</button>
-        <button class="stab-btn" data-ks-tab="sztelozmenyek">📋 Előzmények</button>
         <button class="stab-btn" data-ks-tab="sztbeallitas" id="sztBeallitasBtn" style="display:none">⚙️ Beállítások</button>
       </div>
 
@@ -936,7 +935,6 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
             <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
             <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="kiszallitas">⬆️ Kiszállítás</button>
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="selejt">🗑 Selejt</button>
             <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="betarolas">⬇️ Termelésből</button>
           </div>
           <div id="mozgKeszletFilters" class="g2" style="margin-bottom:10px;">
@@ -1010,34 +1008,6 @@
             <button class="btn btn-primary btn-sm" id="bevSaveBtn">⬇️ Bevételez</button>
           </div>
         </div>
-      </div>
-
-      <!-- 📋 Előzmények -->
-      <div id="ksTab-sztelozmenyek" class="kstab-panel">
-        <div class="card">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field" style="min-width:140px;"><label class="lbl">Típus</label>
-              <select id="elozTipusF">
-                <option value="">— Mind —</option>
-                <option value="bevitel">⬇️ Bevételezés</option>
-                <option value="atadas">↔️ Áttárolás</option>
-                <option value="kiszallitas">⬆️ Kiszállítás</option>
-                <option value="selejt">🗑 Selejt</option>
-              </select>
-            </div>
-            <div class="field" style="min-width:140px;"><label class="lbl">Hónap</label>
-              <input type="month" id="elozHonapF">
-            </div>
-            <div class="field" style="min-width:150px;"><label class="lbl">Helyszín</label>
-              <select id="elozHelyF"><option value="">— Mind —</option></select>
-            </div>
-            <div style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="elozMutatBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="elozményekDiv"><div class="empty-st"><div class="empty-ic">📋</div><div class="empty-title">Válassz szűrőt és kattints a Mutat gombra</div></div></div>
       </div>
 
       <!-- ⚙️ Beállítások (admin) -->

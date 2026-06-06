@@ -631,7 +631,6 @@ function _subscribeToStock() {
         const active = document.querySelector('#keszletSubtabs .stab-btn.active')?.dataset.ksTab;
         if (active === 'sztkeszlet')    loadKeszlet();
         if (active === 'sztmozgas')     loadMozgasTab();
-        if (active === 'sztelozmenyek') loadElozmenyek();
       },
       err => console.warn('stock listener:', err.message)
     );
@@ -725,71 +724,6 @@ const MOZGAS_META = {
   kivitel:     { label: 'Kivitel',     icon: '⬆️', cls: 'mozg-kivitel'     },
 };
 
-export async function loadElozmenyek() {
-  const div = E('elozményekDiv'); if (!div) return;
-  div.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  try {
-    const tipusF = E('elozTipusF')?.value || '';
-    const honapF = E('elozHonapF')?.value || '';
-    const helyF  = E('elozHelyF')?.value  || '';
-
-    const constraints = honapF
-      ? [where('datum', '>=', honapF + '-01'), where('datum', '<=', honapF + '-31'), orderBy('datum', 'desc')]
-      : [orderBy('createdAt', 'desc')];
-
-    const snap = await getDocs(query(collection(db, 'stockMovements'), ...constraints));
-    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (tipusF) list = list.filter(m => m.tipus === tipusF);
-    if (helyF)  list = list.filter(m => m.forrasHely === helyF || m.celHely === helyF);
-
-    if (!list.length) {
-      div.innerHTML = emptyHtml('📋', 'Nincs mozgás', 'Próbálj más szűrőt.');
-      return;
-    }
-
-    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
-    const locN   = id => esc(locMap[id] || id || '—');
-
-    div.innerHTML = list.map(m => {
-      const meta  = MOZGAS_META[m.tipus] || { label: m.tipus, icon: '?', cls: '' };
-      const irany = m.tipus === 'atadas'
-        ? `${locN(m.forrasHely)} → ${locN(m.celHely)}`
-        : locN(m.forrasHely);
-      return `<div style="border-bottom:1px solid var(--border);padding:8px 0 6px;">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-          <span style="font-size:20px;flex-shrink:0;">${meta.icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(m.anyag)}</span>
-              <span class="notice-meta-badge ${meta.cls}">${meta.label}</span>
-              ${m.forrás === 'termelés' ? '<span style="font-size:11px;color:var(--green);font-weight:600;">🏭 belső</span>' : ''}
-            </div>
-            <div style="font-size:12px;color:var(--text3);margin-top:3px;">
-              ${esc(m.datum)} · 📍 ${irany}
-            </div>
-            ${m.megjegyzes ? `<div style="font-size:12px;color:var(--text2);margin-top:2px;">${esc(m.megjegyzes)}</div>` : ''}
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
-            <span class="stock-badge-zsak">${m.zsakSzam || 0} db</span>
-            ${m.mennyisegKg ? `<div style="font-size:11px;color:var(--text3);margin-top:3px;">${(m.mennyisegKg/1000).toFixed(2)} t</div>` : ''}
-          </div>
-          ${canManageStock() ? `<button class="btn btn-danger btn-xs mozg-del-btn" data-id="${m.id}" style="flex-shrink:0;">✕</button>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-
-    div.querySelectorAll('.mozg-del-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Törlöd ezt a mozgást? A készlet frissülni fog.')) return;
-        try {
-          await deleteDoc(doc(db, 'stockMovements', btn.dataset.id));
-          msg('Mozgás törölve.'); loadElozmenyek(); loadKeszlet();
-        } catch (e) { msg('Hiba: ' + e.message, 'error'); }
-      });
-    });
-  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
-}
-
 /* ══════════════════════════════════════
    TAB VÁLTÁS + INIT
 ══════════════════════════════════════ */
@@ -803,7 +737,6 @@ export function switchKeszletTab(name) {
   if (name === 'sztkeszlet')    loadKeszlet();
   if (name === 'sztmozgas')     loadMozgasTab();
   if (name === 'sztbevetelez')  { /* belső készlet csak kézzel nyílik */ }
-  if (name === 'sztelozmenyek') loadElozmenyek();
   if (name === 'sztbeallitas')  renderLocations();
 }
 
