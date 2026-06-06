@@ -33,7 +33,7 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
          closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadElozmenyek,
-         loadBelsoKeszlet, saveBelsoAttalolas, saveBevetelez, bevChipAdd, bevChipClear,
+         saveBevetelez, bevChipAdd, bevChipClear,
          loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
          onMozgTipusChange, saveLocation,
          canViewStock, canManageStock } from './stock.js';
@@ -979,19 +979,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('keszletFrissitBtn').addEventListener('click', loadKeszlet);
   E('elozMutatBtn').addEventListener('click', loadElozmenyek);
-  E('belsoAttalolBtn').addEventListener('click', saveBelsoAttalolas);
-  E('belsoTorlesBtn').addEventListener('click', () => {
-    document.querySelectorAll('.belso-chip.selected').forEach(c => c.classList.remove('selected'));
-    loadBelsoKeszlet();
-  });
-  E('belsoKeszletToggle').addEventListener('click', () => {
-    const body    = E('belsoKeszletBody');
-    const chevron = E('belsoKeszletChevron');
-    const open    = body.style.display !== 'none';
-    body.style.display        = open ? 'none' : '';
-    chevron.style.transform   = open ? '' : 'rotate(90deg)';
-    if (!open) loadBelsoKeszlet();
-  });
   E('bevSaveBtn').addEventListener('click', saveBevetelez);
   E('bevChipAddBtn').addEventListener('click', bevChipAdd);
   E('bevChipClearBtn').addEventListener('click', bevChipClear);

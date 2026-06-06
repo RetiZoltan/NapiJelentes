@@ -933,8 +933,13 @@
       <div id="ksTab-sztmozgas" class="kstab-panel">
         <!-- Készlet böngésző -->
         <div class="card">
-          <div class="card-title"><span class="card-title-icon">📦</span>Aktuális készlet</div>
-          <div class="g2" style="margin-bottom:10px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
+            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="kiszallitas">⬆️ Kiszállítás</button>
+            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="selejt">🗑 Selejt</button>
+            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="betarolas">⬇️ Termelésből</button>
+          </div>
+          <div id="mozgKeszletFilters" class="g2" style="margin-bottom:10px;">
             <div class="field"><label class="lbl">Anyag</label>
               <input type="text" id="mozgKeszletAnyagF" autocomplete="off" placeholder="Keresés…">
             </div>
@@ -949,11 +954,6 @@
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <span class="card-title-icon">⚡</span>
             <span id="mozgSelInfo" style="font-size:13px;font-weight:600;color:var(--text2);"></span>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="kiszallitas">⬆️ Kiszállítás</button>
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="selejt">🗑 Selejt</button>
           </div>
           <div id="mozgCelHelyRow" class="field" style="margin-bottom:10px;">
             <label class="lbl">Hova</label>
@@ -973,29 +973,6 @@
 
       <!-- ⬇️ Bevételezés -->
       <div id="ksTab-sztbevetelez" class="kstab-panel">
-        <!-- Belső készlet -->
-        <div class="card">
-          <button class="card-title collapsible-toggle" id="belsoKeszletToggle" type="button" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;font:inherit;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.1px;padding:0;">
-            <span class="card-title-icon">🏭</span>Belső készlet — termelésből
-            <span id="belsoKeszletChevron" style="margin-left:auto;font-size:16px;transition:transform .2s;color:var(--text3);">›</span>
-          </button>
-          <div id="belsoKeszletBody" style="display:none;margin-top:16px;">
-            <div id="belsoKeszletDiv"></div>
-            <div id="belsoActionDiv" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-              <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;" id="belsoSzamDiv"></div>
-              <div class="g2">
-                <div class="field"><label class="lbl">Cél helyszín</label>
-                  <select id="belsoHelyF"><option value="">— Válassz —</option></select>
-                </div>
-              </div>
-              <div class="btn-row">
-                <button class="btn btn-primary btn-sm" id="belsoAttalolBtn">⬇️ Betárol ide</button>
-                <button class="btn btn-ghost btn-sm" id="belsoTorlesBtn">Kijelölés törlése</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Manuális bevételezés -->
         <div class="card">
           <div class="card-title"><span class="card-title-icon">📥</span>Manuális bevételezés</div>
