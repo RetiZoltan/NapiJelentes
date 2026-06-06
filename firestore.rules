@@ -181,7 +181,15 @@ service cloud.firestore {
     }
 
     // â”€â”€ stockMovements (anyagmozgĂˇsok) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    match /stockMovements/{id} {
+    // -- vevok (kiszallitas cegek) --
+    match /vevok/{id} {
+      allow read:   if isAuth() && (isMainAdmin() || hasPerm("keszletMegtekintes") || hasPerm("keszletKezeles"));
+      allow create: if isAuth() && (isMainAdmin() || hasPerm("keszletKezeles"));
+      allow update: if isAuth() && (isMainAdmin() || hasPerm("keszletKezeles"));
+      allow delete: if isAuth() && (isMainAdmin() || hasPerm("keszletKezeles"));
+    }
+
+        match /stockMovements/{id} {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));

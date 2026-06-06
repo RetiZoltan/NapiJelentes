@@ -960,7 +960,7 @@
           </div>
           <div id="mozgVevoRow" class="field" style="margin-bottom:10px;display:none;">
             <label class="lbl">Vevő</label>
-            <input type="text" id="mozgVevo" placeholder="Vevő neve…" list="vevoDL" autocomplete="off">
+            <select id="mozgVevoSel"><option value="">— Válassz vevőt —</option></select>
           </div>
           <div id="mozgSzallitolevRow" class="field" style="margin-bottom:10px;display:none;">
             <label class="lbl">Szállítólevél sz.</label>
@@ -1052,6 +1052,21 @@
           </div>
         </div>
         <div id="helyszinListDiv"><div class="empty-st"><div class="empty-ic">📍</div><div class="empty-title">Betöltés…</div></div></div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title"><span class="card-title-icon">🏢</span>Új vevő / cég</div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Cégnév *</label><input type="text" id="vevoNev" placeholder="pl. Plastics Kft."></div>
+            <div class="field"><label class="lbl">Cím</label><input type="text" id="vevoCim" placeholder="Opcionális…"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Adószám</label><input type="text" id="vevoAdoszam" placeholder="Opcionális…"></div>
+            <div class="field"><label class="lbl">Kapcsolattartó</label><input type="text" id="vevoKapcsolattarto" placeholder="Opcionális…"></div>
+          </div>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-primary btn-sm" id="vevoSaveBtn">＋ Hozzáad</button>
+          </div>
+        </div>
+        <div id="vevoListDiv"><div class="empty-st"><div class="empty-ic">🏢</div><div class="empty-title">Betöltés…</div></div></div>
       </div>
     </div>
 

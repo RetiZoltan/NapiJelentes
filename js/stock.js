@@ -10,6 +10,7 @@ export function canManageStock() { return isMainAdmin() || hasPerm('keszletKezel
 
 /* ── Belső állapot ── */
 let _locations        = [];
+let _vevok            = [];
 let _importCache      = [];
 let _mozgTipus        = 'atadas';
 let _stockUnsubscribe = null;
@@ -140,6 +141,125 @@ export async function renderLocations() {
           inp.closest('label').querySelector('span').style.background = inp.value;
           await loadLocations();
         } catch (e) { msg('Szín mentési hiba: ' + e.message, 'error'); }
+      });
+    });
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+}
+
+/* ══════════════════════════════════════
+   VEVŐK
+══════════════════════════════════════ */
+export async function loadVevok() {
+  try {
+    const snap = await getDocs(query(collection(db, 'vevok'), orderBy('nev')));
+    _vevok = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(v => v.aktiv !== false);
+    _fillVevoSelect();
+    _refreshVevoDL();
+  } catch (e) { console.warn('Vevő betöltési hiba:', e.message); }
+}
+
+function _fillVevoSelect() {
+  const sel = E('mozgVevoSel'); if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Válassz vevőt —</option>' +
+    _vevok.map(v => `<option value="${v.id}">${esc(v.nev)}</option>`).join('');
+  if (prev) sel.value = prev;
+}
+
+export async function saveVevo() {
+  const nev  = E('vevoNev')?.value.trim();
+  if (!nev) { msg('A cégnév nem lehet üres!', 'error'); return; }
+  const cim          = E('vevoCim')?.value.trim()          || '';
+  const adoszam      = E('vevoAdoszam')?.value.trim()      || '';
+  const kapcsolattarto = E('vevoKapcsolattarto')?.value.trim() || '';
+  try {
+    await addDoc(collection(db, 'vevok'), {
+      nev, cim, adoszam, kapcsolattarto, aktiv: true,
+      createdBy: state.appUser.uid, createdAt: serverTimestamp()
+    });
+    msg('Vevő hozzáadva.');
+    ['vevoNev','vevoCim','vevoAdoszam','vevoKapcsolattarto'].forEach(id => { if (E(id)) E(id).value = ''; });
+    await loadVevok(); renderVevok();
+  } catch (e) { msg('Hiba: ' + e.message, 'error'); }
+}
+
+export async function renderVevok() {
+  const div = E('vevoListDiv'); if (!div) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'vevok'), orderBy('nev')));
+    const all  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!all.length) {
+      div.innerHTML = emptyHtml('🏢', 'Nincsenek vevők', 'Adj hozzá céget a kiszállításhoz.');
+      return;
+    }
+    const canEdit = canManageStock();
+    div.innerHTML = all.map(l => `
+      <div data-vevo-id="${l.id}" style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div class="vevo-view" style="display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(l.nev)}</div>
+            ${l.cim          ? `<div style="font-size:12px;color:var(--text3);">📍 ${esc(l.cim)}</div>` : ''}
+            ${l.adoszam      ? `<div style="font-size:12px;color:var(--text3);">🔢 ${esc(l.adoszam)}</div>` : ''}
+            ${l.kapcsolattarto ? `<div style="font-size:12px;color:var(--text3);">👤 ${esc(l.kapcsolattarto)}</div>` : ''}
+          </div>
+          ${canEdit ? `<button class="btn btn-ghost btn-xs vevo-edit-btn" data-id="${l.id}">Szerkeszt</button>` : ''}
+          ${canEdit ? `<button class="btn btn-danger btn-xs vevo-del-btn" data-id="${l.id}">Töröl</button>` : ''}
+        </div>
+        <div class="vevo-edit-form" style="display:none;flex-direction:column;gap:8px;padding-top:8px;">
+          <div class="g2">
+            <input class="vevo-e-nev" type="text" value="${esc(l.nev)}" placeholder="Cégnév *">
+            <input class="vevo-e-cim" type="text" value="${esc(l.cim||'')}" placeholder="Cím">
+          </div>
+          <div class="g2">
+            <input class="vevo-e-adosz" type="text" value="${esc(l.adoszam||'')}" placeholder="Adószám">
+            <input class="vevo-e-kap" type="text" value="${esc(l.kapcsolattarto||'')}" placeholder="Kapcsolattartó">
+          </div>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn btn-primary btn-xs vevo-save-btn" data-id="${l.id}">Ment</button>
+            <button class="btn btn-ghost btn-xs vevo-cancel-btn">Mégse</button>
+          </div>
+        </div>
+      </div>`).join('');
+
+    div.querySelectorAll('.vevo-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('[data-vevo-id]');
+        row.querySelector('.vevo-view').style.display = 'none';
+        const form = row.querySelector('.vevo-edit-form');
+        form.style.display = 'flex';
+        form.querySelector('.vevo-e-nev').focus();
+      });
+    });
+    div.querySelectorAll('.vevo-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('[data-vevo-id]');
+        row.querySelector('.vevo-view').style.display = 'flex';
+        row.querySelector('.vevo-edit-form').style.display = 'none';
+      });
+    });
+    div.querySelectorAll('.vevo-save-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('[data-vevo-id]');
+        const nev = row.querySelector('.vevo-e-nev').value.trim();
+        if (!nev) { msg('A cégnév nem lehet üres!', 'error'); return; }
+        try {
+          await updateDoc(doc(db, 'vevok', btn.dataset.id), {
+            nev,
+            cim:             row.querySelector('.vevo-e-cim').value.trim(),
+            adoszam:         row.querySelector('.vevo-e-adosz').value.trim(),
+            kapcsolattarto:  row.querySelector('.vevo-e-kap').value.trim()
+          });
+          msg('Vevő frissítve.'); await loadVevok(); renderVevok();
+        } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+      });
+    });
+    div.querySelectorAll('.vevo-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Véglegesen törlöd ezt a vevőt?')) return;
+        try {
+          await deleteDoc(doc(db, 'vevok', btn.dataset.id));
+          msg('Vevő törölve.'); await loadVevok(); renderVevok();
+        } catch (e) { msg('Hiba: ' + e.message, 'error'); }
       });
     });
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
@@ -310,7 +430,6 @@ export function onMozgTipusChange(tipus) {
   if (vevoRow) vevoRow.style.display = tipus === 'kiszallitas' ? '' : 'none';
   const szallitolevRow = E('mozgSzallitolevRow');
   if (szallitolevRow) szallitolevRow.style.display = tipus === 'kiszallitas' ? '' : 'none';
-  if (tipus === 'kiszallitas') _refreshVevoDL();
   clearMozgSel();
   loadMozgasTab();
 }
@@ -471,7 +590,9 @@ export async function saveMozgas() {
   const cel               = E('mozgCelHely')?.value             || null;
   const datum             = E('mozgDatum')?.value               || tod();
   const megj              = E('mozgMegjegyzes')?.value?.trim()  || '';
-  const vevo              = E('mozgVevo')?.value?.trim()         || '';
+  const vevoId            = E('mozgVevoSel')?.value              || '';
+  const vevoObj           = _vevok.find(v => v.id === vevoId);
+  const vevo              = vevoObj?.nev                         || '';
   const szallitolevelSzam = E('mozgSzallitolevSzam')?.value?.trim() || '';
 
   if (_mozgTipus === 'atadas' && !cel) { msg('Válassz cél helyszínt!', 'error'); return; }
@@ -547,7 +668,7 @@ export async function saveMozgas() {
         datum, megjegyzes: megj,
         forrás: 'manuális', termelesRef: [],
         sourceUpdated: true,
-        vevo, szallitolevelSzam,
+        vevo, vevoId, szallitolevelSzam,
         createdBy: state.appUser.uid, createdAt: serverTimestamp()
       });
     }
@@ -572,8 +693,8 @@ export async function saveMozgas() {
 
     const labels = { atadas: 'Áttárolás rögzítve', kiszallitas: 'Kiszállítás rögzítve', selejt: 'Selejt rögzítve' };
     msg(labels[_mozgTipus] || 'Rögzítve');
-    if (E('mozgMegjegyzes'))    E('mozgMegjegyzes').value = '';
-    if (E('mozgVevo'))          E('mozgVevo').value = '';
+    if (E('mozgMegjegyzes'))      E('mozgMegjegyzes').value = '';
+    if (E('mozgVevoSel'))         E('mozgVevoSel').value = '';
     if (E('mozgSzallitolevSzam')) E('mozgSzallitolevSzam').value = '';
     await loadMozgasTab();
     loadKeszlet();
@@ -787,11 +908,11 @@ export function switchKeszletTab(name) {
   if (name === 'sztmozgas')      loadMozgasTab();
   if (name === 'sztbevetelez')   { /* belső készlet csak kézzel nyílik */ }
   if (name === 'sztkiszallitas') loadKiszallitasok();
-  if (name === 'sztbeallitas')   renderLocations();
+  if (name === 'sztbeallitas')   { renderLocations(); renderVevok(); }
 }
 
 export async function initKeszletTab() {
-  await loadLocations();
+  await Promise.all([loadLocations(), loadVevok()]);
   loadKeszlet();
   _subscribeToStock();
 }
@@ -799,14 +920,9 @@ export async function initKeszletTab() {
 /* ══════════════════════════════════════
    KISZÁLLÍTÁSOK LISTA + NYOMTATÁS
 ══════════════════════════════════════ */
-async function _refreshVevoDL() {
-  try {
-    const snap = await getDocs(query(collection(db, 'stockMovements'),
-      where('tipus', '==', 'kiszallitas'), limit(500)));
-    const vevok = [...new Set(snap.docs.map(d => d.data().vevo).filter(Boolean))].sort((a,b) => a.localeCompare(b,'hu'));
-    const dl = E('vevoDL');
-    if (dl) dl.innerHTML = vevok.map(v => `<option value="${esc(v)}">`).join('');
-  } catch { /* silent */ }
+function _refreshVevoDL() {
+  const dl = E('vevoDL'); if (!dl) return;
+  dl.innerHTML = _vevok.map(v => `<option value="${esc(v.nev)}">`).join('');
 }
 
 export async function loadKiszallitasok() {
@@ -837,7 +953,10 @@ export async function loadKiszallitasok() {
     const groupMap = {};
     list.forEach(m => {
       const key = m.szallitolevelSzam ? `sz_${m.szallitolevelSzam}` : `id_${m.id}`;
-      if (!groupMap[key]) groupMap[key] = { szallitolevelSzam: m.szallitolevelSzam || '', vevo: m.vevo || '', datum: m.datum || '', items: [] };
+      if (!groupMap[key]) {
+        const vObj = m.vevoId ? _vevok.find(v => v.id === m.vevoId) : null;
+        groupMap[key] = { szallitolevelSzam: m.szallitolevelSzam || '', vevo: m.vevo || '', vevoObj: vObj || null, datum: m.datum || '', items: [] };
+      }
       groupMap[key].items.push(m);
     });
     const groups = Object.values(groupMap).sort((a, b) => b.datum.localeCompare(a.datum));
@@ -852,6 +971,8 @@ export async function loadKiszallitasok() {
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
           <div style="flex:1;">
             <div style="font-weight:700;font-size:14px;color:var(--text);">${g.vevo ? esc(g.vevo) : '<span style="color:var(--text3);font-style:italic;">Nincs megadva</span>'}</div>
+            ${g.vevoObj?.cim      ? `<div style="font-size:11px;color:var(--text3);">📍 ${esc(g.vevoObj.cim)}</div>`      : ''}
+            ${g.vevoObj?.adoszam  ? `<div style="font-size:11px;color:var(--text3);">🔢 ${esc(g.vevoObj.adoszam)}</div>`  : ''}
             <div style="font-size:12px;color:var(--text3);margin-top:2px;">
               ${g.datum}${g.szallitolevelSzam ? ' &nbsp;·&nbsp; <strong>' + esc(g.szallitolevelSzam) + '</strong>' : ''}
             </div>
@@ -941,7 +1062,10 @@ function _printSzallitolevel(g, locMap) {
   <div style="text-align:right;font-size:12px;color:#555;">${g.datum}</div>
 </div>
 ${g.vevo ? `<div class="meta-grid">
-  <div><div class="meta-label">Vevő</div><div class="meta-val">${g.vevo}</div></div>
+  <div><div class="meta-label">Vevő / Cég</div><div class="meta-val">${g.vevoObj?.nev || g.vevo}</div></div>
+  ${g.vevoObj?.cim         ? `<div><div class="meta-label">Cím</div><div class="meta-val">${g.vevoObj.cim}</div></div>` : ''}
+  ${g.vevoObj?.adoszam     ? `<div><div class="meta-label">Adószám</div><div class="meta-val">${g.vevoObj.adoszam}</div></div>` : ''}
+  ${g.vevoObj?.kapcsolattarto ? `<div><div class="meta-label">Kapcsolattartó</div><div class="meta-val">${g.vevoObj.kapcsolattarto}</div></div>` : ''}
 </div>` : ''}
 <table>
   <thead><tr><th>Anyag</th><th>Helyszín</th><th>Zsákszám</th><th>Mennyiség</th></tr></thead>

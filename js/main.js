@@ -32,7 +32,7 @@ import { queueOp, syncOfflineOps, getOfflineOpCount, initOfflineBadge } from './
 import { loadMachines, saveMachine, openGepForm, closeGepForm,
          closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
-import { initKeszletTab, switchKeszletTab, loadKeszlet, loadKiszallitasok,
+import { initKeszletTab, switchKeszletTab, loadKeszlet, loadKiszallitasok, saveVevo, renderVevok,
          saveBevetelez, bevChipAdd, bevChipClear,
          loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
          onMozgTipusChange, saveLocation,
@@ -979,6 +979,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('keszletFrissitBtn').addEventListener('click', loadKeszlet);
   E('kiszMutatBtn').addEventListener('click', loadKiszallitasok);
+  E('vevoSaveBtn').addEventListener('click', saveVevo);
   E('bevSaveBtn').addEventListener('click', saveBevetelez);
   E('bevChipAddBtn').addEventListener('click', bevChipAdd);
   E('bevChipClearBtn').addEventListener('click', bevChipClear);
