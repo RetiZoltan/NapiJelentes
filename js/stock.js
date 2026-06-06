@@ -208,14 +208,11 @@ export async function loadKeszlet() {
         <td style="width:22px;text-align:center;color:var(--text3);font-size:12px;">${hasDet ? '<span class="stock-det-arrow">▶</span>' : ''}</td>
       </tr>`;
       if (hasDet) {
-        const batchRows = s.batches.map(b =>
-          `<div style="padding:5px 0;border-bottom:1px dashed var(--border2);">
-            <div style="font-size:11.5px;color:var(--text3);margin-bottom:4px;">📅 ${esc(b.datum)} · ${b.zsakSzam} zsák</div>
-            <div class="stock-zsak-chips">${b.zsakSulyok.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>
-          </div>`
-        ).join('');
+        const allWeights = s.batches.flatMap(b => b.zsakSulyok);
         h += `<tr id="${detId}" class="stock-det-row" style="display:none;">
-          <td colspan="6" style="padding:10px 14px;background:var(--surf2);">${batchRows}</td>
+          <td colspan="6" style="padding:10px 14px;background:var(--surf2);">
+            <div class="stock-zsak-chips">${allWeights.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>
+          </td>
         </tr>`;
       }
     });
