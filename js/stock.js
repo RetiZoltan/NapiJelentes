@@ -857,6 +857,7 @@ export async function loadKiszallitasok() {
             </div>
           </div>
           <button class="btn btn-ghost btn-xs kisz-print-btn" data-gi="${gi}" title="Szállítólevél nyomtatása">🖨 Nyomtat</button>
+          ${canManageStock() ? `<button class="btn btn-danger btn-xs kisz-del-btn" data-gi="${gi}">Töröl</button>` : ''}
         </div>
         <table style="width:100%;font-size:12.5px;border-collapse:collapse;">
           <thead><tr style="color:var(--text3);border-bottom:1px solid var(--border);">
@@ -883,10 +884,21 @@ export async function loadKiszallitasok() {
       </div>`;
     }).join('');
 
-    // Nyomtatás
     const allGroups = groups;
     div.querySelectorAll('.kisz-print-btn').forEach(btn => {
       btn.addEventListener('click', () => _printSzallitolevel(allGroups[parseInt(btn.dataset.gi)], locMap));
+    });
+    div.querySelectorAll('.kisz-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const g = allGroups[parseInt(btn.dataset.gi)];
+        const db_cnt = g.items.length;
+        if (!confirm(`Törlöd ezt a kiszállítást (${db_cnt} rekord)? A készletet ez nem állítja vissza.`)) return;
+        try {
+          await Promise.all(g.items.map(m => deleteDoc(doc(db, 'stockMovements', m.id))));
+          msg('Kiszállítás törölve.');
+          loadKiszallitasok();
+        } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
+      });
     });
   } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
 }
