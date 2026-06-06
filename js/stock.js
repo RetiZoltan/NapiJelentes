@@ -30,10 +30,10 @@ function _fillLocSelects() {
   const belsoOpts  = '<option value="">— Mind —</option><option value="_belso_">🏭 Belső készlet</option>' + locOpts;
   const selOpts    = '<option value="">— Válassz —</option>' + locOpts;
 
-  ['keszletHelyF', 'mozgKeszletHelyF'].forEach(id => {
-    const el = E(id); if (!el) return;
-    const p = el.value; el.innerHTML = belsoOpts; if (p) el.value = p;
-  });
+  const keszletEl = E('keszletHelyF');
+  if (keszletEl) { const p = keszletEl.value; keszletEl.innerHTML = belsoOpts; if (p) keszletEl.value = p; }
+  const mozgHelyEl = E('mozgKeszletHelyF');
+  if (mozgHelyEl) { const p = mozgHelyEl.value; mozgHelyEl.innerHTML = allOpts; if (p) mozgHelyEl.value = p; }
 
   ['elozHelyF'].forEach(id => {
     const el = E(id); if (!el) return;
