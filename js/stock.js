@@ -817,13 +817,12 @@ export async function loadKiszallitasok() {
   const vevoF  = (E('kiszVevoF')?.value || '').toLowerCase();
 
   try {
-    const constraints = honapF
-      ? [where('tipus','==','kiszallitas'), where('datum','>=',honapF+'-01'), where('datum','<=',honapF+'-31'), orderBy('datum','desc')]
-      : [where('tipus','==','kiszallitas'), orderBy('datum','desc'), limit(300)];
-
-    const snap = await getDocs(query(collection(db, 'stockMovements'), ...constraints));
+    const snap = await getDocs(query(collection(db, 'stockMovements'),
+      where('tipus', '==', 'kiszallitas'), limit(500)));
     let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (vevoF) list = list.filter(m => (m.vevo || '').toLowerCase().includes(vevoF));
+    if (honapF) list = list.filter(m => m.datum >= honapF + '-01' && m.datum <= honapF + '-31');
+    if (vevoF)  list = list.filter(m => (m.vevo || '').toLowerCase().includes(vevoF));
+    list.sort((a, b) => b.datum.localeCompare(a.datum) || (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
 
     // Frissíti a vevő datalistát
     const vevok = [...new Set(list.map(m => m.vevo).filter(Boolean))].sort((a,b) => a.localeCompare(b,'hu'));
