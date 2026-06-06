@@ -931,39 +931,42 @@
 
       <!-- ↔️ Anyagmozgás -->
       <div id="ksTab-sztmozgas" class="kstab-panel">
+        <!-- Készlet böngésző -->
         <div class="card">
-          <div class="card-title"><span class="card-title-icon">↔️</span>Mozgás rögzítése</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="card-title"><span class="card-title-icon">📦</span>Aktuális készlet</div>
+          <div class="g2" style="margin-bottom:10px;">
+            <div class="field"><label class="lbl">Anyag</label>
+              <input type="text" id="mozgKeszletAnyagF" autocomplete="off" placeholder="Keresés…">
+            </div>
+            <div class="field"><label class="lbl">Helyszín</label>
+              <select id="mozgKeszletHelyF"><option value="">— Mind —</option></select>
+            </div>
+          </div>
+          <div id="mozgKeszletDiv"><div class="empty-st"><div class="empty-ic">📦</div><div class="empty-title">Váltsd át ezt a fület a betöltéshez.</div></div></div>
+        </div>
+        <!-- Művelet panel — csak ha van kijelölés -->
+        <div id="mozgActionCard" class="card" style="display:none;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <span class="card-title-icon">⚡</span>
+            <span id="mozgSelInfo" style="font-size:13px;font-weight:600;color:var(--text2);"></span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
             <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
             <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="kiszallitas">⬆️ Kiszállítás</button>
             <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="selejt">🗑 Selejt</button>
           </div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Anyag</label>
-              <input list="anyagDL" id="mozgAnyag" autocomplete="off" placeholder="Anyag neve…">
-            </div>
-            <div class="field"><label class="lbl">Zsák (db)</label>
-              <input type="number" id="mozgZsakSzam" min="1" step="1" placeholder="pl. 22">
-            </div>
+          <div id="mozgCelHelyRow" class="field" style="margin-bottom:10px;">
+            <label class="lbl">Hova</label>
+            <select id="mozgCelHely"><option value="">— Válassz —</option></select>
           </div>
           <div class="g2">
-            <div class="field"><label class="lbl">Honnan</label>
-              <select id="mozgForrasHely"><option value="">— Válassz —</option></select>
-            </div>
-            <div class="field" id="mozgCelHelyRow"><label class="lbl">Hova</label>
-              <select id="mozgCelHely"><option value="">— Válassz —</option></select>
-            </div>
-          </div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Dátum</label>
-              <input type="date" id="mozgDatum">
-            </div>
-            <div class="field"><label class="lbl">Megjegyzés</label>
-              <input type="text" id="mozgMegjegyzes" placeholder="Opcionális…">
-            </div>
+            <div class="field"><label class="lbl">Dátum</label><input type="date" id="mozgDatum"></div>
+            <div class="field"><label class="lbl">Megjegyzés</label><input type="text" id="mozgMegjegyzes" placeholder="Opcionális…"></div>
           </div>
           <div class="btn-row">
             <button class="btn btn-primary btn-sm" id="mozgSaveBtn">✓ Rögzít</button>
+            <button class="btn btn-danger btn-sm" id="mozgDelBtn">🗑 Töröl</button>
+            <button class="btn btn-ghost btn-sm" id="mozgClearSelBtn">Kijelölés törlése</button>
           </div>
         </div>
       </div>

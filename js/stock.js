@@ -1,4 +1,4 @@
-import { db, doc, addDoc, updateDoc, deleteDoc, collection, query,
+import { db, doc, getDoc, addDoc, updateDoc, deleteDoc, collection, query,
          where, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod, fmtKg, emptyHtml } from './utils.js';
@@ -30,8 +30,10 @@ function _fillLocSelects() {
   const belsoOpts  = '<option value="">— Mind —</option><option value="_belso_">🏭 Belső készlet</option>' + locOpts;
   const selOpts    = '<option value="">— Válassz —</option>' + locOpts;
 
-  const keszletEl = E('keszletHelyF');
-  if (keszletEl) { const p = keszletEl.value; keszletEl.innerHTML = belsoOpts; if (p) keszletEl.value = p; }
+  ['keszletHelyF', 'mozgKeszletHelyF'].forEach(id => {
+    const el = E(id); if (!el) return;
+    const p = el.value; el.innerHTML = belsoOpts; if (p) el.value = p;
+  });
 
   ['elozHelyF'].forEach(id => {
     const el = E(id); if (!el) return;
@@ -118,11 +120,9 @@ async function _calcStock(anyagF = '', helyF = '') {
     const t = m.tipus;
     if (t === 'bevitel') {
       add(m.anyag, m.forrasHely, 1);
-      if (m.zsakSulyok?.length) {
-        const key = `${m.anyag}|${m.forrasHely}`;
-        if (!batches[key]) batches[key] = [];
-        batches[key].push({ datum: m.datum || '', zsakSzam: m.zsakSzam || m.zsakSulyok.length, zsakSulyok: m.zsakSulyok });
-      }
+      const bkey = `${m.anyag}|${m.forrasHely}`;
+      if (!batches[bkey]) batches[bkey] = [];
+      batches[bkey].push({ datum: m.datum || '', zsakSzam: m.zsakSulyok?.length || m.zsakSzam || 0, zsakSulyok: m.zsakSulyok || [], movId: d.id, entryId: null });
     }
     if (t === 'kiszallitas' || t === 'selejt' || t === 'kivitel') add(m.anyag, m.forrasHely, -1);
     if (t === 'atadas') {
@@ -142,7 +142,7 @@ async function _calcStock(anyagF = '', helyF = '') {
       stock[key].zsakSzam += e.zsakSulyok.length;
       stock[key].kg       += e.zsakSulyok.reduce((s, v) => s + v, 0);
       if (!batches[key]) batches[key] = [];
-      batches[key].push({ datum: e.datum || '', zsakSzam: e.zsakSulyok.length, zsakSulyok: e.zsakSulyok });
+      batches[key].push({ datum: e.datum || '', zsakSzam: e.zsakSulyok.length, zsakSulyok: e.zsakSulyok, movId: null, entryId: e.id });
     });
 
   const belsoFilter = helyF === '_belso_';
@@ -245,63 +245,198 @@ export function onMozgTipusChange(tipus) {
   if (celRow) celRow.style.display = tipus === 'atadas' ? '' : 'none';
 }
 
-async function _refreshMozgasKeszlet() {
-  const div = E('mozgasKeszletDiv'); if (!div) return;
-  div.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Betöltés…</div>';
+export async function loadMozgasTab() {
+  const div = E('mozgKeszletDiv'); if (!div) return;
+  div.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  _mozgUpdatePanel();
   try {
-    const stock = await _calcStock('', '');
+    const anyagF = E('mozgKeszletAnyagF')?.value || '';
+    const helyF  = E('mozgKeszletHelyF')?.value  || '';
+    const stock  = await _calcStock(anyagF, helyF);
+    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
+
     if (!stock.length) {
-      div.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Nincs aktuális készlet.</div>';
+      div.innerHTML = emptyHtml('📦', 'Nincs készlet', 'Nincs megjeleníthető tétel.');
       return;
     }
-    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
-    div.innerHTML =
-      `<div style="font-size:10.5px;color:var(--text3);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Aktuális készlet</div>` +
-      stock.map(s => {
-        const allChips = s.batches.flatMap(b => b.zsakSulyok);
-        return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
-            <span style="color:var(--text2);">${esc(s.anyag)} · <span style="color:var(--text3);">${_locName(locMap, s.hely)}</span></span>
-            <span class="stock-badge-zsak">${s.zsakSzam} db</span>
-          </div>
-          ${allChips.length ? `<div class="stock-zsak-chips" style="margin-top:5px;">${allChips.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>` : ''}
-        </div>`;
-      }).join('');
-  } catch {}
+
+    let h = '';
+    stock.forEach(s => {
+      const locLabel   = _locName(locMap, s.hely);
+      const totalKgTxt = s.kg > 0 ? ` · ${fmtKg(s.kg)}` : '';
+      const isProd     = s.hely === '_termelés_';
+
+      const chips = s.batches.flatMap(b => {
+        const mid = b.movId   || '';
+        const eid = b.entryId || '';
+        if (b.zsakSulyok?.length) {
+          return b.zsakSulyok.map(w =>
+            `<span class="stock-zsak-chip mozg-stock-chip${isProd ? ' mozg-chip-prod' : ''}"
+              data-movid="${mid}" data-entryid="${eid}"
+              data-suly="${w}" data-anyag="${esc(s.anyag)}" data-hely="${esc(s.hely)}"
+              data-count="1" data-hasweight="1"
+              ${isProd ? 'title="Termelési zsák — Bevételezés fülön kezelhető" style="cursor:default;opacity:.6;"' : 'style="cursor:pointer;"'}
+            >${w.toFixed(0)} kg</span>`
+          );
+        } else if (b.zsakSzam > 0) {
+          return [`<span class="stock-zsak-chip mozg-stock-chip mozg-chip-noweight${isProd ? ' mozg-chip-prod' : ''}"
+            data-movid="${mid}" data-entryid="${eid}"
+            data-suly="0" data-anyag="${esc(s.anyag)}" data-hely="${esc(s.hely)}"
+            data-count="${b.zsakSzam}" data-hasweight="0"
+            ${isProd ? 'title="Termelési zsák — Bevételezés fülön kezelhető" style="cursor:default;opacity:.6;"' : 'style="cursor:pointer;"'}
+          >${b.zsakSzam} db</span>`];
+        }
+        return [];
+      });
+
+      if (!chips.length) return;
+      h += `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-weight:700;font-size:13.5px;color:var(--text);">${esc(s.anyag)}</span>
+          <span style="font-size:12px;color:var(--text3);">📍 ${locLabel}</span>
+          <span class="stock-badge-zsak" style="margin-left:auto;">${s.zsakSzam} db${totalKgTxt}</span>
+          ${s.belso ? '<span style="font-size:11px;color:var(--green);font-weight:600;margin-left:4px;">🏭 belső</span>' : ''}
+        </div>
+        <div class="stock-zsak-chips">${chips.join('')}</div>
+      </div>`;
+    });
+
+    div.innerHTML = h || emptyHtml('📦', 'Nincs megjelenítendő tétel', '');
+
+    div.querySelectorAll('.mozg-stock-chip:not(.mozg-chip-prod)').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        _mozgUpdatePanel();
+      });
+    });
+
+    _mozgUpdatePanel();
+  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
+}
+
+function _mozgUpdatePanel() {
+  const selected = [...document.querySelectorAll('.mozg-stock-chip.selected')];
+  const card     = E('mozgActionCard');
+  const infoEl   = E('mozgSelInfo');
+  if (!card) return;
+  if (!selected.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  let totalCount = 0, totalKg = 0;
+  selected.forEach(c => {
+    const cnt  = parseInt(c.dataset.count || 1);
+    const suly = parseFloat(c.dataset.suly || 0);
+    totalCount += cnt;
+    if (suly > 0) totalKg += suly;
+  });
+
+  if (infoEl) infoEl.textContent = `${totalCount} zsák kijelölve${totalKg > 0 ? ` · ${fmtKg(totalKg)}` : ''}`;
+}
+
+export function clearMozgSel() {
+  document.querySelectorAll('.mozg-stock-chip.selected').forEach(c => c.classList.remove('selected'));
+  _mozgUpdatePanel();
 }
 
 export async function saveMozgas() {
-  const anyag  = E('mozgAnyag')?.value?.trim();
-  const zsakSz = parseInt(E('mozgZsakSzam')?.value, 10);
-  const forras = E('mozgForrasHely')?.value;
-  const cel    = E('mozgCelHely')?.value || null;
-  const datum  = E('mozgDatum')?.value || tod();
-  const megj   = E('mozgMegjegyzes')?.value?.trim() || '';
+  const selected = [...document.querySelectorAll('.mozg-stock-chip.selected')];
+  if (!selected.length) { msg('Jelölj ki zsákokat!', 'error'); return; }
 
-  if (!anyag)                                          { msg('Add meg az anyag nevét!', 'error');  return; }
-  if (!forras)                                         { msg('Válassz forrás helyszínt!', 'error'); return; }
-  if (!zsakSz || zsakSz <= 0)                          { msg('Add meg a zsák darabszámot!', 'error'); return; }
-  if (_mozgTipus === 'atadas' && !cel)                 { msg('Válassz cél helyszínt!', 'error'); return; }
-  if (_mozgTipus === 'atadas' && forras === cel)       { msg('Forrás és cél nem lehet ugyanaz!', 'error'); return; }
+  const cel   = E('mozgCelHely')?.value || null;
+  const datum = E('mozgDatum')?.value   || tod();
+  const megj  = E('mozgMegjegyzes')?.value?.trim() || '';
+
+  if (_mozgTipus === 'atadas' && !cel) { msg('Válassz cél helyszínt!', 'error'); return; }
+
+  // Csoportosítás anyag|forrásHely szerint
+  const byKey = {};
+  selected.forEach(chip => {
+    const key = `${chip.dataset.anyag}|${chip.dataset.hely}`;
+    if (!byKey[key]) byKey[key] = { anyag: chip.dataset.anyag, hely: chip.dataset.hely, sulyok: [], count: 0 };
+    const suly = parseFloat(chip.dataset.suly || 0);
+    const cnt  = parseInt(chip.dataset.count || 1);
+    if (suly > 0) byKey[key].sulyok.push(suly);
+    byKey[key].count += cnt;
+  });
+
+  for (const { hely } of Object.values(byKey)) {
+    if (_mozgTipus === 'atadas' && hely === cel) { msg('Forrás és cél nem lehet ugyanaz!', 'error'); return; }
+  }
 
   try {
-    await addDoc(collection(db, 'stockMovements'), {
-      tipus:      _mozgTipus,
-      anyag,
-      forrasHely: forras,
-      celHely:    _mozgTipus === 'atadas' ? cel : null,
-      zsakSzam:   zsakSz,
-      mennyisegKg: null,
-      datum, megjegyzes: megj,
-      forrás: 'manuális', termelesRef: [],
-      createdBy: state.appUser.uid, createdAt: serverTimestamp()
-    });
+    for (const { anyag, hely, sulyok, count } of Object.values(byKey)) {
+      await addDoc(collection(db, 'stockMovements'), {
+        tipus:       _mozgTipus,
+        anyag,
+        forrasHely:  hely,
+        celHely:     _mozgTipus === 'atadas' ? cel : null,
+        zsakSzam:    count,
+        mennyisegKg: sulyok.length ? parseFloat(sulyok.reduce((s, v) => s + v, 0).toFixed(2)) : null,
+        zsakSulyok:  sulyok,
+        datum, megjegyzes: megj,
+        forrás: 'manuális', termelesRef: [],
+        createdBy: state.appUser.uid, createdAt: serverTimestamp()
+      });
+    }
     const labels = { atadas: 'Áttárolás rögzítve', kiszallitas: 'Kiszállítás rögzítve', selejt: 'Selejt rögzítve' };
     msg(labels[_mozgTipus] || 'Rögzítve');
-    E('mozgZsakSzam').value = E('mozgMegjegyzes').value = '';
-    _refreshMozgasKeszlet();
+    if (E('mozgMegjegyzes')) E('mozgMegjegyzes').value = '';
+    await loadMozgasTab();
     loadKeszlet();
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+}
+
+export async function deleteSelectedBags() {
+  const selected   = [...document.querySelectorAll('.mozg-stock-chip.selected')];
+  const stockChips = selected.filter(c => c.dataset.movid);
+  if (!stockChips.length) { msg('Nincs törölhető tétel kijelölve.', 'error'); return; }
+
+  const totalCount = stockChips.reduce((s, c) => s + parseInt(c.dataset.count || 1), 0);
+  if (!confirm(`Véglegesen törlöd a kijelölt ${totalCount} zsákot? Ez nem vonható vissza.`)) return;
+
+  // Csoportosítás movId szerint
+  const byMovId = {};
+  stockChips.forEach(chip => {
+    const movId   = chip.dataset.movid;
+    const suly    = parseFloat(chip.dataset.suly || 0);
+    const noWt    = chip.dataset.hasweight === '0';
+    if (!byMovId[movId]) byMovId[movId] = { sulyok: [], deleteAll: false };
+    if (noWt) byMovId[movId].deleteAll = true;
+    else byMovId[movId].sulyok.push(suly);
+  });
+
+  try {
+    for (const [movId, data] of Object.entries(byMovId)) {
+      const ref  = doc(db, 'stockMovements', movId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const d = snap.data();
+
+      if (data.deleteAll) {
+        await deleteDoc(ref);
+      } else if (d.zsakSulyok?.length) {
+        let remaining = [...d.zsakSulyok];
+        for (const suly of data.sulyok) {
+          const idx = remaining.indexOf(suly);
+          if (idx > -1) remaining.splice(idx, 1);
+        }
+        if (remaining.length === 0) {
+          await deleteDoc(ref);
+        } else {
+          await updateDoc(ref, {
+            zsakSulyok:  remaining,
+            zsakSzam:    remaining.length,
+            mennyisegKg: parseFloat(remaining.reduce((s, v) => s + v, 0).toFixed(2))
+          });
+        }
+      } else {
+        await deleteDoc(ref);
+      }
+    }
+    msg(`${totalCount} zsák törölve.`);
+    await loadMozgasTab();
+    loadKeszlet();
+  } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
 }
 
 /* ══════════════════════════════════════
@@ -586,6 +721,7 @@ export function switchKeszletTab(name) {
   E('ksTab-' + name)?.classList.add('active');
 
   if (name === 'sztkeszlet')    loadKeszlet();
+  if (name === 'sztmozgas')     loadMozgasTab();
   if (name === 'sztbevetelez')  { /* belső készlet csak kézzel nyílik */ }
   if (name === 'sztelozmenyek') loadElozmenyek();
   if (name === 'sztbeallitas')  renderLocations();

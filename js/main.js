@@ -34,7 +34,8 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadElozmenyek,
          loadBelsoKeszlet, saveBelsoAttalolas, saveBevetelez, bevChipAdd, bevChipClear,
-         saveMozgas, onMozgTipusChange, saveLocation,
+         loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
+         onMozgTipusChange, saveLocation,
          canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
@@ -996,6 +997,8 @@ document.addEventListener('DOMContentLoaded', () => {
   E('bevChipClearBtn').addEventListener('click', bevChipClear);
   E('bevChipSuly').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); bevChipAdd(); } });
   E('mozgSaveBtn').addEventListener('click', saveMozgas);
+  E('mozgDelBtn').addEventListener('click', deleteSelectedBags);
+  E('mozgClearSelBtn').addEventListener('click', clearMozgSel);
   document.querySelectorAll('.mozg-tipus-btn').forEach(btn => {
     btn.addEventListener('click', () => onMozgTipusChange(btn.dataset.tipus));
   });
@@ -1009,6 +1012,12 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(_keszletAnyagT);
     _keszletAnyagT = setTimeout(loadKeszlet, 280);
   });
+  let _mozgAnyagT = null;
+  E('mozgKeszletAnyagF').addEventListener('input', () => {
+    clearTimeout(_mozgAnyagT);
+    _mozgAnyagT = setTimeout(loadMozgasTab, 280);
+  });
+  E('mozgKeszletHelyF').addEventListener('change', loadMozgasTab);
 
   // Prémium al-fülek
   E('premiumSubtabs').addEventListener('click', e => {
