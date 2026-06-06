@@ -1012,7 +1012,17 @@
               <input type="number" id="bevKg" min="0" step="0.1" placeholder="Opcionális">
             </div>
           </div>
-          <div class="g2">
+          <!-- Zsák súlyok chip-builder -->
+          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:10px;">
+            <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Zsák súlyok egyenként (opcionális)</div>
+            <div id="bevZsakChips" class="stock-zsak-chips" style="margin-bottom:8px;min-height:20px;"></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <input type="number" id="bevChipSuly" min="0.1" step="0.1" placeholder="pl. 25.3 kg" style="width:130px;">
+              <button class="btn btn-ghost btn-sm" id="bevChipAddBtn" type="button">+ Hozzáad</button>
+              <button class="btn btn-ghost btn-xs" id="bevChipClearBtn" type="button" style="color:var(--text3);">Töröl mindent</button>
+            </div>
+          </div>
+          <div class="g2" style="margin-top:10px;">
             <div class="field"><label class="lbl">Dátum</label><input type="date" id="bevDatum"></div>
             <div class="field"><label class="lbl">Megjegyzés</label><input type="text" id="bevMegjegyzes" placeholder="Opcionális…"></div>
           </div>

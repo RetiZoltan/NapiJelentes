@@ -33,7 +33,7 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
          closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadElozmenyek,
-         loadBelsoKeszlet, saveBelsoAttalolas, saveBevetelez,
+         loadBelsoKeszlet, saveBelsoAttalolas, saveBevetelez, bevChipAdd, bevChipClear,
          saveMozgas, onMozgTipusChange, saveLocation,
          canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
@@ -992,6 +992,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!open) loadBelsoKeszlet();
   });
   E('bevSaveBtn').addEventListener('click', saveBevetelez);
+  E('bevChipAddBtn').addEventListener('click', bevChipAdd);
+  E('bevChipClearBtn').addEventListener('click', bevChipClear);
+  E('bevChipSuly').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); bevChipAdd(); } });
   E('mozgSaveBtn').addEventListener('click', saveMozgas);
   document.querySelectorAll('.mozg-tipus-btn').forEach(btn => {
     btn.addEventListener('click', () => onMozgTipusChange(btn.dataset.tipus));
