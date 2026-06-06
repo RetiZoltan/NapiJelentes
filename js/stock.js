@@ -1,5 +1,5 @@
 import { db, doc, getDoc, addDoc, updateDoc, deleteDoc, collection, query,
-         where, getDocs, orderBy, onSnapshot, serverTimestamp } from './firebase.js';
+         where, getDocs, orderBy, limit, onSnapshot, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod, fmtKg, emptyHtml } from './utils.js';
 import { fetchEntries } from './db.js';
@@ -306,6 +306,11 @@ export function onMozgTipusChange(tipus) {
   if (celRow) celRow.style.display = (tipus === 'atadas' || tipus === 'betarolas') ? '' : 'none';
   const filters = E('mozgKeszletFilters');
   if (filters) filters.style.display = tipus === 'betarolas' ? 'none' : '';
+  const vevoRow = E('mozgVevoRow');
+  if (vevoRow) vevoRow.style.display = tipus === 'kiszallitas' ? '' : 'none';
+  const szallitolevRow = E('mozgSzallitolevRow');
+  if (szallitolevRow) szallitolevRow.style.display = tipus === 'kiszallitas' ? '' : 'none';
+  if (tipus === 'kiszallitas') _refreshVevoDL();
   clearMozgSel();
   loadMozgasTab();
 }
@@ -463,9 +468,11 @@ export async function saveMozgas() {
   const selected = [...document.querySelectorAll('.mozg-stock-chip.selected')];
   if (!selected.length) { msg('Jelölj ki zsákokat!', 'error'); return; }
 
-  const cel   = E('mozgCelHely')?.value || null;
-  const datum = E('mozgDatum')?.value   || tod();
-  const megj  = E('mozgMegjegyzes')?.value?.trim() || '';
+  const cel               = E('mozgCelHely')?.value             || null;
+  const datum             = E('mozgDatum')?.value               || tod();
+  const megj              = E('mozgMegjegyzes')?.value?.trim()  || '';
+  const vevo              = E('mozgVevo')?.value?.trim()         || '';
+  const szallitolevelSzam = E('mozgSzallitolevSzam')?.value?.trim() || '';
 
   if (_mozgTipus === 'atadas' && !cel) { msg('Válassz cél helyszínt!', 'error'); return; }
 
@@ -540,6 +547,7 @@ export async function saveMozgas() {
         datum, megjegyzes: megj,
         forrás: 'manuális', termelesRef: [],
         sourceUpdated: true,
+        vevo, szallitolevelSzam,
         createdBy: state.appUser.uid, createdAt: serverTimestamp()
       });
     }
@@ -564,7 +572,9 @@ export async function saveMozgas() {
 
     const labels = { atadas: 'Áttárolás rögzítve', kiszallitas: 'Kiszállítás rögzítve', selejt: 'Selejt rögzítve' };
     msg(labels[_mozgTipus] || 'Rögzítve');
-    if (E('mozgMegjegyzes')) E('mozgMegjegyzes').value = '';
+    if (E('mozgMegjegyzes'))    E('mozgMegjegyzes').value = '';
+    if (E('mozgVevo'))          E('mozgVevo').value = '';
+    if (E('mozgSzallitolevSzam')) E('mozgSzallitolevSzam').value = '';
     await loadMozgasTab();
     loadKeszlet();
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
@@ -667,8 +677,9 @@ function _subscribeToStock() {
       collection(db, 'stockMovements'),
       () => {
         const active = document.querySelector('#keszletSubtabs .stab-btn.active')?.dataset.ksTab;
-        if (active === 'sztkeszlet')    loadKeszlet();
-        if (active === 'sztmozgas')     loadMozgasTab();
+        if (active === 'sztkeszlet')     loadKeszlet();
+        if (active === 'sztmozgas')      loadMozgasTab();
+        if (active === 'sztkiszallitas') loadKiszallitasok();
       },
       err => console.warn('stock listener:', err.message)
     );
@@ -772,14 +783,181 @@ export function switchKeszletTab(name) {
   document.querySelectorAll('#tab-keszlet .kstab-panel').forEach(p => p.classList.remove('active'));
   E('ksTab-' + name)?.classList.add('active');
 
-  if (name === 'sztkeszlet')    loadKeszlet();
-  if (name === 'sztmozgas')     loadMozgasTab();
-  if (name === 'sztbevetelez')  { /* belső készlet csak kézzel nyílik */ }
-  if (name === 'sztbeallitas')  renderLocations();
+  if (name === 'sztkeszlet')     loadKeszlet();
+  if (name === 'sztmozgas')      loadMozgasTab();
+  if (name === 'sztbevetelez')   { /* belső készlet csak kézzel nyílik */ }
+  if (name === 'sztkiszallitas') loadKiszallitasok();
+  if (name === 'sztbeallitas')   renderLocations();
 }
 
 export async function initKeszletTab() {
   await loadLocations();
   loadKeszlet();
   _subscribeToStock();
+}
+
+/* ══════════════════════════════════════
+   KISZÁLLÍTÁSOK LISTA + NYOMTATÁS
+══════════════════════════════════════ */
+async function _refreshVevoDL() {
+  try {
+    const snap = await getDocs(query(collection(db, 'stockMovements'),
+      where('tipus', '==', 'kiszallitas'), limit(500)));
+    const vevok = [...new Set(snap.docs.map(d => d.data().vevo).filter(Boolean))].sort((a,b) => a.localeCompare(b,'hu'));
+    const dl = E('vevoDL');
+    if (dl) dl.innerHTML = vevok.map(v => `<option value="${esc(v)}">`).join('');
+  } catch { /* silent */ }
+}
+
+export async function loadKiszallitasok() {
+  const div = E('kiszallitasokDiv'); if (!div) return;
+  div.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+
+  const honapF = E('kiszHonapF')?.value || '';
+  const vevoF  = (E('kiszVevoF')?.value || '').toLowerCase();
+
+  try {
+    const constraints = honapF
+      ? [where('tipus','==','kiszallitas'), where('datum','>=',honapF+'-01'), where('datum','<=',honapF+'-31'), orderBy('datum','desc')]
+      : [where('tipus','==','kiszallitas'), orderBy('datum','desc'), limit(300)];
+
+    const snap = await getDocs(query(collection(db, 'stockMovements'), ...constraints));
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (vevoF) list = list.filter(m => (m.vevo || '').toLowerCase().includes(vevoF));
+
+    // Frissíti a vevő datalistát
+    const vevok = [...new Set(list.map(m => m.vevo).filter(Boolean))].sort((a,b) => a.localeCompare(b,'hu'));
+    const dl = E('vevoDL'); if (dl) dl.innerHTML = vevok.map(v => `<option value="${esc(v)}">`).join('');
+
+    if (!list.length) {
+      div.innerHTML = emptyHtml('⬆️', 'Nincs kiszállítás', 'Próbálj más szűrőt vagy időszakot.');
+      return;
+    }
+
+    // Csoportosítás szállítólevél szám szerint (ha van), egyébként egyedi rekordok
+    const groupMap = {};
+    list.forEach(m => {
+      const key = m.szallitolevelSzam ? `sz_${m.szallitolevelSzam}` : `id_${m.id}`;
+      if (!groupMap[key]) groupMap[key] = { szallitolevelSzam: m.szallitolevelSzam || '', vevo: m.vevo || '', datum: m.datum || '', items: [] };
+      groupMap[key].items.push(m);
+    });
+    const groups = Object.values(groupMap).sort((a, b) => b.datum.localeCompare(a.datum));
+
+    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
+    const locN   = id => esc(locMap[id] || id || '—');
+
+    div.innerHTML = groups.map((g, gi) => {
+      const totalKg = g.items.reduce((s, m) => s + (m.mennyisegKg || 0), 0);
+      const totalDb = g.items.reduce((s, m) => s + (m.zsakSzam    || 0), 0);
+      return `<div class="card" style="margin-bottom:8px;" data-gi="${gi}">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;color:var(--text);">${g.vevo ? esc(g.vevo) : '<span style="color:var(--text3);font-style:italic;">Nincs megadva</span>'}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">
+              ${g.datum}${g.szallitolevelSzam ? ' &nbsp;·&nbsp; <strong>' + esc(g.szallitolevelSzam) + '</strong>' : ''}
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-xs kisz-print-btn" data-gi="${gi}" title="Szállítólevél nyomtatása">🖨 Nyomtat</button>
+        </div>
+        <table style="width:100%;font-size:12.5px;border-collapse:collapse;">
+          <thead><tr style="color:var(--text3);border-bottom:1px solid var(--border);">
+            <th style="padding:4px 6px 4px 0;font-weight:600;text-align:left;">Anyag</th>
+            <th style="padding:4px 6px;font-weight:600;text-align:left;">Helyszín</th>
+            <th style="padding:4px 0 4px 6px;font-weight:600;text-align:right;">Zsák</th>
+            <th style="padding:4px 0 4px 10px;font-weight:600;text-align:right;">Súly</th>
+          </tr></thead>
+          <tbody>
+            ${g.items.map(m => `<tr>
+              <td style="padding:3px 6px 3px 0;">${esc(m.anyag || '—')}</td>
+              <td style="padding:3px 6px;color:var(--text3);">${locN(m.forrasHely)}</td>
+              <td style="padding:3px 0 3px 6px;text-align:right;">${m.zsakSzam || 0} db</td>
+              <td style="padding:3px 0 3px 10px;text-align:right;">${m.mennyisegKg ? fmtKg(m.mennyisegKg) : '—'}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr style="font-weight:700;border-top:1px solid var(--border);">
+            <td colspan="2" style="padding:5px 6px 3px 0;color:var(--text2);">Összesen</td>
+            <td style="padding:5px 0 3px 6px;text-align:right;">${totalDb} db</td>
+            <td style="padding:5px 0 3px 10px;text-align:right;">${totalKg ? fmtKg(totalKg) : '—'}</td>
+          </tr></tfoot>
+        </table>
+        ${g.items[0]?.megjegyzes ? `<div style="margin-top:8px;font-size:12px;color:var(--text3);">📝 ${esc(g.items[0].megjegyzes)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    // Nyomtatás
+    const allGroups = groups;
+    div.querySelectorAll('.kisz-print-btn').forEach(btn => {
+      btn.addEventListener('click', () => _printSzallitolevel(allGroups[parseInt(btn.dataset.gi)], locMap));
+    });
+  } catch (e) { msg('Betöltési hiba: ' + e.message, 'error'); }
+}
+
+function _printSzallitolevel(g, locMap) {
+  const locN    = id => locMap[id] || id || '—';
+  const totalKg = g.items.reduce((s, m) => s + (m.mennyisegKg || 0), 0);
+  const totalDb = g.items.reduce((s, m) => s + (m.zsakSzam    || 0), 0);
+  const fmtT    = kg => kg ? (kg / 1000).toFixed(3) + ' t' : '—';
+
+  const html = `<!DOCTYPE html>
+<html lang="hu"><head><meta charset="UTF-8">
+<title>Szállítólevél${g.szallitolevelSzam ? ' – ' + g.szallitolevelSzam : ''}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:16mm 20mm;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #111;}
+  .doc-title{font-size:22px;font-weight:700;letter-spacing:.5px;}
+  .doc-num{font-size:13px;color:#555;margin-top:3px;}
+  .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;margin-bottom:20px;font-size:13px;}
+  .meta-label{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
+  .meta-val{font-weight:600;}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+  th{background:#f0f0f0;padding:8px 10px;text-align:left;border:1px solid #ccc;font-size:12px;}
+  th:last-child,td:last-child{text-align:right;}
+  th:nth-child(3),td:nth-child(3){text-align:right;}
+  td{padding:8px 10px;border:1px solid #ddd;}
+  tfoot td{font-weight:700;background:#f8f8f8;border-top:2px solid #bbb;}
+  .signatures{display:flex;gap:60px;margin-top:50px;}
+  .sig{width:200px;}
+  .sig-line{border-top:1px solid #333;margin-bottom:4px;}
+  .sig-label{font-size:11px;color:#555;}
+  @media print{body{padding:10mm 14mm;}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="doc-title">Szállítólevél</div>
+    ${g.szallitolevelSzam ? `<div class="doc-num">${g.szallitolevelSzam}</div>` : ''}
+  </div>
+  <div style="text-align:right;font-size:12px;color:#555;">${g.datum}</div>
+</div>
+${g.vevo ? `<div class="meta-grid">
+  <div><div class="meta-label">Vevő</div><div class="meta-val">${g.vevo}</div></div>
+</div>` : ''}
+<table>
+  <thead><tr><th>Anyag</th><th>Helyszín</th><th>Zsákszám</th><th>Mennyiség</th></tr></thead>
+  <tbody>
+    ${g.items.map(m => `<tr>
+      <td>${m.anyag || '—'}</td>
+      <td>${locN(m.forrasHely)}</td>
+      <td style="text-align:right;">${m.zsakSzam || 0} db</td>
+      <td style="text-align:right;">${fmtT(m.mennyisegKg)}</td>
+    </tr>`).join('')}
+  </tbody>
+  <tfoot><tr>
+    <td colspan="2">Összesen</td>
+    <td style="text-align:right;">${totalDb} db</td>
+    <td style="text-align:right;">${fmtT(totalKg)}</td>
+  </tr></tfoot>
+</table>
+${g.items[0]?.megjegyzes ? `<p style="font-size:12px;color:#555;margin-bottom:20px;">Megjegyzés: ${g.items[0].megjegyzes}</p>` : ''}
+<div class="signatures">
+  <div class="sig"><div class="sig-line"></div><div class="sig-label">Kiadta</div></div>
+  <div class="sig"><div class="sig-line"></div><div class="sig-label">Átvette</div></div>
+</div>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=820,height=700');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
 }
