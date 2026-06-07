@@ -8,6 +8,8 @@ import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
 let unsubNapi = null;
 let _lastNapiState = null;
 
+const HONAP_NEVEK = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+
 const RIPORT_DEF = {
   teljes: true, dolgRangsor: true, anyagOssz: true,
   napiAtlag: true, dolgNapiAtlag: false, haviAtlag: false, muszak: false,
@@ -419,7 +421,6 @@ export async function haviRiport() {
   const prefix = `${ev}-${String(honap1).padStart(2, '0')}`;
   const lastDay = new Date(ev, honap + 1, 0).getDate();
   const from = `${prefix}-01`, to = `${prefix}-${String(lastDay).padStart(2, '0')}`;
-  const honNev = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 
   E('idoszakosRiportDiv').innerHTML = skelHtml('report');
   let hA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: from, datumTo: to }));
@@ -427,8 +428,9 @@ export async function haviRiport() {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hónapra</div>`;
     _setIdoszakBtns(true); return;
   }
+  const cmpHtml = await _osszehasonlitoBlokk('havi', from, to, `${ev}. ${HONAP_NEVEK[honap]}`, hA);
 
-  let html = `<div class="r-head">${ev}. ${honNev[honap]}${_filterBadges()}</div>`;
+  let html = `<div class="r-head">${ev}. ${HONAP_NEVEK[honap]}${_filterBadges()}</div>${cmpHtml}`;
   if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
   if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
@@ -480,6 +482,100 @@ function _filterBadges() {
   ].filter(Boolean).map(v => `<span class="r-shift">· ${esc(v)}</span>`).join('');
 }
 
+/* ── Időszak-összehasonlítás (előző azonos hosszú időszakkal) ── */
+function _addNapok(dateStr, napok) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + napok);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function _elozoIdoszak(tipus, from, to) {
+  switch (tipus) {
+    case 'havi': {
+      const [ev, honap1] = from.split('-').map(Number);
+      const prevD  = new Date(ev, honap1 - 2, 1);
+      const pEv = prevD.getFullYear(), pHonap = prevD.getMonth();
+      const prefix = `${pEv}-${String(pHonap + 1).padStart(2, '0')}`;
+      const lastDay = new Date(pEv, pHonap + 1, 0).getDate();
+      return { from: `${prefix}-01`, to: `${prefix}-${String(lastDay).padStart(2, '0')}`,
+               label: `${pEv}. ${HONAP_NEVEK[pHonap]}` };
+    }
+    case 'heti': {
+      const pf = _addNapok(from, -7), pt = _addNapok(to, -7);
+      return { from: pf, to: pt, label: `${fmtS(pf)} – ${fmtS(pt)}` };
+    }
+    case 'eves': {
+      const pEv = parseInt(from.slice(0, 4), 10) - 1;
+      return { from: `${pEv}-01-01`, to: `${pEv}-12-31`, label: `${pEv}. év` };
+    }
+    default: { // egyéni: ugyanolyan hosszú, közvetlenül megelőző időszak
+      const [y1, m1, d1] = from.split('-').map(Number);
+      const [y2, m2, d2] = to.split('-').map(Number);
+      const napok = Math.round((new Date(y2, m2 - 1, d2) - new Date(y1, m1 - 1, d1)) / 86400000) + 1;
+      const pTo   = _addNapok(from, -1);
+      const pFrom = _addNapok(pTo, -(napok - 1));
+      return { from: pFrom, to: pTo, label: `${fmtS(pFrom)} – ${fmtS(pTo)}` };
+    }
+  }
+}
+
+function _osszeg(entries) {
+  return entries.reduce((s, a) => s + (a.sulyok || []).reduce((x, y) => x + y.suly, 0), 0);
+}
+
+function _csoportOsszeg(entries, kulcs) {
+  const by = {};
+  entries.forEach(a => {
+    const k = (a[kulcs] || '').trim() || 'Ismeretlen';
+    by[k] = (by[k] || 0) + (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+  });
+  return by;
+}
+
+function _deltaHtml(curr, prev) {
+  if (!prev) return curr ? `<span style="color:var(--green);font-weight:600;">▲ új</span>` : `<span style="color:var(--text3);">–</span>`;
+  const pct  = (curr - prev) / prev * 100;
+  const szin = pct > 0.05 ? 'var(--green)' : (pct < -0.05 ? 'var(--red)' : 'var(--text3)');
+  const nyil = pct > 0.05 ? '▲' : (pct < -0.05 ? '▼' : '–');
+  return `<span style="color:${szin};font-weight:600;">${nyil} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+function _osszehasonlitoCsoportTbl(cim, ikon, currBy, prevBy) {
+  const kulcsok = [...new Set([...Object.keys(currBy), ...Object.keys(prevBy)])]
+    .sort((a, b) => (currBy[b] || 0) - (currBy[a] || 0));
+  if (!kulcsok.length) return '';
+  let h = `<p class="rs-group-lbl" style="margin-top:14px;">${ikon} ${esc(cim)} szerint</p><table class="stbl"><thead><tr><th>${esc(cim)}</th><th>Jelenlegi</th><th>Előző</th><th>Változás</th></tr></thead><tbody>`;
+  kulcsok.forEach(k => {
+    const c = currBy[k] || 0, p = prevBy[k] || 0;
+    h += `<tr><td style="font-weight:600;">${esc(k)}</td><td class="v-bold">${fmtKg(c)}</td><td style="color:var(--text3);">${fmtKg(p)}</td><td>${_deltaHtml(c, p)}</td></tr>`;
+  });
+  return h + `</tbody></table>`;
+}
+
+function _osszehasonlitoHtml(curr, prev, currLabel, prevLabel) {
+  const currOssz = _osszeg(curr), prevOssz = _osszeg(prev);
+  const currNapok = new Set(curr.map(a => a.datum)).size || 1;
+  const prevNapok = new Set(prev.map(a => a.datum)).size || 1;
+  const currAtlag = currOssz / currNapok, prevAtlag = prevOssz / prevNapok;
+  return `<div class="card" style="margin-bottom:12px;">
+    <div class="card-title"><span class="card-title-icon">📊</span>Összevetés az előző időszakkal</div>
+    <p style="color:var(--text3);font-size:12.5px;margin:-4px 0 12px;">Jelenlegi: <strong style="color:var(--text);">${esc(currLabel)}</strong> · Előző: <strong style="color:var(--text);">${esc(prevLabel)}</strong></p>
+    <table class="stbl"><thead><tr><th>Megnevezés</th><th>Jelenlegi</th><th>Előző</th><th>Változás</th></tr></thead><tbody>
+      <tr><td>Összesített termelés</td><td class="v-bold">${fmtKg(currOssz)}</td><td style="color:var(--text3);">${fmtKg(prevOssz)}</td><td>${_deltaHtml(currOssz, prevOssz)}</td></tr>
+      <tr><td>Napi átlag</td><td class="v-bold">${fmtKg(currAtlag)}</td><td style="color:var(--text3);">${fmtKg(prevAtlag)}</td><td>${_deltaHtml(currAtlag, prevAtlag)}</td></tr>
+    </tbody></table>
+    ${_osszehasonlitoCsoportTbl('Részleg', '🏭', _csoportOsszeg(curr, 'reszleg'), _csoportOsszeg(prev, 'reszleg'))}
+    ${_osszehasonlitoCsoportTbl('Anyagtípus', '📦', _csoportOsszeg(curr, 'anyag'), _csoportOsszeg(prev, 'anyag'))}
+  </div>`;
+}
+
+async function _osszehasonlitoBlokk(tipus, from, to, currLabel, currEntries) {
+  if (!E('idoszakosOsszehasonlitas')?.checked) return '';
+  const prevRange = _elozoIdoszak(tipus, from, to);
+  const prevA = _applyIdoszakosFilters(await fetchEntries({ datumFrom: prevRange.from, datumTo: prevRange.to }));
+  return _osszehasonlitoHtml(currEntries, prevA, currLabel, prevRange.label);
+}
+
 export async function hetiRiport() {
   const raw = E('hetiHetInput').value;
   if (!raw) { msg('Válassz hetet!', 'error'); return; }
@@ -491,8 +587,9 @@ export async function hetiRiport() {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat erre a hétre</div>`;
     _setIdoszakBtns(true); return;
   }
+  const cmpHtml = await _osszehasonlitoBlokk('heti', from, to, `${yr}. ${wk}. hét · ${fmtS(from)} – ${fmtS(to)}`, hA);
 
-  let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
+  let html = `<div class="r-head">${yr}. ${wk}. hét · ${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>${cmpHtml}`;
   if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
   if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
@@ -524,8 +621,9 @@ export async function egyeniRiport() {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a megadott időszakra</div>`;
     _setIdoszakBtns(true); return;
   }
+  const cmpHtml = await _osszehasonlitoBlokk('egyeni', from, to, `${fmtS(from)} – ${fmtS(to)}`, hA);
 
-  let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>`;
+  let html = `<div class="r-head">${esc(fmtS(from))} – ${esc(fmtS(to))}${_filterBadges()}</div>${cmpHtml}`;
   if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
   if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
@@ -555,8 +653,9 @@ export async function evesRiport() {
     E('idoszakosRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat ${ev}. évre</div>`;
     _setIdoszakBtns(true); return;
   }
+  const cmpHtml = await _osszehasonlitoBlokk('eves', from, to, `${ev}. év`, hA);
 
-  let html = `<div class="r-head">${ev}. év${_filterBadges()}</div>`;
+  let html = `<div class="r-head">${ev}. év${_filterBadges()}</div>${cmpHtml}`;
   if (getRiportSet('rekordok'))      html += _riportRekordok(hA);
   if (getRiportSet('kalendarNezet')) html += _riportKalendarNezet(hA);
   if (getRiportSet('teljes'))        html += teljesHtml(hA);
