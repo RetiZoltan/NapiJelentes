@@ -905,7 +905,6 @@
       <div class="subtabs" id="keszletSubtabs">
         <button class="stab-btn active" data-ks-tab="sztkeszlet">📊 Készlet</button>
         <button class="stab-btn" data-ks-tab="sztmozgas">↔️ Mozgás</button>
-        <button class="stab-btn" data-ks-tab="sztbevetelez">⬇️ Bevételezés</button>
         <button class="stab-btn" data-ks-tab="sztkiszallitas">⬆️ Kiszállítások</button>
         <button class="stab-btn" data-ks-tab="sztbeallitas" id="sztBeallitasBtn" style="display:none">⚙️ Beállítások</button>
       </div>
@@ -975,47 +974,6 @@
             <button class="btn btn-primary btn-sm" id="mozgSaveBtn">✓ Rögzít</button>
             <button class="btn btn-danger btn-sm" id="mozgDelBtn">🗑 Töröl</button>
             <button class="btn btn-ghost btn-sm" id="mozgClearSelBtn">Kijelölés törlése</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ⬇️ Bevételezés -->
-      <div id="ksTab-sztbevetelez" class="kstab-panel">
-        <!-- Manuális bevételezés -->
-        <div class="card">
-          <div class="card-title"><span class="card-title-icon">📥</span>Manuális bevételezés</div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Anyag</label>
-              <input list="anyagDL" id="bevAnyag" autocomplete="off" placeholder="Anyag neve…">
-            </div>
-            <div class="field"><label class="lbl">Helyszín</label>
-              <select id="bevHelyF"><option value="">— Válassz —</option></select>
-            </div>
-          </div>
-          <div class="g2">
-            <div class="field"><label class="lbl">Zsák (db)</label>
-              <input type="number" id="bevZsakSzam" min="1" step="1" placeholder="pl. 22">
-            </div>
-            <div class="field"><label class="lbl">Összsúly (kg, opcionális)</label>
-              <input type="number" id="bevKg" min="0" step="0.1" placeholder="Opcionális">
-            </div>
-          </div>
-          <!-- Zsák súlyok chip-builder -->
-          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:10px;">
-            <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Zsák súlyok egyenként (opcionális)</div>
-            <div id="bevZsakChips" class="stock-zsak-chips" style="margin-bottom:8px;min-height:20px;"></div>
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-              <input type="number" id="bevChipSuly" min="0.1" step="0.1" placeholder="pl. 25.3 kg" style="width:130px;">
-              <button class="btn btn-ghost btn-sm" id="bevChipAddBtn" type="button">+ Hozzáad</button>
-              <button class="btn btn-ghost btn-xs" id="bevChipClearBtn" type="button" style="color:var(--text3);">Töröl mindent</button>
-            </div>
-          </div>
-          <div class="g2" style="margin-top:10px;">
-            <div class="field"><label class="lbl">Dátum</label><input type="date" id="bevDatum"></div>
-            <div class="field"><label class="lbl">Megjegyzés</label><input type="text" id="bevMegjegyzes" placeholder="Opcionális…"></div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary btn-sm" id="bevSaveBtn">⬇️ Bevételez</button>
           </div>
         </div>
       </div>

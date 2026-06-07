@@ -238,16 +238,21 @@ const SECTIONS = [
         <li>Szűrhető anyag és helyszín szerint</li>
       </ul>
 
-      <p><strong>➡️ Mozgások napló:</strong> Hónap / típus / helyszín szűrőkkel. Mozgástípusok: ⬇️ Bevételezés · ⬆️ Kivitel · ↔️ Átadás · 🚛 Kiszállítás · 🗑 Selejt. Minden sornál látszanak az egyedi zsák súlyok.</p>
-
-      <p><strong>⬇️ Bevételezés:</strong></p>
+      <p><strong>↔️ Mozgás:</strong> Az anyag mindig a termelésből kerül a készletbe — külső bevételezésre nincs szükség. Három mozgástípus van:</p>
       <ul>
-        <li><strong>Import termelésből</strong>: hónap + cél helyszín választása → megmutatja az importálatlan teli zsákos bejegyzéseket anyagonként csoportosítva (dátum, dolgozó, zsák db, tonna, egyedi kg chipek). Checkbox-szal kijelölhető, tömeges importálható</li>
-        <li><strong>↔️ Átmozgatás</strong> — mindig látható kártya: anyag + zsák szám + forrás/cél helyszín + dátum. Kattintásra azonnal rögzíti az átadást</li>
-        <li><strong>✏️ Manuális rögzítés</strong> — lenyitható form bármilyen mozgástípushoz. Kiszállításnál 22-24 zsák felett figyelmeztetést kap</li>
+        <li><strong>⬇️ Termelésből</strong> — az importálatlan, teli zsákos termelési bejegyzések közül választva a kijelölt zsákok betárolódnak egy célhelyszínre</li>
+        <li><strong>↔️ Áttárolás</strong> — meglévő készlet átvitele az egyik helyszínről egy másikra</li>
+        <li><strong>⬆️ Kiszállítás</strong> — készlet kivezetése vevőhöz, szállítólevél-számmal és nyomtatható szállítólevéllel</li>
       </ul>
+      <p>A kijelölés zsák-csempékkel (chip) történik, melyeken az egyedi súlyok is látszanak.</p>
 
-      <p><strong>⚙️ Helyszínek</strong> (szerkesztési joggal): raktárak és területek hozzáadása/archiválása. Az archiválás nem töröl — a mozgások hivatkoznak rá.</p>
+      <p><strong>⬆️ Kiszállítások:</strong> A korábbi kiszállítások listája szállítólevél-szám szerint csoportosítva, hónap és vevő szerint szűrhető. Innen nyomtatható a szállítólevél PDF-ként, illetve törölhető egy kiszállítás (ami visszakerül a készletbe).</p>
+
+      <p><strong>⚙️ Beállítások</strong> (szerkesztési joggal):</p>
+      <ul>
+        <li><strong>Helyszínek</strong> — raktárak/területek felvétele, szerkesztése és színkóddal való megkülönböztetése</li>
+        <li><strong>Vevők / cégek</strong> — kiszállításhoz felhasználható ügyfelek (név, cím, adószám, kapcsolattartó) felvétele és szerkesztése</li>
+      </ul>
     `
   },
 

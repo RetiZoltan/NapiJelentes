@@ -33,7 +33,6 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
          closeMachineDrawer, canManageMachines, canViewMachines } from './machines.js';
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet, loadKiszallitasok, saveVevo, renderVevok,
-         saveBevetelez, bevChipAdd, bevChipClear,
          loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
          onMozgTipusChange, saveLocation,
          canViewStock, canManageStock } from './stock.js';
@@ -980,10 +979,6 @@ document.addEventListener('DOMContentLoaded', () => {
   E('keszletFrissitBtn').addEventListener('click', loadKeszlet);
   E('kiszMutatBtn').addEventListener('click', loadKiszallitasok);
   E('vevoSaveBtn').addEventListener('click', saveVevo);
-  E('bevSaveBtn').addEventListener('click', saveBevetelez);
-  E('bevChipAddBtn').addEventListener('click', bevChipAdd);
-  E('bevChipClearBtn').addEventListener('click', bevChipClear);
-  E('bevChipSuly').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); bevChipAdd(); } });
   E('mozgSaveBtn').addEventListener('click', saveMozgas);
   E('mozgDelBtn').addEventListener('click', deleteSelectedBags);
   E('mozgClearSelBtn').addEventListener('click', clearMozgSel);
@@ -993,7 +988,6 @@ document.addEventListener('DOMContentLoaded', () => {
   E('helyszinSaveBtn').addEventListener('click', saveLocation);
   // Dátum alapértelmezések
   const mozgDatum = E('mozgDatum'); if (mozgDatum) mozgDatum.value = tod();
-  const bevDatum  = E('bevDatum');  if (bevDatum)  bevDatum.value  = tod();
   // Anyag kereső — debounced live szűrés
   let _keszletAnyagT = null;
   E('keszletAnyagF').addEventListener('input', () => {

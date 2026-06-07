@@ -37,11 +37,7 @@ function _fillLocSelects() {
   const mozgHelyEl = E('mozgKeszletHelyF');
   if (mozgHelyEl) { const p = mozgHelyEl.value; mozgHelyEl.innerHTML = allOpts; if (p) mozgHelyEl.value = p; }
 
-  ['elozHelyF'].forEach(id => {
-    const el = E(id); if (!el) return;
-    const prev = el.value; el.innerHTML = allOpts; if (prev) el.value = prev;
-  });
-  ['belsoHelyF', 'mozgForrasHely', 'mozgCelHely', 'bevHelyF'].forEach(id => {
+  ['mozgCelHely'].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = selOpts; if (prev) el.value = prev;
   });
@@ -353,7 +349,7 @@ export async function loadKeszlet() {
     const stock  = await _calcStock(anyagF, helyF);
 
     if (!stock.length) {
-      div.innerHTML = emptyHtml('📦', 'Nincs készlet', 'Rögzíts bevételezést a Bevételezés fülön.');
+      div.innerHTML = emptyHtml('📦', 'Nincs készlet', 'Tárolj be anyagot a termelésből a Mozgás fülön.');
       return;
     }
 
@@ -808,93 +804,6 @@ function _subscribeToStock() {
 }
 
 /* ══════════════════════════════════════
-   TAB 3 — BEVÉTELEZÉS
-══════════════════════════════════════ */
-/* ── Bevételezés chip-builder ── */
-let _bevChips = [];
-
-export function bevChipAdd() {
-  const inp = E('bevChipSuly');
-  const val = parseFloat(inp?.value);
-  if (!val || val <= 0) { msg('Add meg a zsák súlyát!', 'error'); return; }
-  _bevChips.push(val);
-  inp.value = '';
-  inp.focus();
-  _bevRenderChips();
-}
-
-export function bevChipClear() {
-  _bevChips = [];
-  _bevRenderChips();
-}
-
-function _bevRenderChips() {
-  const container = E('bevZsakChips'); if (!container) return;
-  container.innerHTML = _bevChips.map((w, i) =>
-    `<span class="stock-zsak-chip" style="display:inline-flex;align-items:center;gap:3px;">
-      ${w.toFixed(1)} kg
-      <button class="bev-chip-del" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0 2px;line-height:1;">×</button>
-    </span>`
-  ).join('');
-  container.querySelectorAll('.bev-chip-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _bevChips.splice(parseInt(btn.dataset.idx), 1);
-      _bevRenderChips();
-    });
-  });
-  if (_bevChips.length > 0) {
-    const zsakEl = E('bevZsakSzam'); const kgEl = E('bevKg');
-    if (zsakEl) zsakEl.value = _bevChips.length;
-    if (kgEl)   kgEl.value   = _bevChips.reduce((s, v) => s + v, 0).toFixed(1);
-  }
-}
-
-export async function saveBevetelez() {
-  const anyag  = E('bevAnyag')?.value?.trim();
-  const hely   = E('bevHelyF')?.value;
-  const datum  = E('bevDatum')?.value || tod();
-  const megj   = E('bevMegjegyzes')?.value?.trim() || '';
-
-  const hasChips = _bevChips.length > 0;
-  const zsakSz   = hasChips ? _bevChips.length : parseInt(E('bevZsakSzam')?.value, 10);
-  const kg       = hasChips ? parseFloat(_bevChips.reduce((s, v) => s + v, 0).toFixed(2)) : (parseFloat(E('bevKg')?.value) || null);
-
-  if (!anyag)                     { msg('Add meg az anyag nevét!', 'error'); return; }
-  if (!hely)                      { msg('Válassz helyszínt!', 'error'); return; }
-  if (!zsakSz || zsakSz <= 0)     { msg('Add meg a zsák darabszámot!', 'error'); return; }
-
-  try {
-    await addDoc(collection(db, 'stockMovements'), {
-      tipus:       'bevitel',
-      anyag,
-      forrasHely:  hely,
-      celHely:     null,
-      zsakSzam:    zsakSz,
-      mennyisegKg: kg,
-      zsakSulyok:  hasChips ? [..._bevChips] : [],
-      datum, megjegyzes: megj,
-      forrás: 'manuális', termelesRef: [],
-      createdBy: state.appUser.uid, createdAt: serverTimestamp()
-    });
-    msg('Bevételezés rögzítve!');
-    _bevChips = []; _bevRenderChips();
-    E('bevAnyag').value = E('bevZsakSzam').value = E('bevKg').value = E('bevMegjegyzes').value = '';
-    loadKeszlet();
-  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
-}
-
-/* ══════════════════════════════════════
-   TAB 4 — ELŐZMÉNYEK
-══════════════════════════════════════ */
-const MOZGAS_META = {
-  bevitel:     { label: 'Bevételezés', icon: '⬇️', cls: 'mozg-bevitel'     },
-  atadas:      { label: 'Áttárolás',   icon: '↔️', cls: 'mozg-atadas'      },
-  kiszallitas: { label: 'Kiszállítás', icon: '⬆️', cls: 'mozg-kiszallitas' },
-  selejt:      { label: 'Selejt',      icon: '🗑',  cls: 'mozg-selejt'      },
-  kivitel:     { label: 'Kivitel',     icon: '⬆️', cls: 'mozg-kivitel'     },
-};
-
-/* ══════════════════════════════════════
    TAB VÁLTÁS + INIT
 ══════════════════════════════════════ */
 export function switchKeszletTab(name) {
@@ -906,7 +815,6 @@ export function switchKeszletTab(name) {
 
   if (name === 'sztkeszlet')     loadKeszlet();
   if (name === 'sztmozgas')      loadMozgasTab();
-  if (name === 'sztbevetelez')   { /* belső készlet csak kézzel nyílik */ }
   if (name === 'sztkiszallitas') loadKiszallitasok();
   if (name === 'sztbeallitas')   { renderLocations(); renderVevok(); }
 }
