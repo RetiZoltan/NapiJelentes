@@ -952,11 +952,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setAutoRefresh(parseInt(e.target.value, 10));
   });
 
-  // Widget drawer – "Feladatok megnyitása →" gomb
+  // Widget drawer – "Feladatok megnyitása →" / "Dolgozók megnyitása →" gombok
   E('widgetDrawerBody').addEventListener('click', e => {
     if (e.target.closest('.wd-goto-tasks')) {
       closeWidgetDrawer();
       switchTab('feladatok', E('tabBtnFeladatok'));
+    }
+    if (e.target.closest('.wd-goto-employees')) {
+      closeWidgetDrawer();
+      switchTab('dolgozok', E('tabBtnDolgozok'));
     }
   });
 

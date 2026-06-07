@@ -40,7 +40,7 @@ function _saveWidgetSettings(wid, s) {
   try { const all = JSON.parse(localStorage.getItem(_WST_KEY) || '{}'); all[wid] = { ...(all[wid] || {}), ...s }; localStorage.setItem(_WST_KEY, JSON.stringify(all)); } catch {}
 }
 
-const DRAWER_WIDGETS = ['maiOssz','haviOssz','nyitottF','topDolg','sajatTelj','anyagRangsor'];
+const DRAWER_WIDGETS = ALL_WIDGETS.map(w => w.id);
 
 /* ── Jogosultságok ── */
 function _empPerm()       { return isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles'); }
@@ -127,6 +127,12 @@ const _WD_META = {
   topDolg:     { icon:'🏅', title:'Havi legjobb – teljes rangsor' },
   sajatTelj:   { icon:'👤', title:'Saját teljesítmény – 14 napos trend' },
   anyagRangsor:{ icon:'📦', title:'Anyag rangsor – teljes lista' },
+  hetiGrafikon:{ icon:'📉', title:'Heti bontás – részletes' },
+  hetiTrend:   { icon:'📈', title:'Heti trend – összevetés' },
+  aktivDolg:   { icon:'👷', title:'Dolgozók – áttekintés' },
+  szulNapok:   { icon:'🎂', title:'Közelgő születésnapok' },
+  jubileum:    { icon:'🎖️', title:'Belépési jubileumok' },
+  utobbiBeir:  { icon:'📋', title:'Utóbbi bejegyzések' },
 };
 
 async function _openWidgetDrawer(wid) {
@@ -159,7 +165,7 @@ async function _openWidgetDrawer(wid) {
 
 function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
   const { todayEntries, thisWeekEntries, prevWeekEntries, monthEntries,
-          today, weekStart, monthStart, sumKg, kgOf, tasksSnap } = ctx;
+          today, weekStart, prevWeekS, monthStart, sumKg, kgOf, tasksSnap } = ctx;
 
   /* ── Segéd ── */
   const workerTable = (rank, maxKg) => rank.map(([nev,kg],i) => {
@@ -408,6 +414,192 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
       </div>`;
     }).join('');
     return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Összes: ${(grandTotal/1000).toFixed(2)} t · ${matRank.length} anyag</div>${rows}`;
+  }
+
+  /* ── 📉 Heti bontás – részletes ── */
+  if (wid === 'hetiGrafikon') {
+    if (!thisWeekEntries.length) return `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs heti adat</div><div class="empty-sub">Ezen a héten még nem lett rögzítve termelési adat.</div></div>`;
+    const HU_DAYS = ['Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat','Vasárnap'];
+    const days = Array.from({length:7}, (_, i) => addD(weekStart, i));
+    const byDay = {};
+    thisWeekEntries.forEach(e => { byDay[e.datum] = (byDay[e.datum]||0) + kgOf(e); });
+    const maxV = Math.max(...days.map(d => byDay[d]||0), 1);
+    const dayRows = days.map((d,i) => {
+      const kg = byDay[d] || 0, isToday = d === today, isFuture = d > today;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12px;color:${isToday?'var(--accent)':'var(--text3)'};font-weight:${isToday?700:400};width:78px;flex-shrink:0;">${HU_DAYS[i]}${isToday?' (ma)':''}</span>
+        <div style="height:7px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;">
+          <div style="height:100%;width:${Math.round(kg/maxV*100)}%;background:var(--accent);border-radius:3px;opacity:${isFuture?'.22':'.65'};"></div>
+        </div>
+        <span style="font-size:12px;font-weight:600;width:62px;text-align:right;">${kg>0?(kg/1000).toFixed(2)+' t':'—'}</span>
+      </div>`;
+    }).join('');
+
+    const byW = {}, byM = {};
+    thisWeekEntries.forEach(e => {
+      const kg = kgOf(e);
+      byW[e.nev] = (byW[e.nev]||0)+kg;
+      const mat = (e.anyag||'').trim(); if (mat) byM[mat] = (byM[mat]||0)+kg;
+    });
+    const wRank = Object.entries(byW).sort((a,b)=>b[1]-a[1]);
+    const mRank = Object.entries(byM).sort((a,b)=>b[1]-a[1]);
+    const maxW  = wRank[0]?.[1] || 1;
+    const prevKg = sumKg(prevWeekEntries), thisKg = sumKg(thisWeekEntries);
+    const diff   = prevKg > 0 ? ((thisKg-prevKg)/prevKg*100) : null;
+
+    return section('Napi bontás', dayRows) +
+      (diff !== null ? section('Előző héthez képest', `
+        <div class="emp-drawer-row"><span class="emp-drawer-row-icon">${diff>=0?'📈':'📉'}</span>
+          <span>Ezen a héten: <strong>${(thisKg/1000).toFixed(2)} t</strong> ${_trendBadge(diff)} <span style="color:var(--text3);">(előző hét: ${(prevKg/1000).toFixed(2)} t)</span></span>
+        </div>`) : '') +
+      section(`Dolgozónként (${wRank.length} fő)`, `<table class="stbl"><tbody>${workerTable(wRank, maxW)}</tbody></table>`) +
+      (mRank.length ? section('Anyagonként', mRank.map(([mat,kg])=>`
+        <div class="emp-drawer-row"><span style="flex:1;">${esc(mat)}</span><span style="font-weight:600;">${(kg/1000).toFixed(2)} t</span></div>`).join('')) : '');
+  }
+
+  /* ── 📈 Heti trend – összevetés ── */
+  if (wid === 'hetiTrend') {
+    const thisKg = sumKg(thisWeekEntries), prevKg = sumKg(prevWeekEntries);
+    if (!thisKg && !prevKg) return `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat</div><div class="empty-sub">Sem ezen, sem az előző héten nincs rögzített termelés.</div></div>`;
+    const diff = prevKg > 0 ? ((thisKg-prevKg)/prevKg*100) : null;
+    const HU_DAYS = ['H','K','Sze','Cs','P','Szo','V'];
+    const thisByDay = {}, prevByDay = {};
+    thisWeekEntries.forEach(e => { thisByDay[e.datum] = (thisByDay[e.datum]||0)+kgOf(e); });
+    prevWeekEntries.forEach(e => { prevByDay[e.datum] = (prevByDay[e.datum]||0)+kgOf(e); });
+    const thisDays = Array.from({length:7},(_,i)=>addD(weekStart,i));
+    const prevDays = Array.from({length:7},(_,i)=>addD(prevWeekS,i));
+    const maxV = Math.max(...thisDays.map(d=>thisByDay[d]||0), ...prevDays.map(d=>prevByDay[d]||0), 1);
+
+    const cmpRows = HU_DAYS.map((lbl,i) => {
+      const tv = thisByDay[thisDays[i]]||0, pv = prevByDay[prevDays[i]]||0;
+      return `<div style="margin-bottom:9px;">
+        <div style="font-size:11.5px;color:var(--text3);margin-bottom:4px;">${lbl}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="font-size:10px;color:var(--text3);width:46px;">Előző hét</span>
+          <div style="height:6px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;"><div style="height:100%;width:${Math.round(pv/maxV*100)}%;background:var(--text3);border-radius:3px;opacity:.5;"></div></div>
+          <span style="font-size:11px;color:var(--text3);width:54px;text-align:right;">${pv>0?(pv/1000).toFixed(2)+' t':'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;color:var(--accent);width:46px;">E héten</span>
+          <div style="height:6px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;"><div style="height:100%;width:${Math.round(tv/maxV*100)}%;background:var(--accent);border-radius:3px;opacity:.7;"></div></div>
+          <span style="font-size:11px;font-weight:600;width:54px;text-align:right;">${tv>0?(tv/1000).toFixed(2)+' t':'—'}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return section('Összevetés', `
+      <div class="nossz">
+        <div class="nossz-item"><div class="nossz-val">${(thisKg/1000).toFixed(2)} t</div><div class="nossz-lbl">Ezen a héten</div></div>
+        <div class="nossz-item"><div class="nossz-val">${(prevKg/1000).toFixed(2)} t</div><div class="nossz-lbl">Előző héten</div></div>
+        <div class="nossz-item"><div class="nossz-val">${diff!==null?(diff>=0?'+':'')+diff.toFixed(1)+'%':'—'}</div><div class="nossz-lbl">Változás</div></div>
+      </div>`) +
+      section('Napi összevetés', cmpRows);
+  }
+
+  /* ── 👷 Aktív dolgozók – áttekintés ── */
+  if (wid === 'aktivDolg') {
+    if (!ctx.empSnap) return '';
+    const all     = ctx.empSnap.docs.map(d => d.data());
+    const aktiv   = all.filter(e => (e.statusz||'aktiv') === 'aktiv');
+    const inaktiv = all.filter(e => (e.statusz||'aktiv') !== 'aktiv');
+    if (!all.length) return `<div class="empty-st"><div class="empty-ic">👷</div><div class="empty-title">Nincs felvitt dolgozó</div></div>`;
+    const byReszleg = {};
+    aktiv.forEach(e => { const r = e.reszleg || 'Nincs megadva'; (byReszleg[r] = byReszleg[r] || []).push(e); });
+    const reszlegRank = Object.entries(byReszleg).sort((a,b)=>b[1].length-a[1].length);
+
+    return section('Összesítő', `
+      <div class="nossz">
+        <div class="nossz-item"><div class="nossz-val">${aktiv.length}</div><div class="nossz-lbl">Aktív</div></div>
+        <div class="nossz-item"><div class="nossz-val">${inaktiv.length}</div><div class="nossz-lbl">Inaktív</div></div>
+        <div class="nossz-item"><div class="nossz-val">${all.length}</div><div class="nossz-lbl">Összesen</div></div>
+      </div>`) +
+      (reszlegRank.length ? section(`Részlegenként (${reszlegRank.length})`, reszlegRank.map(([r,list])=>`
+        <div class="emp-drawer-row"><span class="emp-drawer-row-icon">📍</span><span style="flex:1;">${esc(r)}</span><span style="font-weight:600;">${list.length} fő</span></div>`).join('')) : '') +
+      `<div style="margin-top:14px;"><button class="btn btn-ghost btn-sm wd-goto-employees" style="width:100%;">👷 Dolgozók megnyitása →</button></div>`;
+  }
+
+  /* ── 🎂 Közelgő születésnapok – teljes lista ── */
+  if (wid === 'szulNapok') {
+    if (!ctx.empSnap) return '';
+    const wst   = _getWidgetSettings('szulNapok');
+    const range = parseInt(wst.days || '30', 10);
+    const todayD = new Date(today + 'T12:00:00');
+    const [ty]   = today.split('-').map(Number);
+    const upcoming = ctx.empSnap.docs.map(d=>d.data())
+      .filter(e => e.szulDatum && (e.statusz||'aktiv') !== 'inaktiv')
+      .map(e => {
+        const [, bm, bd] = e.szulDatum.split('-').map(Number);
+        let next = new Date(`${ty}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        if (next < todayD) next = new Date(`${ty+1}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        const days = Math.round((next - todayD) / 86400000);
+        return { nev: e.nev, bm, bd, days };
+      })
+      .filter(e => e.days <= range)
+      .sort((a,b)=>a.days-b.days);
+    if (!upcoming.length) return `<div class="empty-st"><div class="empty-ic">🎂</div><div class="empty-title">Nincs közelgő születésnap</div><div class="empty-sub">A következő ${range} napban senkinek nincs születésnapja.</div></div>`;
+    const rows = upcoming.map(e => {
+      const isToday = e.days === 0, col = isToday?'var(--green)':e.days<=7?'var(--amber)':'var(--text3)';
+      const lbl = isToday ? '🎉 Ma!' : e.days===1 ? 'Holnap' : `${e.days} nap múlva`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13.5px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e.nev)}</span>
+        <span style="font-size:11.5px;color:var(--text3);">${e.bm}. ${e.bd}.</span>
+        <span style="font-size:11.5px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${upcoming.length} fő a következő ${range} napban</div>${rows}`;
+  }
+
+  /* ── 🎖️ Belépési jubileumok – teljes lista ── */
+  if (wid === 'jubileum') {
+    if (!ctx.empSnap) return '';
+    const todayD = new Date(today + 'T12:00:00');
+    const [ty]   = today.split('-').map(Number);
+    const jubileumok = ctx.empSnap.docs.map(d=>d.data())
+      .filter(e => e.belepet && (e.statusz||'aktiv') !== 'inaktiv')
+      .map(e => {
+        const [by, bm, bd] = e.belepet.split('-').map(Number);
+        let next = new Date(`${ty}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`);
+        let years = ty - by;
+        if (next < todayD) { years++; next = new Date(`${ty+1}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}T12:00:00`); }
+        const days = Math.round((next - todayD) / 86400000);
+        return { nev: e.nev, years, bm, bd, days };
+      })
+      .filter(e => e.days <= 30 && e.years >= 1)
+      .sort((a,b)=>a.days-b.days);
+    if (!jubileumok.length) return `<div class="empty-st"><div class="empty-ic">🎖️</div><div class="empty-title">Nincs közelgő jubileum</div><div class="empty-sub">A következő 30 napban senkinek nincs belépési évfordulója.</div></div>`;
+    const rows = jubileumok.map(e => {
+      const isToday = e.days === 0, col = isToday?'var(--green)':e.days<=7?'var(--amber)':'var(--text3)';
+      const lbl = isToday ? '🎉 Ma!' : e.days===1 ? 'Holnap' : `${e.days} nap múlva`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13.5px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e.nev)}</span>
+        <span style="font-size:11.5px;color:var(--text3);">${e.years} év · ${e.bm}. ${e.bd}.</span>
+        <span style="font-size:11.5px;color:${col};font-weight:600;white-space:nowrap;">${lbl}</span>
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${jubileumok.length} fő a következő 30 napban</div>${rows}`;
+  }
+
+  /* ── 📋 Utóbbi bejegyzések – bővebb lista ── */
+  if (wid === 'utobbiBeir') {
+    const last = [...monthEntries]
+      .sort((a,b) => b.datum.localeCompare(a.datum) || ((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)))
+      .slice(0, 20);
+    if (!last.length) return `<div class="empty-st"><div class="empty-ic">📋</div><div class="empty-title">Nincs bejegyzés</div><div class="empty-sub">Ebben a hónapban még nem lett rögzítve termelési adat.</div></div>`;
+    const rows = last.map(e => {
+      const kg = kgOf(e);
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;font-size:13px;color:var(--text);">${esc(e.nev)}</span>
+          <span style="font-weight:700;font-size:13px;">${(kg/1000).toFixed(2)} t</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span>📅 ${esc(e.datum)}</span>
+          ${e.anyag ? `<span>📦 ${esc(e.anyag)}</span>` : ''}
+          ${e.ido ? `<span>${e.ido === 'Délután' ? '🌙' : '☀️'} ${esc(e.ido)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Legutóbbi ${last.length} bejegyzés (ebben a hónapban)</div>${rows}`;
   }
 
   return '';
