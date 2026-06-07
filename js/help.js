@@ -238,21 +238,14 @@ const SECTIONS = [
         <li>Szűrhető anyag és helyszín szerint</li>
       </ul>
 
-      <p><strong>↔️ Mozgás:</strong> Az anyag mindig a termelésből kerül a készletbe — külső bevételezésre nincs szükség. Három mozgástípus van:</p>
+      <p><strong>↔️ Mozgás:</strong> Az anyag mindig a termelésből kerül a készletbe — külső bevételezésre nincs szükség. Két mozgástípus van:</p>
       <ul>
         <li><strong>⬇️ Termelésből</strong> — az importálatlan, teli zsákos termelési bejegyzések közül választva a kijelölt zsákok betárolódnak egy célhelyszínre</li>
         <li><strong>↔️ Áttárolás</strong> — meglévő készlet átvitele az egyik helyszínről egy másikra</li>
-        <li><strong>⬆️ Kiszállítás</strong> — készlet kivezetése vevőhöz, szállítólevél-számmal és nyomtatható szállítólevéllel</li>
       </ul>
       <p>A kijelölés zsák-csempékkel (chip) történik, melyeken az egyedi súlyok is látszanak.</p>
 
-      <p><strong>⬆️ Kiszállítások:</strong> A korábbi kiszállítások listája szállítólevél-szám szerint csoportosítva, hónap és vevő szerint szűrhető. Innen nyomtatható a szállítólevél PDF-ként, illetve törölhető egy kiszállítás (ami visszakerül a készletbe).</p>
-
-      <p><strong>⚙️ Beállítások</strong> (szerkesztési joggal):</p>
-      <ul>
-        <li><strong>Helyszínek</strong> — raktárak/területek felvétele, szerkesztése és színkóddal való megkülönböztetése</li>
-        <li><strong>Vevők / cégek</strong> — kiszállításhoz felhasználható ügyfelek (név, cím, adószám, kapcsolattartó) felvétele és szerkesztése</li>
-      </ul>
+      <p><strong>⚙️ Beállítások</strong> (szerkesztési joggal): <strong>Helyszínek</strong> — raktárak/területek felvétele, szerkesztése és színkóddal való megkülönböztetése. Az archiválás nem töröl — a mozgások hivatkoznak rá.</p>
     `
   },
 
