@@ -22,7 +22,7 @@ let _inited            = false;
 let _autoRefreshTimer  = null;
 let _lastCtx           = null;
 let _dragQaId          = null;   // drag & drop state
-let _expandedPersonalize = new Set(); // melyik widgetek cím/szín sora van kinyitva
+let _expandedWidgetCfg = new Set(); // melyik widgetek "további beállítások" sora van kinyitva
 
 /* ── Egyéni gyors műveletek (custom QA) ── */
 const _CQA_KEY = 'nj_cqa';
@@ -642,14 +642,18 @@ function _renderConfig() {
             ${wstDef.opts.map(([v,l]) => `<option value="${v}"${curVal===v?' selected':''}>${l}</option>`).join('')}
           </select>
         </div>` : '';
-      const isExpanded = _expandedPersonalize.has(w.id);
-      const hasCustom  = !!(curTitle || curColor);
       const personHtml = isEnabled ? `
-        <div class="cfg-person-row"${isExpanded ? '' : ' style="display:none"'}>
+        <div class="cfg-person-row">
           <input type="text" class="cfg-title-inp" data-wid="${w.id}" value="${esc(curTitle)}" placeholder="Egyéni cím…">
           <div class="cfg-color-dots">
             ${WIDGET_COLORS.map(c => `<button type="button" class="cfg-color-dot${curColor===c.id?' active':''}" data-wid="${w.id}" data-color="${c.id}" style="background:${c.dot||'var(--border2)'}" title="${c.id||'Alapértelmezett'}"></button>`).join('')}
           </div>
+        </div>` : '';
+      const isExpanded = _expandedWidgetCfg.has(w.id);
+      const hasCustom  = !!(curTitle || curColor || (wstDef && curVal !== wstDef.def));
+      const extraHtml  = isEnabled ? `
+        <div class="cfg-extra-wrap"${isExpanded ? '' : ' style="display:none"'}>
+          ${settingsHtml}${personHtml}
         </div>` : '';
       return `<div class="dash-cfg-item">
         <label class="dash-cfg-lbl">
@@ -658,9 +662,9 @@ function _renderConfig() {
           ${isEnabled ? `
             <button class="dash-size-btn" type="button" data-wid="${w.id}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>
             <button class="cfg-pin-btn${isPinned?' active':''}" type="button" data-wid="${w.id}" title="${isPinned?'Rögzített':'Rögzítés'}">📌</button>
-            <button class="cfg-personalize-btn${isExpanded ? ' active' : ''}${hasCustom ? ' has-custom' : ''}" type="button" data-wid="${w.id}" title="Egyéni cím és szín">🎨</button>` : ''}
+            <button class="cfg-personalize-btn${isExpanded ? ' active' : ''}${hasCustom ? ' has-custom' : ''}" type="button" data-wid="${w.id}" title="További beállítások (cím, szín${wstDef ? ', ' + wstDef.label.toLowerCase() : ''})">⚙️</button>` : ''}
         </label>
-        ${settingsHtml}${personHtml}
+        ${extraHtml}
       </div>`;
     }),
     ...customW.map(cw => `
@@ -732,12 +736,12 @@ function _renderConfig() {
       await _loadWidgets();
     });
   });
-  // Cím/szín testreszabás sor ki/be kapcsolása
+  // További beállítások sor (egyéni cím, szín, widget-specifikus opciók) ki/be kapcsolása
   E('dashConfigWidgets').querySelectorAll('.cfg-personalize-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const wid = btn.dataset.wid;
-      if (_expandedPersonalize.has(wid)) _expandedPersonalize.delete(wid);
-      else _expandedPersonalize.add(wid);
+      if (_expandedWidgetCfg.has(wid)) _expandedWidgetCfg.delete(wid);
+      else _expandedWidgetCfg.add(wid);
       _renderConfig();
     });
   });
