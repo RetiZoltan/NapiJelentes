@@ -285,8 +285,8 @@ export function closeMachineDrawer() {
 }
 
 /* ── Karbantartás szükséges gépek (dashboard-hoz) ── */
-export function getMachinesNeedingMaintenance() {
-  return _machines.filter(m => {
+export function getMachinesNeedingMaintenance(machines = _machines) {
+  return machines.filter(m => {
     if (!m.karbantartasIdo || !m.utolsoKarbantartas) return false;
     const next = new Date(m.utolsoKarbantartas + 'T12:00:00');
     next.setDate(next.getDate() + m.karbantartasIdo);

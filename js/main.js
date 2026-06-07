@@ -952,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setAutoRefresh(parseInt(e.target.value, 10));
   });
 
-  // Widget drawer – "Feladatok megnyitása →" / "Dolgozók megnyitása →" gombok
+  // Widget drawer – "Feladatok / Dolgozók / Gépek megnyitása →" gombok
   E('widgetDrawerBody').addEventListener('click', e => {
     if (e.target.closest('.wd-goto-tasks')) {
       closeWidgetDrawer();
@@ -961,6 +961,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.wd-goto-employees')) {
       closeWidgetDrawer();
       switchTab('dolgozok', E('tabBtnDolgozok'));
+    }
+    if (e.target.closest('.wd-goto-machines')) {
+      closeWidgetDrawer();
+      switchTab('gepek', E('tabBtnGepek'));
     }
   });
 

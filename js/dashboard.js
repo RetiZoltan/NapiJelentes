@@ -2,6 +2,7 @@ import { db, doc, updateDoc, collection, getDocs } from './firebase.js';
 import { state, canSeeAllReports, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, tod, monday, addD, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
+import { canViewMachines, getMachinesNeedingMaintenance } from './machines.js';
 
 const ALL_WIDGETS = [
   { id: 'maiOssz',      label: 'Mai össztermelés',         icon: '⚖️', def: true  },
@@ -16,6 +17,7 @@ const ALL_WIDGETS = [
   { id: 'szulNapok',    label: 'Közelgő születésnapok',     icon: '🎂', def: false },
   { id: 'jubileum',     label: 'Belépési jubileumok',        icon: '🎖️', def: false },
   { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
+  { id: 'gepKarbantartas', label: 'Karbantartást igénylő gépek', icon: '🔧', def: false },
 ];
 
 let _inited            = false;
@@ -54,6 +56,7 @@ function _canSeeWidget(id) {
   if (id === 'szulNapok') return _empPerm();
   if (id === 'jubileum')  return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
+  if (id === 'gepKarbantartas') return canViewMachines();
   return true;
 }
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
@@ -134,6 +137,7 @@ const _WD_META = {
   szulNapok:   { icon:'🎂', title:'Közelgő születésnapok' },
   jubileum:    { icon:'🎖️', title:'Belépési jubileumok' },
   utobbiBeir:  { icon:'📋', title:'Utóbbi bejegyzések' },
+  gepKarbantartas: { icon:'🔧', title:'Karbantartást igénylő gépek' },
 };
 
 async function _openWidgetDrawer(wid) {
@@ -601,6 +605,35 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
       </div>`;
     }).join('');
     return `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Legutóbbi ${last.length} bejegyzés (ebben a hónapban)</div>${rows}`;
+  }
+
+  /* ── 🔧 Karbantartást igénylő gépek ── */
+  if (wid === 'gepKarbantartas') {
+    const list = ctx.machinesNeedingMaint || [];
+    if (!list.length) return `<div class="empty-st"><div class="empty-ic">✅</div><div class="empty-title">Nincs esedékes karbantartás</div><div class="empty-sub">A következő 14 napban egyetlen gépnél sincs esedékes karbantartás.</div></div>`;
+    const overdue = list.filter(m => _machineMaintDays(m) <= 0).length;
+    const rows = list.map(m => {
+      const days = _machineMaintDays(m), isOverdue = days <= 0;
+      const c = isOverdue ? 'var(--red)' : days <= 7 ? 'var(--amber)' : 'var(--text3)';
+      const next = new Date(m.utolsoKarbantartas + 'T12:00:00'); next.setDate(next.getDate() + m.karbantartasIdo);
+      const nextStr = next.toISOString().split('T')[0];
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:flex-start;gap:8px;">
+          ${isOverdue?'<span style="color:var(--red);font-size:14px;flex-shrink:0;">⚠️</span>':'<span style="color:var(--amber);font-size:14px;flex-shrink:0;">🔧</span>'}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13.5px;color:var(--text);">${esc(m.nev)}</div>
+            <div style="font-size:11.5px;color:var(--text3);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
+              <span>📅 ${esc(nextStr)}</span>
+              <span style="color:${c};font-weight:600;">${_machineMaintLabel(days)}</span>
+              ${m.tipus ? `<span>${esc(m.tipus)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">${list.length} gép a következő 14 napban${overdue?` · <span style="color:var(--red);font-weight:600;">${overdue} lejárt</span>`:''}</div>
+      ${rows}
+      <div style="margin-top:14px;"><button class="btn btn-ghost btn-sm wd-goto-machines" style="width:100%;">🔧 Gépek megnyitása →</button></div>`;
   }
 
   return '';
@@ -1081,9 +1114,10 @@ async function _loadWidgets() {
     `<div class="sk-card"><div class="sk sk-title"></div><div class="sk sk-h w70"></div><div class="sk sk-h w50" style="margin-top:8px;"></div></div>`
   ).join('');
 
-  const needsEntries = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir','sajatTelj'].includes(id));
-  const needsEmps    = enabled.some(id => ['aktivDolg','szulNapok','jubileum'].includes(id)) && _empPerm();
-  const needsTasks   = enabled.includes('nyitottF');
+  const needsEntries  = enabled.some(id => ['maiOssz','haviOssz','hetiTrend','hetiGrafikon','anyagRangsor','topDolg','utobbiBeir','sajatTelj'].includes(id));
+  const needsEmps     = enabled.some(id => ['aktivDolg','szulNapok','jubileum'].includes(id)) && _empPerm();
+  const needsTasks    = enabled.includes('nyitottF');
+  const needsMachines = enabled.includes('gepKarbantartas') && canViewMachines();
 
   const today      = tod();
   const weekStart  = monday(today);
@@ -1091,14 +1125,19 @@ async function _loadWidgets() {
   const monthStart = today.slice(0, 7) + '-01';
   const fetchFrom  = prevWeekS < monthStart ? prevWeekS : monthStart;
 
-  const [entries, empSnap, tasksSnap] = await Promise.all([
-    needsEntries ? fetchEntries({ datumFrom: fetchFrom, datumTo: today }).catch(() => [])   : Promise.resolve([]),
-    needsEmps    ? getDocs(collection(db, 'employees')).catch(() => null)                   : Promise.resolve(null),
-    needsTasks   ? getDocs(collection(db, 'tasks')).catch(() => null)                       : Promise.resolve(null),
+  const [entries, empSnap, tasksSnap, machinesSnap] = await Promise.all([
+    needsEntries  ? fetchEntries({ datumFrom: fetchFrom, datumTo: today }).catch(() => [])   : Promise.resolve([]),
+    needsEmps     ? getDocs(collection(db, 'employees')).catch(() => null)                   : Promise.resolve(null),
+    needsTasks    ? getDocs(collection(db, 'tasks')).catch(() => null)                       : Promise.resolve(null),
+    needsMachines ? getDocs(collection(db, 'machines')).catch(() => null)                    : Promise.resolve(null),
   ]);
 
   const kgOf  = e => (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
   const sumKg = arr => arr.reduce((s, e) => s + kgOf(e), 0);
+
+  const machinesNeedingMaint = machinesSnap
+    ? getMachinesNeedingMaintenance(machinesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+    : null;
 
   const ctx = {
     today, weekStart, prevWeekS, monthStart,
@@ -1108,7 +1147,7 @@ async function _loadWidgets() {
     monthEntries:    entries.filter(e => e.datum >= monthStart),
     myUid:        state.appUser?.uid,
     sajatDolgozo: state.userData?.dashboardSajatDolgozo || '',
-    empSnap, tasksSnap, sumKg, kgOf,
+    empSnap, tasksSnap, machinesNeedingMaint, sumKg, kgOf,
   };
 
   grid.innerHTML = enabled.map(id => _buildWidget(id, ctx, sizes[id] === 'large')).join('');
@@ -1316,6 +1355,18 @@ function _trendBadge(diff) {
   return `<span style="color:${col};font-size:13px;font-weight:600;">${sign}${diff.toFixed(1)}%</span>`;
 }
 
+/* ── Karbantartásig hátralévő napok ── */
+function _machineMaintDays(m) {
+  const next = new Date(m.utolsoKarbantartas + 'T12:00:00');
+  next.setDate(next.getDate() + m.karbantartasIdo);
+  return Math.round((next - new Date()) / 86400000);
+}
+function _machineMaintLabel(days) {
+  if (days < 0)  return `${Math.abs(days)} napja lejárt`;
+  if (days === 0) return 'Ma esedékes';
+  return `${days} nap múlva`;
+}
+
 function _buildWidget(id, ctx, large = false) {
   // Egyéni widgetbeállítások (cím, szín)
   const wst   = _getWidgetSettings(id);
@@ -1469,6 +1520,24 @@ function _buildWidget(id, ctx, large = false) {
     const expired  = allTasks.filter(d => { const t = d.data(); return t.statusz === 'nyitott' && t.datum && t.datum < today; }).length;
     const col = open === 0 ? 'var(--green)' : expired > 0 ? 'var(--red)' : 'var(--text)';
     return _wcrd('📌', 'Nyitott feladatok', `<span style="color:${col};" data-count="${open}">${open}</span>`, expired > 0 ? `⚠️ ${expired} lejárt határidő` : open === 0 ? '✓ Minden kész' : 'Nincs lejárt feladat', '', large);
+  }
+
+  if (id === 'gepKarbantartas') {
+    const list = ctx.machinesNeedingMaint;
+    if (!list) return _wcrd('🔧', 'Karbantartást igénylő gépek', '—', 'Nincs jogosultság', '', large);
+    if (!list.length) return _wcrd('🔧', 'Karbantartást igénylő gépek', `<span style="color:var(--green);">✓</span>`, 'Nincs esedékes karbantartás (14 napon belül)', '', large);
+    const overdue = list.filter(m => _machineMaintDays(m) <= 0).length;
+    const col = overdue > 0 ? 'var(--red)' : 'var(--amber)';
+    const sub = overdue > 0 ? `⚠️ ${overdue} lejárt határidő` : `${list.length} gép a következő 14 napban`;
+    const rows = list.slice(0, large ? 6 : 3).map(m => {
+      const days = _machineMaintDays(m), overdueRow = days <= 0;
+      const c = overdueRow ? 'var(--red)' : days <= 7 ? 'var(--amber)' : 'var(--text3)';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.nev)}</span>
+        <span style="font-size:11px;color:${c};font-weight:600;white-space:nowrap;">${overdueRow?'⚠️ ':''}${_machineMaintLabel(days)}</span>
+      </div>`;
+    }).join('');
+    return _wcrd('🔧', 'Karbantartást igénylő gépek', `<span style="color:${col};" data-count="${list.length}">${list.length}</span>`, sub, `<div style="margin-top:6px;">${rows}</div>`, large);
   }
 
   if (id === 'aktivDolg') {
