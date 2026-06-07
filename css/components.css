@@ -1015,6 +1015,10 @@ html { overflow-x: clip; }
 .cfg-pin-btn{background:none;border:none;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:var(--rsm);opacity:.4;transition:opacity var(--tr);flex-shrink:0;}
 .cfg-pin-btn.active{opacity:1;}
 .cfg-pin-btn:hover{opacity:.8;}
+.cfg-personalize-btn{background:none;border:none;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:var(--rsm);opacity:.35;transition:opacity var(--tr);flex-shrink:0;}
+.cfg-personalize-btn.has-custom{opacity:.7;}
+.cfg-personalize-btn.active{opacity:1;background:var(--surf3);}
+.cfg-personalize-btn:hover{opacity:1;}
 
 /* ── Anomália jelzés ── */
 .dash-widget-warn{border-color:color-mix(in srgb,var(--red) 40%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--red) 15%,transparent),var(--sh)!important;}

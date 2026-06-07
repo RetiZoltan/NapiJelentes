@@ -22,6 +22,7 @@ let _inited            = false;
 let _autoRefreshTimer  = null;
 let _lastCtx           = null;
 let _dragQaId          = null;   // drag & drop state
+let _expandedPersonalize = new Set(); // melyik widgetek cím/szín sora van kinyitva
 
 /* ── Egyéni gyors műveletek (custom QA) ── */
 const _CQA_KEY = 'nj_cqa';
@@ -641,8 +642,10 @@ function _renderConfig() {
             ${wstDef.opts.map(([v,l]) => `<option value="${v}"${curVal===v?' selected':''}>${l}</option>`).join('')}
           </select>
         </div>` : '';
+      const isExpanded = _expandedPersonalize.has(w.id);
+      const hasCustom  = !!(curTitle || curColor);
       const personHtml = isEnabled ? `
-        <div class="cfg-person-row">
+        <div class="cfg-person-row"${isExpanded ? '' : ' style="display:none"'}>
           <input type="text" class="cfg-title-inp" data-wid="${w.id}" value="${esc(curTitle)}" placeholder="Egyéni cím…">
           <div class="cfg-color-dots">
             ${WIDGET_COLORS.map(c => `<button type="button" class="cfg-color-dot${curColor===c.id?' active':''}" data-wid="${w.id}" data-color="${c.id}" style="background:${c.dot||'var(--border2)'}" title="${c.id||'Alapértelmezett'}"></button>`).join('')}
@@ -654,7 +657,8 @@ function _renderConfig() {
           <span>${w.icon} ${w.label}</span>
           ${isEnabled ? `
             <button class="dash-size-btn" type="button" data-wid="${w.id}">${isLarge ? '▭ Nagy' : '▢ Kis'}</button>
-            <button class="cfg-pin-btn${isPinned?' active':''}" type="button" data-wid="${w.id}" title="${isPinned?'Rögzített':'Rögzítés'}">📌</button>` : ''}
+            <button class="cfg-pin-btn${isPinned?' active':''}" type="button" data-wid="${w.id}" title="${isPinned?'Rögzített':'Rögzítés'}">📌</button>
+            <button class="cfg-personalize-btn${isExpanded ? ' active' : ''}${hasCustom ? ' has-custom' : ''}" type="button" data-wid="${w.id}" title="Egyéni cím és szín">🎨</button>` : ''}
         </label>
         ${settingsHtml}${personHtml}
       </div>`;
@@ -726,6 +730,15 @@ function _renderConfig() {
       _saveWidgetSettings(dot.dataset.wid, { color: dot.dataset.color });
       _renderConfig();
       await _loadWidgets();
+    });
+  });
+  // Cím/szín testreszabás sor ki/be kapcsolása
+  E('dashConfigWidgets').querySelectorAll('.cfg-personalize-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      if (_expandedPersonalize.has(wid)) _expandedPersonalize.delete(wid);
+      else _expandedPersonalize.add(wid);
+      _renderConfig();
     });
   });
   // Pin gomb (config panelben)
