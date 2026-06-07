@@ -221,12 +221,16 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // â”€â”€ config (nevek/anyagok/gĂ©pek listĂˇk) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── config (nevek/anyagok/gépek listák) ──────────────────
+    // Megjegyzés: a notice és premiumConfig dokumentumoknak fent saját,
+    // szigorúbb szabályuk van — mivel Firestore-ban több illeszkedő match
+    // esetén VAGY-kapcsolattal dől el az engedély, itt explicit ki kell
+    // zárni őket, különben az adatbevitel jogú user felülírhatná azokat.
     match /config/{doc} {
       allow read:  if isAuth();
       allow write: if isAuth() && (
         isMainAdmin() ||
-        hasPerm('adatbevitel')
+        (hasPerm('adatbevitel') && doc != 'notice' && doc != 'premiumConfig')
       );
     }
   }
