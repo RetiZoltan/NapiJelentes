@@ -2,6 +2,7 @@ import { db, doc, addDoc, updateDoc, deleteDoc,
          collection, query, getDocs, orderBy, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
+import { reloadDashboard } from './dashboard.js';
 
 export function canViewMachines()   { return isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'); }
 export function canManageMachines() { return isMainAdmin() || hasPerm('gepekKezeles'); }
@@ -103,7 +104,7 @@ export async function saveMachine() {
       await addDoc(collection(db, 'machines'), { ...data, createdBy: state.appUser.uid, createdAt: serverTimestamp() });
       msg('Gép hozzáadva.');
     }
-    closeGepForm(); loadMachines();
+    closeGepForm(); loadMachines(); reloadDashboard();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
 
@@ -239,6 +240,7 @@ function _renderDrawerBody(m, events) {
       msg('Gép törölve.');
       closeMachineDrawer();
       loadMachines();
+      reloadDashboard();
     } catch (e) { msg('Hiba: ' + e.message, 'error'); }
   });
   E('gepDrawerBody').querySelectorAll('.gep-ev-del').forEach(btn => {
@@ -274,6 +276,7 @@ async function _saveEvent(gepId) {
     _currentMachine = updated;
     openMachineDrawer(updated);
     loadMachines();
+    reloadDashboard();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
 }
 
