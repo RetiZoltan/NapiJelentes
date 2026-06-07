@@ -72,11 +72,20 @@ const SECTIONS = [
         <li><strong>Dátum & Műszak</strong> — alapértelmezés: ma + Délelőtt. A dátum a múltba visszamódosítható, ha kimaradt egy rögzítés</li>
         <li><strong>Részleg</strong> — a 📌 gombbal rögzítheted; rögzítés után minden bejegyzésnél automatikusan kitöltődik. Újra 📌-re kattintva feloldható</li>
         <li><strong>Dolgozó neve & Anyagtípus</strong> — a beépített listából választható; Enter a következő mezőre ugrik</li>
-        <li><strong>Darált súlyok</strong> — minden sor: súly kg-ban + Teli / Megkezdett állapot. ＋ gombbal újabb sort adsz hozzá, ✕ gombbal törölsz. A súlyokra kattintva kinyílik az egyedi zsák súlyok listája</li>
-        <li><strong>Teli zsákok</strong> — a csomagolt anyag súlyát külön tartjuk nyilván, mert ez alapozza a készletkezelést</li>
+        <li><strong>Darált súlyok</strong> — minden sor: súly kg-ban + <strong>Teli</strong> / <strong>Megkezdett</strong> állapot. ＋ gombbal újabb sort adsz hozzá, ✕ gombbal törölsz. A súlyokra kattintva kinyílik az egyedi zsák súlyok listája</li>
+        <li><strong>Teli zsákok</strong> — a véglegesen lezárt, csomagolt anyag súlyát tartjuk nyilván külön; ez alapozza meg a Készlet modult, mert csak ezek a zsákok tárolhatók be</li>
         <li><strong>Napi megjegyzés</strong> — gépprobléma, anyaghiány, egyéb info az adott naphoz és részleghez kötve</li>
         <li><strong>Rögzítés gomb</strong> — csak az aktuális dolgozó+anyag bejegyzést menti; több dolgozó esetén minden sorhoz külön kattints</li>
       </ul>
+
+      <p><strong>🟡 Gépen lévő zsákok (megkezdett zsákok nyilvántartása):</strong></p>
+      <ul>
+        <li>Ha egy bejegyzésnél „Megkezdett" állapotú súlyt rögzítesz, a rendszer egy folyamatban lévő zsák-tételt nyit, és az Adatbevitel tetején a <strong>🟡 Gépen lévő zsákok</strong> kártyán jelenik meg — anyag, részleg, jelenlegi súly és az utoljára hozzáadó dolgozó/dátum/műszak feltüntetésével</li>
+        <li>A következő műszakban ugyanahhoz a tételhez hozzáadhatsz további súlyt — a rendszer ekkor a meglévő, megkezdett zsákot folytatja ahelyett, hogy újat nyitna; minden hozzáadás bekerül az <strong>előzmények</strong> listájába (ki, mikor, mennyit adott hozzá)</li>
+        <li><strong>✓ Befejezem</strong> — a zsák végső súlyának megadásával lezárod a tételt: ekkor az véglegesen „Teli" zsákká válik, és bekerül a normál termelési összesítésbe</li>
+        <li><strong>↩ Visszavon</strong> — az utolsó hozzáadás visszavonható; ha ez az egyetlen bejegyzés volt, a teljes tétel törlődik megerősítés után</li>
+      </ul>
+
       <div class="help-tip"><strong>Auto-save vázlat:</strong> ha félbehagyod és elhagyod az oldalt, az adatok automatikusan mentődnek. Visszatéréskor egy sárga sáv kínálja a visszaállítást (Visszaállítás) vagy elvetést (Elvet).</div>
     `
   },
@@ -92,13 +101,32 @@ const SECTIONS = [
       <ul>
         <li>Válassz dátumot, majd kattints a <strong>Mutat</strong> gombra. A <strong>‹ ›</strong> nyilakkal naponként léphetsz, a <strong>Ma</strong> gombbal az aktuális napra ugraszhatsz</li>
         <li>Szűrhetsz dolgozóra, műszakra (Délelőtt/Délután) és részlegre — szűrő változtatásakor a riport azonnal frissül</li>
-        <li>A kék dátumokra kattintva az adott napra ugrik a riport. Az összesítő fejlécen látható a legjobb dolgozó és az aktív dolgozók száma</li>
+        <li>Az összesítő fejlécen látható az aznapi össztermelés, a legjobb teljesítményt nyújtó dolgozó és az aktív dolgozók száma; alatta részlegenkénti és dolgozónkénti bontás, valamint a napi megjegyzések</li>
+        <li>A kék dátumokra/hivatkozásokra kattintva (pl. naptárból vagy más riportból) közvetlenül az adott napra ugrik a riport</li>
+        <li>Megfelelő jogosultsággal a bejegyzések innen is <strong>szerkeszthetők</strong> (✎) vagy <strong>törölhetők</strong> (✕, kijelölhető több is egyszerre törlésre)</li>
       </ul>
 
       <p><strong>📊 Időszakos riport:</strong></p>
       <ul>
-        <li>Három mód: <strong>Havi</strong> (hónap választó), <strong>Éves</strong> (évszám), <strong>Egyéni tartomány</strong> (tól–ig dátum)</li>
-        <li>A <strong>⚙ Szekciók beállítása</strong> gombban be/ki kapcsolhatod a riport egyes részeit (rangsor, átlagok, részletezés stb.)</li>
+        <li>Négy mód érhető el a <strong>Jelentés típusa</strong> legördülőben: <strong>Havi</strong> (hónapválasztó), <strong>Heti</strong> (ISO hét-választó), <strong>Éves</strong> (évszám), <strong>Egyéni tartomány</strong> (tól–ig dátum)</li>
+        <li>Ugyanazok a szűrők elérhetők, mint a napi nézetnél (Részleg / Dolgozó / Anyagtípus / Műszak); az aktív szűrők chipekként jelennek meg a riport fejlécében</li>
+        <li>A <strong>⚙ Szekciók beállítása</strong> gombbal testreszabható, mely blokkok jelenjenek meg a riportban — a beállítás eszközönként mentődik (localStorage):
+          <ul>
+            <li><em>Fő összesítések</em>: Teljes termelés · Dolgozói rangsor (táblázat) · Anyagtípusok összesítése</li>
+            <li><em>Grafikonok &amp; vizuális</em>: 🏆 Időszak rekordjai (legjobb nap/dolgozó/anyag) · 🗓 Naptár nézet (hőtérkép) · Napi termelés vonaldiagram · Dolgozói sávdiagram</li>
+            <li><em>Átlagok és statisztikák</em>: Napi átlagteljesítmény · Dolgozónkénti napi átlag · Havi átlagteljesítmény (csak Éves riportnál) · Műszakok összehasonlítása</li>
+            <li><em>Részletező táblázatok</em>: Dolgozónkénti részletezés · Anyagonkénti részletezés · Napi bontás</li>
+          </ul>
+        </li>
+        <li>A <strong>🏭 Részleg összesítés</strong> blokk mindig megjelenik (legalább két aktív részleg esetén), és a riport elején automatikusan kiírja a legjobb teljesítményeket is</li>
+      </ul>
+
+      <p><strong>📊 Időszak-összehasonlítás:</strong></p>
+      <ul>
+        <li>A szűrők melletti <strong>„Összevetés az előző időszakkal"</strong> jelölőnégyzet bekapcsolásával a riport tetején egy összehasonlító kártya jelenik meg</li>
+        <li>A rendszer automatikusan az aktuálissal azonos hosszúságú, közvetlenül megelőző időszakot veszi alapul: Havinál az előző hónapot, Hetinél az előző hetet, Évesnél az előző évet, Egyéni tartománynál pedig az ugyanannyi napos, közvetlenül megelőző intervallumot</li>
+        <li>Mutatja az <strong>összesített termelés</strong> és a <strong>napi átlag</strong> változását (▲ zöld = növekedés, ▼ piros = csökkenés, %-ban kifejezve), valamint a <strong>részlegenkénti</strong> és <strong>anyagtípusonkénti</strong> bontás eltéréseit, jelenlegi/előző érték szerint rendezve</li>
+        <li>A beállított szűrők (Részleg/Dolgozó/Anyagtípus/Műszak) mindkét időszak adataira egyformán érvényesülnek, így valódi „alma az almával" összevetést kapsz</li>
       </ul>
 
       <p><strong>Export lehetőségek:</strong></p>
@@ -108,6 +136,7 @@ const SECTIONS = [
         <li><strong>⬇ Excel</strong> — XLSX fájl; a Dolgozónkénti és Anyagonkénti részletezés esetén minden dolgozó/anyag külön munkalapon</li>
         <li><strong>🖨 Nyomtat</strong> — böngészős nyomtatási párbeszéd, fejléccel és lábléccel</li>
       </ul>
+      <div class="help-tip">Az exportgombok csak akkor aktívak, ha már megjelenítettél egy riportot — üres találati listánál (pl. „Nincs adat erre a hónapra") inaktívak maradnak.</div>
     `
   },
 
@@ -240,12 +269,43 @@ const SECTIONS = [
 
       <p><strong>↔️ Mozgás:</strong> Az anyag mindig a termelésből kerül a készletbe — külső bevételezésre nincs szükség. Két mozgástípus van:</p>
       <ul>
-        <li><strong>⬇️ Termelésből</strong> — az importálatlan, teli zsákos termelési bejegyzések közül választva a kijelölt zsákok betárolódnak egy célhelyszínre</li>
-        <li><strong>↔️ Áttárolás</strong> — meglévő készlet átvitele az egyik helyszínről egy másikra</li>
+        <li><strong>⬇️ Termelésből</strong> — a még be nem tárolt, teli zsákos termelési bejegyzések közül választva a kijelölt zsákok betárolódnak egy célhelyszínre</li>
+        <li><strong>↔️ Áttárolás</strong> — meglévő készlet átvitele az egyik helyszínről egy másikra (pl. raktárközi mozgatás)</li>
       </ul>
-      <p>A kijelölés zsák-csempékkel (chip) történik, melyeken az egyedi súlyok is látszanak.</p>
+      <p>A kijelölés zsák-csempékkel (chip) történik, melyeken az egyedi súlyok is látszanak; a fenti szűrőkkel (anyag, helyszín) könnyen rá lehet keresni a kívánt tételekre. Kijelölés után a felbukkanó <strong>⚡ panelen</strong> add meg a célhelyszínt (betárolásnál), a dátumot és az opcionális megjegyzést, majd <strong>✓ Rögzít</strong> menti a mozgást — a <strong>Kijelölés törlése</strong> gombbal a kiválasztás visszavonható, a <strong>🗑 Töröl</strong> gombbal pedig egy korábban rögzített mozgás vonható vissza (jogosultságtól függően).</p>
 
       <p><strong>⚙️ Beállítások</strong> (szerkesztési joggal): <strong>Helyszínek</strong> — raktárak/területek felvétele, szerkesztése és színkóddal való megkülönböztetése. Az archiválás nem töröl — a mozgások hivatkoznak rá.</p>
+    `
+  },
+
+  /* ── Gépek ──────────────────────────────────────────── */
+  {
+    id: 'gepek', icon: '🔧', title: 'Gépek',
+    perm: () => isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'),
+    content: () => `
+      <p>A <strong>Gépek</strong> lapon a darálók, présgépek és egyéb berendezések törzsadatai és üzemeltetési naplója vezethető.</p>
+      <ul>
+        <li>A gépkártyákon az <strong>állapot</strong> színes jelvénnyel látszik: ✅ Üzemel · 🚨 Leállva · 🔧 Karbantartás alatt. Ha a karbantartás 7 napon belül esedékes (vagy már lejárt), figyelmeztető sáv jelenik meg közvetlenül a kártyán</li>
+        <li>Kártyára kattintva nyílik a <strong>részletező drawer</strong>, amely a következő blokkokból áll:
+          <ul>
+            <li><strong>Alapadatok</strong> — gyártó, gyártási év, karbantartási ciklus (napban), utolsó karbantartás dátuma, megjegyzés</li>
+            <li><strong>Következő karbantartás</strong> — a ciklusból automatikusan kiszámolt esedékesség dátuma, a hátralévő napok száma és egy színváltó (zöld → sárga → piros) előrehaladás-sáv, ami vizuálisan mutatja, mennyire közeledik a határidő</li>
+            <li><strong>Esemény napló</strong> — időrendben az utolsó 10 bejegyzés: 🔧 Karbantartás · 🚨 Leállás · 🔨 Javítás · ✅ Üzembe helyezés, mindegyik dátummal, opcionális időtartammal (óra) és megjegyzéssel</li>
+          </ul>
+        </li>
+      </ul>
+
+      ${isMainAdmin() || hasPerm('gepekKezeles') ? `
+      <p><strong>Szerkesztési jogosultsággal</strong>:</p>
+      <ul>
+        <li><strong>＋ Új gép</strong> — felvétel: név (kötelező), típus, gyártó, gyártási év, karbantartási ciklus napban, utolsó karbantartás dátuma, kezdeti állapot, megjegyzés</li>
+        <li><strong>Esemény rögzítése</strong> — a drawer alján típus, dátum, opcionális időtartam és megjegyzés megadásával új eseményt vehetsz fel; ezek alkotják a gép üzemeltetési előzményét</li>
+        <li><strong>✎ Szerkeszt</strong> / <strong>🗑 Töröl</strong> — a gép adatai módosíthatók, a törlés (megerősítés után) véglegesen eltávolítja a berendezést és előzményeit</li>
+        <li>Az esemény napló egyes elemei is törölhetők egyenként a ✕ gombbal</li>
+      </ul>
+      ` : ''}
+
+      <div class="help-tip">A karbantartási ciklus és az utolsó karbantartás dátuma alapján a rendszer automatikusan kiszámolja a következő esedékességet — ezt érdemes mindig naprakészen tartani, hogy a figyelmeztetések pontosak legyenek.</div>
     `
   },
 
