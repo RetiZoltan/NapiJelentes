@@ -218,7 +218,7 @@
 
       <div class="card">
         <div class="card-title"><span class="card-title-icon">📅</span>Időszak</div>
-        <div class="g2">
+        <div class="g3">
           <div class="field"><label class="lbl">Dátum</label><input type="date" id="datum"></div>
           <div class="field">
             <label class="lbl">Műszak</label>
@@ -230,13 +230,14 @@
               <button class="btn btn-ghost btn-sq" id="pinMuszakBtn" title="Műszak rögzítése">📌</button>
             </div>
           </div>
-        </div>
-        <div class="irow" style="margin-top:10px;">
-          <div class="field" style="flex:1;"><label class="lbl">Részleg</label>
-            <input list="reszlegDL" id="reszleg" autocomplete="off" placeholder="Válassz vagy írj be…">
-            <datalist id="reszlegDL"></datalist>
+          <div class="field">
+            <label class="lbl">Részleg</label>
+            <div style="display:flex;gap:7px;">
+              <input list="reszlegDL" id="reszleg" autocomplete="off" placeholder="Válassz vagy írj be…" style="flex:1;">
+              <datalist id="reszlegDL"></datalist>
+              <button class="btn btn-ghost btn-sq" id="pinReszlegBtn" title="Részleg rögzítése">📌</button>
+            </div>
           </div>
-          <button class="btn btn-ghost btn-sq" id="pinReszlegBtn" title="Részleg rögzítése">📌</button>
         </div>
       </div>
       <div class="card">

@@ -150,10 +150,11 @@ function buildAppUI() {
     E('pinReszlegBtn').style.background = 'var(--accent)';
     E('pinReszlegBtn').style.color      = '#fff';
     E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
+    E('reszleg').classList.add('pinned');
   }
   _prevReszleg = E('reszleg').value.trim();
 
-  // Restore pinned műszak from localStorage
+  // Restore pinned műszak from localStorage, egyébként auto-detektál
   const savedMuszak = localStorage.getItem('pinnedMuszak');
   if (savedMuszak !== null) {
     state.isMuszakPinned = true;
@@ -161,6 +162,10 @@ function buildAppUI() {
     E('pinMuszakBtn').style.background = 'var(--accent)';
     E('pinMuszakBtn').style.color      = '#fff';
     E('pinMuszakBtn').title = 'Műszak rögzítve — kattints a feloldáshoz';
+    E('ido').classList.add('pinned');
+  } else {
+    const h = new Date().getHours();
+    E('ido').value = (h >= 14 && h < 22) ? 'Délután' : 'Délelőtt';
   }
   _prevIdo     = E('ido').value;
 
@@ -517,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.background = state.isNamePinned ? 'var(--accent)' : '';
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
+    E('nev').classList.toggle('pinned', state.isNamePinned);
   });
   E('nev').addEventListener('change',     async () => autoAddToList(E('nev').value,     state.nevek));
   E('anyag').addEventListener('change',   async () => autoAddToList(E('anyag').value,   state.anyagok));
@@ -529,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.title = state.isReszlegPinned ? 'Részleg rögzítve — kattints a feloldáshoz' : 'Részleg rögzítése';
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
     else localStorage.removeItem('pinnedReszleg');
+    E('reszleg').classList.toggle('pinned', state.isReszlegPinned);
   });
   E('reszleg').addEventListener('focus', () => { _prevReszleg = E('reszleg').value.trim(); });
   E('reszleg').addEventListener('change', async () => {
@@ -549,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.title = state.isMuszakPinned ? 'Műszak rögzítve — kattints a feloldáshoz' : 'Műszak rögzítése';
     if (state.isMuszakPinned) localStorage.setItem('pinnedMuszak', E('ido').value);
     else localStorage.removeItem('pinnedMuszak');
+    E('ido').classList.toggle('pinned', state.isMuszakPinned);
   });
   E('ido').addEventListener('focus', () => { _prevIdo = E('ido').value; });
   E('ido').addEventListener('change', async () => {
