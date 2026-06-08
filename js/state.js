@@ -8,6 +8,7 @@ export const state = {
   prevDatum:        null,
   isNamePinned:     false,
   isReszlegPinned:  false,
+  isMuszakPinned:   false,
   editingEntryId:   null,
 };
 

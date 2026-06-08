@@ -152,6 +152,16 @@ function buildAppUI() {
     E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
   }
   _prevReszleg = E('reszleg').value.trim();
+
+  // Restore pinned műszak from localStorage
+  const savedMuszak = localStorage.getItem('pinnedMuszak');
+  if (savedMuszak !== null) {
+    state.isMuszakPinned = true;
+    E('ido').value = savedMuszak;
+    E('pinMuszakBtn').style.background = 'var(--accent)';
+    E('pinMuszakBtn').style.color      = '#fff';
+    E('pinMuszakBtn').title = 'Műszak rögzítve — kattints a feloldáshoz';
+  }
   _prevIdo     = E('ido').value;
 
   const now = new Date();
@@ -531,9 +541,19 @@ document.addEventListener('DOMContentLoaded', () => {
     _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
   });
+  E('pinMuszakBtn').addEventListener('click', () => {
+    state.isMuszakPinned = !state.isMuszakPinned;
+    const btn = E('pinMuszakBtn');
+    btn.style.background = state.isMuszakPinned ? 'var(--accent)' : '';
+    btn.style.color      = state.isMuszakPinned ? '#fff' : '';
+    btn.title = state.isMuszakPinned ? 'Műszak rögzítve — kattints a feloldáshoz' : 'Műszak rögzítése';
+    if (state.isMuszakPinned) localStorage.setItem('pinnedMuszak', E('ido').value);
+    else localStorage.removeItem('pinnedMuszak');
+  });
   E('ido').addEventListener('focus', () => { _prevIdo = E('ido').value; });
   E('ido').addEventListener('change', async () => {
     const newIdo     = E('ido').value;
+    if (state.isMuszakPinned) localStorage.setItem('pinnedMuszak', newIdo);
     const curReszleg = E('reszleg').value.trim();
     if (_prevIdo !== newIdo) {
       await saveNapiFor(E('datum').value, curReszleg, _prevIdo);
