@@ -8,7 +8,7 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, autoAddToList, delFromList, editItem,
+         autoAddToList, delFromList, editItem,
          getWorkerMaterials, updIdoszakosFilters } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
@@ -518,9 +518,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
   });
-  E('nev').addEventListener('change',   async () => autoAddToList(E('nev').value,   state.nevek));
-  E('anyag').addEventListener('change', async () => autoAddToList(E('anyag').value, state.anyagok));
-  E('addReszlegBtn').addEventListener('click', async () => addToList(E('reszleg'), state.reszlegek));
+  E('nev').addEventListener('change',     async () => autoAddToList(E('nev').value,     state.nevek));
+  E('anyag').addEventListener('change',   async () => autoAddToList(E('anyag').value,   state.anyagok));
+  E('reszleg').addEventListener('change', async () => autoAddToList(E('reszleg').value, state.reszlegek));
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
     const btn = E('pinReszlegBtn');
