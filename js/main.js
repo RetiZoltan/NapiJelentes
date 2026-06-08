@@ -48,6 +48,21 @@ import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmplo
 let _prevReszleg = '';
 let _prevIdo = '';
 let _prevTab = 'dashboard';
+
+function setShiftBtn(val) {
+  E('idoDelelott')?.classList.toggle('active', val === 'Délelőtt');
+  E('idoDelutan')?.classList.toggle('active',  val === 'Délután');
+}
+function updateIdoszakBadge() {
+  const badge = E('idoszakBadge'); if (!badge) return;
+  const datum   = E('datum')?.value;
+  const ido     = E('ido')?.value;
+  const reszleg = E('reszleg')?.value.trim();
+  if (!datum) { badge.textContent = ''; return; }
+  const [, m, d] = datum.split('-').map(Number);
+  const mo = ['jan.','feb.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'][m-1];
+  badge.textContent = [m + '. ' + mo + ' ' + d + '.', ido, reszleg].filter(Boolean).join(' · ');
+}
 const TAB_ORDER = ['dashboard','adatbevitel','jelentesek','naptar','elemzes','feladatok','dolgozok','premium','admin'];
 
 /* ── Bootstrap / user setup ── */
@@ -162,12 +177,14 @@ function buildAppUI() {
     E('pinMuszakBtn').style.background = 'var(--accent)';
     E('pinMuszakBtn').style.color      = '#fff';
     E('pinMuszakBtn').title = 'Műszak rögzítve — kattints a feloldáshoz';
-    E('ido').classList.add('pinned');
+    E('shiftToggle').classList.add('pinned');
   } else {
     const h = new Date().getHours();
     E('ido').value = (h >= 14 && h < 22) ? 'Délután' : 'Délelőtt';
   }
-  _prevIdo     = E('ido').value;
+  _prevIdo = E('ido').value;
+  setShiftBtn(E('ido').value);
+  updateIdoszakBadge();
 
   const now = new Date();
   const yr  = now.getFullYear();
@@ -547,6 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
+    updateIdoszakBadge();
   });
   E('pinMuszakBtn').addEventListener('click', () => {
     state.isMuszakPinned = !state.isMuszakPinned;
@@ -556,9 +574,20 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.title = state.isMuszakPinned ? 'Műszak rögzítve — kattints a feloldáshoz' : 'Műszak rögzítése';
     if (state.isMuszakPinned) localStorage.setItem('pinnedMuszak', E('ido').value);
     else localStorage.removeItem('pinnedMuszak');
-    E('ido').classList.toggle('pinned', state.isMuszakPinned);
+    E('shiftToggle').classList.toggle('pinned', state.isMuszakPinned);
   });
-  E('ido').addEventListener('focus', () => { _prevIdo = E('ido').value; });
+  E('idoDelelott').addEventListener('click', () => {
+    _prevIdo = E('ido').value;
+    E('ido').value = 'Délelőtt';
+    setShiftBtn('Délelőtt');
+    E('ido').dispatchEvent(new Event('change'));
+  });
+  E('idoDelutan').addEventListener('click', () => {
+    _prevIdo = E('ido').value;
+    E('ido').value = 'Délután';
+    setShiftBtn('Délután');
+    E('ido').dispatchEvent(new Event('change'));
+  });
   E('ido').addEventListener('change', async () => {
     const newIdo     = E('ido').value;
     if (state.isMuszakPinned) localStorage.setItem('pinnedMuszak', newIdo);
@@ -568,6 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadNapiFor(E('datum').value, curReszleg, newIdo);
     }
     _prevIdo = newIdo;
+    updateIdoszakBadge();
   });
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
@@ -596,6 +626,21 @@ document.addEventListener('DOMContentLoaded', () => {
     await saveNapiFor(state.prevDatum, curReszleg, curIdo);
     await loadNapiFor(e.target.value, curReszleg, curIdo);
     state.prevDatum = e.target.value;
+    updateIdoszakBadge();
+  });
+  E('datumPrevBtn').addEventListener('click', () => {
+    if (!E('datum').value) return;
+    const [y,m,d] = E('datum').value.split('-').map(Number);
+    const dt = new Date(y, m-1, d-1);
+    E('datum').value = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    E('datum').dispatchEvent(new Event('change'));
+  });
+  E('datumNextBtn').addEventListener('click', () => {
+    if (!E('datum').value) return;
+    const [y,m,d] = E('datum').value.split('-').map(Number);
+    const dt = new Date(y, m-1, d+1);
+    E('datum').value = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    E('datum').dispatchEvent(new Event('change'));
   });
 
   E('sulyC').addEventListener('click', e => {
