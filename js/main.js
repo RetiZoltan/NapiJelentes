@@ -628,20 +628,6 @@ document.addEventListener('DOMContentLoaded', () => {
     state.prevDatum = e.target.value;
     updateIdoszakBadge();
   });
-  E('datumPrevBtn').addEventListener('click', () => {
-    if (!E('datum').value) return;
-    const [y,m,d] = E('datum').value.split('-').map(Number);
-    const dt = new Date(y, m-1, d-1);
-    E('datum').value = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-    E('datum').dispatchEvent(new Event('change'));
-  });
-  E('datumNextBtn').addEventListener('click', () => {
-    if (!E('datum').value) return;
-    const [y,m,d] = E('datum').value.split('-').map(Number);
-    const dt = new Date(y, m-1, d+1);
-    E('datum').value = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-    E('datum').dispatchEvent(new Event('change'));
-  });
 
   E('sulyC').addEventListener('click', e => {
     if (e.target.classList.contains('aSuly')) addSuly();
