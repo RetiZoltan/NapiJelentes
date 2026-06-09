@@ -1429,7 +1429,7 @@ function _buildWidget(id, ctx, large = false) {
     const diff   = prevKg > 0 ? (thisKg - prevKg) / prevKg * 100 : null;
     const vcls   = (diff !== null && thisKg > 0) ? (diff > 3 ? 'val-good' : diff < -3 ? 'val-warn' : 'val-ok') : 'val-ok';
     const val    = thisKg > 0
-      ? `<span class="${vcls}">${(thisKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
+      ? `<span class="${vcls}" data-count="${(thisKg/1000).toFixed(2)}">${(thisKg/1000).toFixed(2)}</span> t ${_trendBadge(diff)}`
       : `<span style="color:var(--text3);font-size:20px;">—</span>`;
     return _wcrd('📈', 'Heti trend', val, prevKg > 0 ? `Előző hét: ${(prevKg/1000).toFixed(2)} t` : 'Hét összesítő', '', large);
   }

@@ -698,10 +698,10 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 /* ══════════════════════════════════════
    TAB-VÁLTÁS ANIMÁCIÓ
 ══════════════════════════════════════ */
-@keyframes tabSlideIn     { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
-@keyframes tabSlideInBack { from { opacity:0; transform:translateX(-18px); } to { opacity:1; transform:none; } }
-.tab-panel.active           { animation: tabSlideIn     .22s ease both; }
-.tab-panel.active.anim-back { animation: tabSlideInBack .22s ease both; }
+@keyframes tabFadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.tab-panel.active, .tab-panel.active.anim-back,
+.stab-panel.active, .pstab-panel.active, .jstab-panel.active,
+.dtab-panel.active, .kstab-panel.active { animation: tabFadeIn .18s ease both; }
 
 /* ══════════════════════════════════════
    DASHBOARD / ÁTTEKINTÉS
