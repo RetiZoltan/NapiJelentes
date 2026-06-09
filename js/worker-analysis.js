@@ -87,6 +87,7 @@ async function populateWorkers() {
   if (E('osszDolg1')) E('osszDolg1').innerHTML = opts;
   if (E('osszDolg2')) { E('osszDolg2').innerHTML = opts; if (workers.length>1) E('osszDolg2').value = workers[1]; }
   if (workers.length) filterMaterials(entries, workers[0]);
+  filterOsszAnyag();
 }
 
 function filterMaterials(entries, nev) {
@@ -99,7 +100,23 @@ async function populateAnyagSel() {
   const mats = [...new Set(entries.filter(a=>(a.anyag||'').trim()).map(a=>(a.anyag||'').trim()))].sort((a,b)=>a.localeCompare(b,'hu'));
   const opts = mats.length ? mats.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('') : '<option value="">Nincs adat</option>';
   E('anyagRangsorSel').innerHTML = opts;
-  if (E('osszAnyag')) E('osszAnyag').innerHTML = opts;
+}
+
+async function filterOsszAnyag() {
+  if (!E('osszAnyag')) return;
+  const nev1 = E('osszDolg1')?.value;
+  const nev2 = E('osszDolg2')?.value;
+  if (!nev1 || !nev2 || nev1 === nev2) {
+    E('osszAnyag').innerHTML = '<option value="">— Válassz két különböző dolgozót —</option>';
+    return;
+  }
+  const entries = await getEntries();
+  const mats1 = new Set(entries.filter(a => a.nev===nev1 && (a.anyag||'').trim()).map(a => (a.anyag||'').trim()));
+  const mats2 = new Set(entries.filter(a => a.nev===nev2 && (a.anyag||'').trim()).map(a => (a.anyag||'').trim()));
+  const common = [...mats1].filter(m => mats2.has(m)).sort((a,b) => a.localeCompare(b,'hu'));
+  E('osszAnyag').innerHTML = common.length
+    ? common.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+    : '<option value="">Nincs közös anyag</option>';
 }
 
 /* ══════════════════════════════════════
@@ -437,6 +454,8 @@ export async function initElemzes() {
   E('eBtnMuszak').addEventListener('click',    async () => { switchETab('Muszak'); await muszakElemzes(); });
 
   E('egyeniDolgozo').addEventListener('change', async () => { const e=await getEntries(); filterMaterials(e,E('egyeniDolgozo').value); });
+  E('osszDolg1').addEventListener('change', filterOsszAnyag);
+  E('osszDolg2').addEventListener('change', filterOsszAnyag);
   E('egyeniBtn').addEventListener('click',       egyeniElemzes);
   E('anyagRangsorBtn').addEventListener('click', anyagRangsor);
   E('osszBtn').addEventListener('click',         osszehasonlitas);
