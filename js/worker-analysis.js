@@ -29,7 +29,7 @@ function _invalidateCache() { cachedEntries = null; _cacheKey = ''; }
 
 /* ── Tab váltás ── */
 function switchETab(name) {
-  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Matrix','Muszak'].forEach(t => {
+  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Matrix','Muszak','Reszleg'].forEach(t => {
     const panel = E('eTab' + t), btn = E('eBtn' + t);
     if (panel) panel.style.display = t === name ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t === name);
@@ -76,6 +76,29 @@ function _svgLineChart(perDay) {
     <path d="M ${linePts}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
     ${dots}${xLabels}
   </svg>`;
+}
+
+function _svgDualLineChart(perDay1, perDay2, name1, name2) {
+  const d1=[...perDay1].sort((a,b)=>a.datum.localeCompare(b.datum));
+  const d2=[...perDay2].sort((a,b)=>a.datum.localeCompare(b.datum));
+  const allDates=[...new Set([...d1.map(d=>d.datum),...d2.map(d=>d.datum)])].sort();
+  if (allDates.length<2) return '';
+  const map1=Object.fromEntries(d1.map(d=>[d.datum,d.kg]));
+  const map2=Object.fromEntries(d2.map(d=>[d.datum,d.kg]));
+  const maxV=Math.max(...allDates.map(d=>Math.max(map1[d]||0,map2[d]||0)),1);
+  const W=600,H=150,PL=44,PR=12,PT=14,PB=22;
+  const cW=W-PL-PR,cH=H-PT-PB,n=allDates.length;
+  const xP=i=>PL+(i/Math.max(n-1,1))*cW;
+  const yP=v=>PT+cH-(v/maxV)*cH;
+  const grid=[0,.25,.5,.75,1].map(p=>{const y=PT+cH-p*cH;return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/><text x="${PL-4}" y="${y+3.5}" font-size="9" text-anchor="end" fill="var(--text3)">${((p*maxV)/1000).toFixed(1)}t</text>`;}).join('');
+  const makeLine=(map,col)=>{let p='',s=false;allDates.forEach((d,i)=>{if(map[d]!==undefined){p+=`${s?'L':'M'} ${xP(i)} ${yP(map[d])} `;s=true;}else s=false;});return p?`<path d="${p}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round"/>`:'';};
+  const makeDots=(map,col)=>n<=90?allDates.map((d,i)=>map[d]!==undefined?`<circle cx="${xP(i)}" cy="${yP(map[d])}" r="2.5" fill="${col}" opacity=".85"/>`:'').join(''):'';
+  const step=Math.max(1,Math.floor(n/6));
+  const xLabels=allDates.filter((_,i)=>i%step===0||i===n-1).map(d=>{const i=allDates.indexOf(d);return `<text x="${xP(i)}" y="${H-4}" font-size="9" text-anchor="middle" fill="var(--text3)">${d.slice(5)}</text>`;}).join('');
+  const lx=W-PR-2,ly=PT+2;
+  const n1=name1.length>14?name1.slice(0,14)+'…':name1, n2=name2.length>14?name2.slice(0,14)+'…':name2;
+  const legend=`<rect x="${lx-90}" y="${ly}" width="8" height="8" rx="1" fill="var(--accent)"/><text x="${lx-78}" y="${ly+7}" font-size="9" fill="var(--text2)">${esc(n1)}</text><rect x="${lx-90}" y="${ly+13}" width="8" height="8" rx="1" fill="var(--green)"/><text x="${lx-78}" y="${ly+20}" font-size="9" fill="var(--text2)">${esc(n2)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;margin:10px 0 4px;overflow:visible;">${grid}${makeLine(map1,'var(--accent)')}${makeLine(map2,'var(--green)')}${makeDots(map1,'var(--accent)')}${makeDots(map2,'var(--green)')}${xLabels}${legend}</svg>`;
 }
 
 /* ── Dolgozók és anyagok feltöltése ── */
@@ -258,7 +281,12 @@ async function rekordok() {
   let html=`<div class="r-head">Személyes rekordok</div>`;
   html+=`<div class="card"><div class="card-title"><span class="card-title-icon">🏆</span>Legjobb napi teljesítmény</div>
     <table class="stbl"><thead><tr><th>#</th><th>Dolgozó</th><th>Rekord</th><th>Anyag</th><th>Dátum</th></tr></thead><tbody>`;
-  sorted.forEach((w,i)=>{ const fa=Object.entries(w.anyagok).sort((a,b)=>b[1]-a[1])[0]; html+=`<tr><td style="color:var(--text3);">${i+1}.</td><td style="font-weight:600;">${esc(w.nev)}</td><td class="v-bold">${fmtKg(w.kg)}</td><td>${fa?esc(fa[0]):'—'}</td><td style="color:var(--text3);font-size:12.5px;">${esc(fmtS(w.datum))}</td></tr>`; });
+  const medals=['🥇','🥈','🥉'];
+  const medalBg=['rgba(255,215,0,.09)','rgba(192,192,192,.09)','rgba(205,127,50,.09)'];
+  sorted.forEach((w,i)=>{ const fa=Object.entries(w.anyagok).sort((a,b)=>b[1]-a[1])[0];
+    const rank=i<3?`<span style="font-size:16px;">${medals[i]}</span>`:`<span style="color:var(--text3);">${i+1}.</span>`;
+    const row=i<3?`style="background:${medalBg[i]}"`:'';
+    html+=`<tr ${row}><td>${rank}</td><td style="font-weight:600;">${esc(w.nev)}</td><td class="v-bold">${fmtKg(w.kg)}</td><td>${fa?esc(fa[0]):'—'}</td><td style="color:var(--text3);font-size:12.5px;">${esc(fmtS(w.datum))}</td></tr>`; });
   html+=`</tbody></table></div>`;
   E('rekordokDiv').innerHTML=html;
 }
@@ -276,8 +304,9 @@ async function osszehasonlitas() {
     const wa=entries.filter(a=>a.nev===nev&&(a.anyag||'').trim()===anyag); if(!wa.length)return null;
     const byDay={}; wa.forEach(a=>{const kg=(a.sulyok||[]).reduce((s,x)=>s+x.suly,0); byDay[a.datum]=(byDay[a.datum]||0)+kg;});
     const per=Object.values(byDay).filter(v=>v>0); if(!per.length)return null;
+    const perDay=Object.entries(byDay).filter(([,v])=>v>0).sort(([a],[b])=>a.localeCompare(b)).map(([datum,kg])=>({datum,kg}));
     const total=per.reduce((s,v)=>s+v,0), avg=total/per.length;
-    return {napok:per.length,total,avg,best:Math.max(...per),worst:Math.min(...per),szoras:per.length>1?Math.sqrt(per.reduce((s,v)=>s+Math.pow(v-avg,2),0)/per.length):0};
+    return {napok:per.length,total,avg,best:Math.max(...per),worst:Math.min(...per),szoras:per.length>1?Math.sqrt(per.reduce((s,v)=>s+Math.pow(v-avg,2),0)/per.length):0,perDay};
   }
   const s1=getStats(nev1), s2=getStats(nev2);
   if (!s1&&!s2){E('osszDiv').innerHTML=`<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;return;}
@@ -306,6 +335,8 @@ async function osszehasonlitas() {
       <div style="text-align:center;font-size:13px;color:var(--text2);border-top:1px solid var(--border);padding-top:8px;">
         <strong>${esc(nev1)}</strong> <span style="color:${dc};font-weight:700;">${dp>=0?'+':''}${dp.toFixed(1)}%</span> ${dp>=0?'több':'kevesebb'} mint <strong>${esc(nev2)}</strong>-é</div>
     </div>`;
+    const dualChart=_svgDualLineChart(s1.perDay,s2.perDay,nev1,nev2);
+    if (dualChart) html+=`<div class="card" style="margin-top:12px;"><div class="card-title"><span class="card-title-icon">📈</span>Napi teljesítmény — ${esc(anyag)}</div>${dualChart}<div style="font-size:11px;color:var(--text3);margin-top:2px;">Narancs: ${esc(nev1)} · Zöld: ${esc(nev2)}</div></div>`;
   }
   E('osszDiv').innerHTML=html;
 }
@@ -348,14 +379,19 @@ async function materialWorkerMatrix() {
       const c=matrix[w]?.[m];
       if (!c){h+=`<td style="text-align:center;color:var(--border2);">—</td>`;return;}
       const avg=c.total/c.days, ratio=globalMax>0?avg/globalMax:0;
-      const hue=Math.round(212-ratio*182), sat=Math.round(58+ratio*22), lig=Math.round(74-ratio*30);
-      const bg=`hsl(${hue},${sat}%,${lig}%)`, textCol=lig<56?'#fff':'inherit';
+      const pct=Math.round(ratio*72+6);
+      const bg=`color-mix(in srgb, var(--accent) ${pct}%, var(--surf2))`;
+      const textCol=pct>46?'#fff':'var(--text)';
       h+=`<td style="text-align:center;background:${bg};color:${textCol};font-size:12px;font-weight:600;" title="${esc(w)} – ${esc(m)}: ${avg.toFixed(0)} kg/nap (${c.days} nap)">${(avg/1000).toFixed(2)}t</td>`;
     });
     h+=`</tr>`;
   });
   h+=`</tbody></table></div>
-  <div style="font-size:11px;color:var(--text3);margin-top:8px;">Cellák: átlagos napi termelés. Szín: kék=alacsony → narancs=magas. Hover = részletek.</div>`;
+  <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);margin-top:8px;">
+    <span>Alacsony</span>
+    <div style="width:100px;height:8px;border-radius:3px;background:linear-gradient(to right,color-mix(in srgb,var(--accent) 6%,var(--surf2)),color-mix(in srgb,var(--accent) 78%,var(--surf2)));"></div>
+    <span>Magas · Cellák: átlagos napi termelés · Hover = részletek</span>
+  </div>`;
   E('matrixDiv').innerHTML=h;
 }
 
@@ -420,6 +456,56 @@ async function muszakElemzes() {
 }
 
 /* ══════════════════════════════════════
+   7. fül: Részleg összesítő
+══════════════════════════════════════ */
+async function reszlegElemzes() {
+  E('reszlegElemzesDiv').innerHTML='<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries=await getEntries();
+  if (!entries.length){E('reszlegElemzesDiv').innerHTML=`<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;return;}
+  const byRD={};
+  entries.forEach(a=>{
+    const r=(a.reszleg||'').trim(); if(!r)return;
+    const kg=(a.sulyok||[]).reduce((s,x)=>s+x.suly,0); if(kg<=0)return;
+    const key=`${r}||${a.datum}`; byRD[key]=(byRD[key]||0)+kg;
+  });
+  const rStats={};
+  Object.entries(byRD).forEach(([key,kg])=>{
+    const [r,datum]=key.split('||');
+    if(!rStats[r])rStats[r]={total:0,days:new Set(),best:0};
+    rStats[r].total+=kg; rStats[r].days.add(datum); rStats[r].best=Math.max(rStats[r].best,kg);
+  });
+  const sorted=Object.entries(rStats).map(([nev,s])=>({nev,total:s.total,napok:s.days.size,avg:s.total/s.days.size,best:s.best})).sort((a,b)=>b.total-a.total);
+  if (!sorted.length){E('reszlegElemzesDiv').innerHTML=`<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;return;}
+  const maxTotal=sorted[0].total;
+  const medals=['🥇','🥈','🥉'];
+  let h=`<div class="r-head">Részleg összesítő</div><div class="card"><div class="card-title"><span class="card-title-icon">🏭</span>Részlegek teljesítménye</div>`;
+  sorted.forEach((r,i)=>{
+    const bar=Math.round(r.total/maxTotal*100);
+    h+=`<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-weight:600;font-size:13px;">${i<3?medals[i]+' ':''}${esc(r.nev)}</span>
+        <span style="font-size:12px;color:var(--text3);">${fmtKg(r.total)}</span>
+      </div>
+      <div style="height:20px;background:var(--surf2);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${bar}%;background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+          ${bar>22?`<span style="font-size:11px;color:#fff;font-weight:700;">${fmtKg(r.avg)}/nap</span>`:''}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px;">${r.napok} aktív nap · átlag ${fmtKg(r.avg)}/nap · legjobb nap ${fmtKg(r.best)}</div>
+    </div>`;
+  });
+  h+=`</div><div class="card" style="margin-top:12px;"><div class="card-title"><span class="card-title-icon">📋</span>Részletes táblázat</div>
+    <table class="stbl"><thead><tr><th>#</th><th>Részleg</th><th>Össztermelés</th><th>Aktív napok</th><th>Napi átlag</th><th>Legjobb nap</th></tr></thead><tbody>`;
+  sorted.forEach((r,i)=>{
+    const rank=i<3?`<span style="font-size:15px;">${medals[i]}</span>`:`<span style="color:var(--text3);">${i+1}.</span>`;
+    const rowBg=i<3?`style="background:${['rgba(255,215,0,.09)','rgba(192,192,192,.09)','rgba(205,127,50,.09)'][i]}"`:'';
+    h+=`<tr ${rowBg}><td>${rank}</td><td style="font-weight:600;">${esc(r.nev)}</td><td class="v-bold">${fmtKg(r.total)}</td><td>${r.napok}</td><td>${fmtKg(r.avg)}</td><td>${fmtKg(r.best)}</td></tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  E('reszlegElemzesDiv').innerHTML=h;
+}
+
+/* ══════════════════════════════════════
    INICIALIZÁLÁS
 ══════════════════════════════════════ */
 export async function initElemzes() {
@@ -452,6 +538,7 @@ export async function initElemzes() {
   E('eBtnOsszehasonlit').addEventListener('click',  () => switchETab('Osszehasonlit'));
   E('eBtnMatrix').addEventListener('click',    async () => { switchETab('Matrix'); await materialWorkerMatrix(); });
   E('eBtnMuszak').addEventListener('click',    async () => { switchETab('Muszak'); await muszakElemzes(); });
+  E('eBtnReszleg').addEventListener('click',   async () => { switchETab('Reszleg'); await reszlegElemzes(); });
 
   E('egyeniDolgozo').addEventListener('change', async () => { const e=await getEntries(); filterMaterials(e,E('egyeniDolgozo').value); });
   E('osszDolg1').addEventListener('change', filterOsszAnyag);
