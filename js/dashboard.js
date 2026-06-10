@@ -1,4 +1,4 @@
-import { db, doc, updateDoc, collection, getDocs } from './firebase.js';
+import { db, doc, getDoc, updateDoc, collection, getDocs } from './firebase.js';
 import { state, canSeeAllReports, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, tod, monday, addD, fmtKg } from './utils.js';
 import { fetchEntries } from './db.js';
@@ -18,6 +18,7 @@ const ALL_WIDGETS = [
   { id: 'jubileum',     label: 'Belépési jubileumok',        icon: '🎖️', def: false },
   { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
   { id: 'gepKarbantartas', label: 'Karbantartást igénylő gépek', icon: '🔧', def: false },
+  { id: 'muszakAtadas', label: 'Műszak-átadás',                 icon: '🔄', def: false },
 ];
 
 let _inited            = false;
@@ -57,6 +58,7 @@ function _canSeeWidget(id) {
   if (id === 'jubileum')  return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
   if (id === 'gepKarbantartas') return canViewMachines();
+  if (id === 'muszakAtadas') return isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes') || hasPerm('feladatokKezeles');
   return true;
 }
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
@@ -138,6 +140,7 @@ const _WD_META = {
   jubileum:    { icon:'🎖️', title:'Belépési jubileumok' },
   utobbiBeir:  { icon:'📋', title:'Utóbbi bejegyzések' },
   gepKarbantartas: { icon:'🔧', title:'Karbantartást igénylő gépek' },
+  muszakAtadas: { icon:'🔄', title:'Műszak-átadás – mit kell tudni a leváltó műszaknak' },
 };
 
 async function _openWidgetDrawer(wid) {
@@ -187,6 +190,57 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
 
   const section = (title, content) =>
     `<div class="emp-drawer-section"><div class="emp-drawer-section-title">${title}</div>${content}</div>`;
+
+  /* ── 🔄 Műszak-átadás ── */
+  if (wid === 'muszakAtadas') {
+    const wip   = ctx.wipBags || [];
+    const notes = _parseHandoverNotes(ctx.dailyNoteToday);
+    const openT = (tasksSnap
+      ? tasksSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => (t.statusz || 'nyitott') !== 'kesz')
+      : []
+    ).sort((a, b) => (a.datum || '9999').localeCompare(b.datum || '9999'));
+
+    const wipHtml = wip.length
+      ? wip.map(b => `<div class="emp-drawer-row">
+          <span class="emp-drawer-row-icon">🟡</span>
+          <span style="flex:1;"><strong>${esc(b.anyag || '—')}</strong> · ${esc(b.reszleg || '—')}</span>
+          <span style="font-weight:700;">${(b.jelenlegiSuly || 0).toFixed(0)} kg</span>
+        </div>`).join('')
+      : `<div style="color:var(--text3);font-size:13px;">Nincs gépen maradt zsák.</div>`;
+
+    const notesHtml = notes.length
+      ? notes.map(n => `<div class="emp-drawer-row" style="align-items:flex-start;">
+          <span class="emp-drawer-row-icon">📝</span>
+          <div style="flex:1;">
+            <div style="font-size:11.5px;color:var(--text3);font-weight:600;">${esc([n.reszleg || 'Általános', n.ido].filter(Boolean).join(' · '))}</div>
+            <div style="white-space:pre-wrap;">${esc(n.txt)}</div>
+          </div>
+        </div>`).join('')
+      : `<div style="color:var(--text3);font-size:13px;">Nincs mai megjegyzés.</div>`;
+
+    const tasksHtml = openT.length
+      ? openT.map(t => {
+          const od   = t.datum && t.datum < today;
+          const soon = !od && t.datum && t.datum <= addD(today, 2);
+          const dcol = od ? 'var(--red)' : soon ? 'var(--amber)' : 'var(--text3)';
+          return `<div class="emp-drawer-row" style="align-items:flex-start;">
+            <span class="emp-drawer-row-icon">${t.prioritas === 'fontos' ? '🔴' : '📌'}</span>
+            <div style="flex:1;">
+              <div style="font-weight:600;">${esc(t.cim || '')}</div>
+              <div style="font-size:11.5px;color:var(--text3);">${t.reszleg ? `📍 ${esc(t.reszleg)} · ` : ''}${t.datum ? `<span style="color:${dcol};font-weight:600;">📅 ${esc(t.datum)}${od ? ' ⚠️ lejárt' : ''}</span>` : 'nincs határidő'}</div>
+            </div>
+          </div>`;
+        }).join('')
+      : `<div style="color:var(--text3);font-size:13px;">Nincs nyitott feladat.</div>`;
+
+    const cur = _curShift(), next = cur === 'Délután' ? 'Délelőtt' : 'Délután';
+    return `<div style="font-size:12.5px;color:var(--text3);margin-bottom:14px;padding:9px 12px;background:var(--surf2);border-radius:8px;">
+        Záró műszak: <strong style="color:var(--text2);">${cur}</strong> → Leváltó: <strong style="color:var(--text2);">${next}</strong> · ${today}
+      </div>` +
+      section(`🟡 Gépen maradt zsákok (${wip.length})`, wipHtml) +
+      section(`📝 Mai megjegyzések (${notes.length})`, notesHtml) +
+      section(`📌 Nyitott feladatok (${openT.length})`, tasksHtml);
+  }
 
   /* ── ⚖️ Mai össztermelés ── */
   if (wid === 'maiOssz') {
@@ -1118,6 +1172,7 @@ async function _loadWidgets() {
   const needsEmps     = enabled.some(id => ['aktivDolg','szulNapok','jubileum'].includes(id)) && _empPerm();
   const needsTasks    = enabled.includes('nyitottF');
   const needsMachines = enabled.includes('gepKarbantartas') && canViewMachines();
+  const needsHandover = enabled.includes('muszakAtadas');
 
   const today      = tod();
   const weekStart  = monday(today);
@@ -1125,11 +1180,13 @@ async function _loadWidgets() {
   const monthStart = today.slice(0, 7) + '-01';
   const fetchFrom  = prevWeekS < monthStart ? prevWeekS : monthStart;
 
-  const [entries, empSnap, tasksSnap, machinesSnap] = await Promise.all([
+  const [entries, empSnap, tasksSnap, machinesSnap, wipSnap, dailyNoteSnap] = await Promise.all([
     needsEntries  ? fetchEntries({ datumFrom: fetchFrom, datumTo: today }).catch(() => [])   : Promise.resolve([]),
     needsEmps     ? getDocs(collection(db, 'employees')).catch(() => null)                   : Promise.resolve(null),
-    needsTasks    ? getDocs(collection(db, 'tasks')).catch(() => null)                       : Promise.resolve(null),
+    (needsTasks || needsHandover) ? getDocs(collection(db, 'tasks')).catch(() => null)        : Promise.resolve(null),
     needsMachines ? getDocs(collection(db, 'machines')).catch(() => null)                    : Promise.resolve(null),
+    needsHandover ? getDocs(collection(db, 'megkezdettZsakok')).catch(() => null)            : Promise.resolve(null),
+    needsHandover ? getDoc(doc(db, 'dailyNotes', today)).catch(() => null)                   : Promise.resolve(null),
   ]);
 
   const kgOf  = e => (e.sulyok || []).reduce((s, x) => s + x.suly, 0);
@@ -1148,6 +1205,8 @@ async function _loadWidgets() {
     myUid:        state.appUser?.uid,
     sajatDolgozo: state.userData?.dashboardSajatDolgozo || '',
     empSnap, tasksSnap, machinesNeedingMaint, sumKg, kgOf,
+    wipBags:        wipSnap ? wipSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [],
+    dailyNoteToday: dailyNoteSnap?.exists?.() ? dailyNoteSnap.data() : null,
   };
 
   grid.innerHTML = enabled.map(id => _buildWidget(id, ctx, sizes[id] === 'large')).join('');
@@ -1299,6 +1358,23 @@ function _animateCounters(grid) {
 /* ── Widget sorrend (nyíl gombok) ── */
 
 /* ── Widget builder ── */
+/* ── Műszak-átadás segédek ── */
+function _parseHandoverNotes(data) {
+  if (!data || !data.reszlegek) return [];
+  return Object.entries(data.reszlegek)
+    .filter(([, txt]) => txt && String(txt).trim())
+    .map(([key, txt]) => {
+      const [reszleg, ido] = String(key).split('|');
+      return { reszleg: reszleg || '', ido: ido || '', txt };
+    });
+}
+function _curShift() { const h = new Date().getHours(); return (h >= 14 && h < 22) ? 'Délután' : 'Délelőtt'; }
+function _hChip(icon, n, label, badge = 0) {
+  const c = n > 0 ? 'var(--text2)' : 'var(--text3)';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:${c};background:var(--surf2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;">
+    ${icon} <strong style="color:var(--text);">${n}</strong> ${label}${badge > 0 ? ` <span style="color:var(--red);font-weight:700;">· ${badge} lejárt</span>` : ''}</span>`;
+}
+
 function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null, wColor = '') {
   const anomCls   = anomaly ? ` dash-widget-${anomaly}` : '';
   const colorStyle = wColor ? `border-left:3px solid ${wColor};` : '';
@@ -1382,6 +1458,25 @@ function _buildWidget(id, ctx, large = false) {
       '', '', large, null, wCol);
   }
   const { today, weekStart, prevWeekS, monthStart, todayEntries, thisWeekEntries, prevWeekEntries, monthEntries, empSnap, tasksSnap, sumKg, kgOf } = ctx;
+
+  if (id === 'muszakAtadas') {
+    const wip   = ctx.wipBags || [];
+    const notes = _parseHandoverNotes(ctx.dailyNoteToday);
+    const openT = tasksSnap
+      ? tasksSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => (t.statusz || 'nyitott') !== 'kesz')
+      : [];
+    const overdue = openT.filter(t => t.datum && t.datum < today).length;
+    const total   = wip.length + notes.length + openT.length;
+    const val = total > 0
+      ? `<span data-count="${total}">${total}</span> <span style="font-size:15px;color:var(--text3);">átadandó tétel</span>`
+      : `<span style="color:var(--green);font-size:20px;">✓ Nincs átadandó</span>`;
+    const chips = `<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;">
+      ${_hChip('🟡', wip.length, 'gépen maradt')}
+      ${_hChip('📝', notes.length, 'megjegyzés')}
+      ${_hChip('📌', openT.length, 'feladat', overdue)}
+    </div>`;
+    return _wcrd('🔄', 'Műszak-átadás', val, `Jelenlegi műszak: <strong>${_curShift()}</strong>`, chips, large, null);
+  }
 
   if (id === 'maiOssz') {
     const kg = sumKg(todayEntries);
