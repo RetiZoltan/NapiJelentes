@@ -1,5 +1,5 @@
 import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
-         collection, query, limit, getDocs, orderBy, arrayUnion, serverTimestamp,
+         collection, query, getDocs, orderBy, arrayUnion, serverTimestamp,
          onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
@@ -77,14 +77,9 @@ async function ensureUserDoc(fbUser) {
       isMainAdmin: false,
       createdAt:   serverTimestamp()
     });
-    if (location.hash.includes('setup')) {
-      const q = query(collection(db, 'users'), limit(2));
-      const s = await getDocs(q);
-      if (s.size === 1) {
-        await updateDoc(ref, { isMainAdmin: true });
-        history.replaceState(null, '', location.pathname);
-      }
-    }
+    // Megjegyzés: az első főadmint a Firebase konzolban kell beállítani
+    // (isMainAdmin: true a users dokumentumon). A szabályok szándékosan
+    // tiltják, hogy bárki magának adjon főadmin jogot.
   }
   return (await getDoc(ref)).data();
 }
@@ -386,7 +381,7 @@ function _updateFeladatReszlegF() {
   const prev = sel.value;
   sel.innerHTML = '<option value="">— Mind —</option>' +
     (state.reszlegek || []).sort((a,b) => a.localeCompare(b,'hu'))
-      .map(r => `<option value="${r}">${r}</option>`).join('');
+      .map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
   if (prev) sel.value = prev;
 }
 
@@ -1105,3 +1100,8 @@ onAuthStateChanged(auth, async user => {
     showScreen('login');
   }
 });
+
+/* ── Service worker regisztráció (CSP miatt modulból, nem inline) ── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js').catch(() => {});
+}

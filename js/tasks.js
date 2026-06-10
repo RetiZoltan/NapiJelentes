@@ -113,7 +113,7 @@ function _renderList(list, statuszF) {
           <span style="color:${STATUS_COLOR[t.statusz] || 'var(--text3)'};font-weight:600;font-size:11px;">${STATUS_LABEL[t.statusz] || t.statusz}</span>
         </div>
       </div>
-      <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;" onclick="event.stopPropagation()">
+      <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;">
         ${canMove && nextSt ? `<button class="btn btn-primary btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}" data-cim="${esc(t.cim||'')}" title="→ ${STATUS_LABEL[nextSt]}">→</button>` : ''}
         ${kesz && isMainAdmin() ? `<button class="btn btn-ghost btn-xs task-reopen-btn" data-id="${t.id}" title="Újranyit">↩</button>` : ''}
         ${canDel ? `<button class="btn btn-danger btn-xs task-del-btn" data-id="${t.id}" data-cim="${esc(t.cim||'')}">✕</button>` : ''}
@@ -144,7 +144,7 @@ function _renderKanban(list) {
         ${t.datum   ? `<span style="${lejart ? 'color:var(--red);font-weight:600;' : ''}">📅 ${esc(t.datum)}${lejart ? ' ⚠️' : ''}</span>` : ''}
         ${assignee  ? `<span>👤 ${esc(assignee)}</span>` : ''}
       </div>
-      ${canMove && nextSt ? `<div style="text-align:right;margin-top:7px;" onclick="event.stopPropagation()">
+      ${canMove && nextSt ? `<div style="text-align:right;margin-top:7px;">
         <button class="btn btn-ghost btn-xs task-move-btn" data-id="${t.id}" data-next="${nextSt}" data-cim="${esc(t.cim||'')}">→ ${STATUS_LABEL[nextSt]}</button>
       </div>` : ''}
     </div>`;

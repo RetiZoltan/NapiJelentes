@@ -472,7 +472,7 @@ export async function exportEmpPdf(emp) {
       <div style="width:54px;height:54px;border-radius:50%;background:${avatarColor(emp.nev)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;flex-shrink:0;">${initials(emp.nev)}</div>
       <div style="flex:1;">
         <div style="font-size:20px;font-weight:700;">${esc(emp.nev)}</div>
-        <div style="font-size:13px;color:${LM.t2};">${[emp.reszleg, emp.pozicio].filter(Boolean).join(' · ') || '—'}</div>
+        <div style="font-size:13px;color:${LM.t2};">${esc([emp.reszleg, emp.pozicio].filter(Boolean).join(' · ')) || '—'}</div>
       </div>
       <div style="background:${st.c};color:#fff;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">${st.l}</div>
     </div>

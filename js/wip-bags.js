@@ -1,6 +1,6 @@
 import { db, doc, getDoc, setDoc, deleteDoc, updateDoc, collection, getDocs, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
-import { E, msg } from './utils.js';
+import { E, esc, msg } from './utils.js';
 import { addSuly, addZsak } from './data-entry.js';
 
 function _wipId(reszleg, anyag) {
@@ -108,15 +108,15 @@ export async function renderWipSection() {
     const hist      = b.tortenelem || [];
     const lastEntry = hist.length ? hist[hist.length - 1] : null;
     const histHtml  = hist.map(h =>
-      `<span class="wip-hist-item">📅 ${h.datum} ${h.muszak} — <b>${h.nev}</b>: +${h.hozzaadott} kg</span>`
+      `<span class="wip-hist-item">📅 ${esc(h.datum)} ${esc(h.muszak)} — <b>${esc(h.nev)}</b>: +${h.hozzaadott} kg</span>`
     ).join('');
     return `
       <div class="wip-item">
         <div class="wip-header">
           <div class="wip-meta">
-            <span class="wip-anyag">${b.anyag}</span>
-            <span class="wip-reszleg">${b.reszleg}</span>
-            ${lastEntry ? `<span class="wip-last">Utolsó: ${lastEntry.nev}, ${lastEntry.datum} ${lastEntry.muszak}</span>` : ''}
+            <span class="wip-anyag">${esc(b.anyag)}</span>
+            <span class="wip-reszleg">${esc(b.reszleg)}</span>
+            ${lastEntry ? `<span class="wip-last">Utolsó: ${esc(lastEntry.nev)}, ${esc(lastEntry.datum)} ${esc(lastEntry.muszak)}</span>` : ''}
           </div>
           <span class="wip-suly">${b.jelenlegiSuly} kg</span>
         </div>

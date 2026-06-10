@@ -61,10 +61,16 @@ service cloud.firestore {
         hasPerm('mindenJelentes') ||
         (hasPerm('sajatJelentes') && resource.data.createdBy == request.auth.uid)
       );
-      allow create: if isAuth() && hasPerm('adatbevitel');
+      // Létrehozáskor a createdBy csak a saját uid lehet (főadmin importnál bármi)
+      allow create: if isAuth() && hasPerm('adatbevitel') && (
+        isMainAdmin() ||
+        request.resource.data.createdBy == request.auth.uid
+      );
+      // Frissítéskor a createdBy nem írható át (kivéve főadmin)
       allow update: if isAuth() && (
         isMainAdmin() ||
-        resource.data.createdBy == request.auth.uid
+        (resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdBy == resource.data.createdBy)
       );
       allow delete: if isAuth() && (
         isMainAdmin() ||
@@ -217,7 +223,8 @@ service cloud.firestore {
     // â”€â”€ auditLog (audit naplĂł) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /auditLog/{logId} {
       allow read:   if isAuth() && isMainAdmin();
-      allow create: if isAuth();
+      // Csak a saját nevében naplózhat — idegen userId nem hamisítható
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
 

@@ -296,7 +296,7 @@ export async function loadAuditLogAdmin() {
     const userSel = E('auditUserF');
     if (userSel) {
       const users = [...new Map(_auditCache.map(e => [e.userId, e.userName])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'hu'));
-      userSel.innerHTML = '<option value="">— Mindenki —</option>' + users.map(([uid,name]) => `<option value="${uid}">${name}</option>`).join('');
+      userSel.innerHTML = '<option value="">— Mindenki —</option>' + users.map(([uid,name]) => `<option value="${esc(uid)}">${esc(name)}</option>`).join('');
     }
     _renderFilteredAudit();
   } catch (e) { div.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Betöltési hiba</div></div>`; }

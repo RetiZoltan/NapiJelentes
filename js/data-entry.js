@@ -183,6 +183,10 @@ export async function rogzit() {
   }
 
   if (entry) {
+    if (state.editingEntryId && !navigator.onLine) {
+      msg('Szerkesztés offline nem lehetséges — csatlakozz az internethez.', 'error', 5000);
+      return;
+    }
     if (!state.editingEntryId && !navigator.onLine) {
       const queue = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
       queue.push({ ...entry, createdAt: null, _ts: Date.now() });
