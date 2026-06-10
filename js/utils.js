@@ -64,6 +64,24 @@ export function initLayout() {
   applyLayout(l);
 }
 
+/* ── Kioszk mód (eszközhöz kötött, csak az adatbevitel fület nagyítja) ── */
+export function applyKiosk(on) {
+  if (on) document.documentElement.setAttribute('data-kiosk', 'on');
+  else    document.documentElement.removeAttribute('data-kiosk');
+  localStorage.setItem('napiJelentesKiosk', on ? '1' : '0');
+  const btn = document.getElementById('kioszkToggle');
+  if (btn) {
+    btn.classList.toggle('active', on);
+    btn.textContent = on ? '🖐️ Kioszk mód: BE' : '🖐️ Kioszk mód: KI';
+  }
+}
+export function toggleKiosk() {
+  applyKiosk(document.documentElement.getAttribute('data-kiosk') !== 'on');
+}
+export function initKiosk() {
+  applyKiosk(localStorage.getItem('napiJelentesKiosk') === '1');
+}
+
 export function applyColorTheme(name) {
   const c = name || 'plexiq';
   if (c === 'blueprint') {

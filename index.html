@@ -126,6 +126,10 @@
       <button class="layout-opt" data-layout="classic" id="layoutOptClassic">⬛ Klasszikus</button>
       <button class="layout-opt" data-layout="sidebar" id="layoutOptSidebar">◧ Sidebar</button>
     </div>
+    <div class="color-picker-lbl" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">Adatbevitel nézet</div>
+    <div style="margin-top:8px;">
+      <button class="layout-opt" id="kioszkToggle" style="width:100%;" title="Nagy gombos nézet érintőképernyőhöz (eszközhöz kötve)">🖐️ Kioszk mód: KI</button>
+    </div>
   </div>
 
   <div id="offlineBanner" class="offline-banner" style="display:none;">
@@ -200,6 +204,10 @@
 
     <!-- ══ ADATBEVITEL ══ -->
     <div id="tab-adatbevitel" class="tab-panel">
+      <div class="kioszk-banner">
+        <span>🖐️ Kioszk mód aktív — nagy nézet</span>
+        <button class="btn btn-ghost btn-sm" id="kioszkExitBtn">Normál nézet</button>
+      </div>
       <div id="draftBanner" class="draft-banner" style="display:none;">
         <span class="draft-banner-icon">📝</span>
         <span class="draft-banner-txt">Félbehagyott vázlat található</span>

@@ -612,6 +612,51 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 .layout-opt.active{background:var(--agl);border-color:var(--accent);color:var(--accent);font-weight:600;}
 
 /* ══════════════════════════════════════
+   KIOSZK MÓD — nagy gombos adatbevitel tabletre/érintőképernyőre
+   [data-kiosk="on"] → CSAK az Adatbevitel fül nagyítva, eszközhöz kötve
+══════════════════════════════════════ */
+.kioszk-banner{display:none;}
+[data-kiosk="on"] .kioszk-banner{
+  display:flex;align-items:center;gap:12px;
+  background:var(--agl);border:1.5px solid var(--accent);
+  color:var(--accent2);font-weight:700;font-size:15px;
+  padding:11px 16px;border-radius:var(--rlg);margin-bottom:14px;
+}
+[data-kiosk="on"] .kioszk-banner button{margin-left:auto;}
+
+[data-kiosk="on"] #tab-adatbevitel input[type="text"],
+[data-kiosk="on"] #tab-adatbevitel input[type="number"],
+[data-kiosk="on"] #tab-adatbevitel input[type="date"],
+[data-kiosk="on"] #tab-adatbevitel input[list],
+[data-kiosk="on"] #tab-adatbevitel select,
+[data-kiosk="on"] #tab-adatbevitel textarea{
+  height:56px;font-size:18px;padding:10px 14px;
+  border-width:1.5px;border-color:var(--border3);
+}
+[data-kiosk="on"] #tab-adatbevitel textarea{height:auto;min-height:96px;font-size:17px;}
+[data-kiosk="on"] #tab-adatbevitel select{background-position:right 14px center;padding-right:38px;}
+[data-kiosk="on"] #tab-adatbevitel .lbl{font-size:13px;color:var(--text2);margin-bottom:7px;}
+
+/* Egy oszlop → maximális, hüvelykujj-barát célterület */
+[data-kiosk="on"] #tab-adatbevitel .g2,
+[data-kiosk="on"] #tab-adatbevitel .g3{grid-template-columns:1fr;gap:14px;}
+
+[data-kiosk="on"] #tab-adatbevitel .shift-btn{height:56px;font-size:17px;}
+[data-kiosk="on"] #tab-adatbevitel .btn-sq{width:56px;height:56px;font-size:24px;}
+
+[data-kiosk="on"] #tab-adatbevitel .wrow{padding:10px 14px;gap:12px;}
+[data-kiosk="on"] #tab-adatbevitel .wrow input[type="number"]{font-size:21px;min-width:70px;}
+[data-kiosk="on"] #tab-adatbevitel .wrow select{font-size:15px;padding:8px 26px 8px 10px;min-height:44px;}
+[data-kiosk="on"] #tab-adatbevitel .wb{font-size:28px;padding:6px 12px;min-width:46px;}
+
+[data-kiosk="on"] #tab-adatbevitel .card{padding:22px 24px;}
+[data-kiosk="on"] #tab-adatbevitel .card-title{font-size:16px;}
+
+[data-kiosk="on"] #tab-adatbevitel .btn-row{gap:12px;margin-top:18px;}
+[data-kiosk="on"] #tab-adatbevitel #rogzitBtn{min-height:66px;font-size:21px;}
+[data-kiosk="on"] #tab-adatbevitel #torlesBtn{min-height:66px;font-size:17px;}
+
+/* ══════════════════════════════════════
    SKELETON LOADING
 ══════════════════════════════════════ */
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}

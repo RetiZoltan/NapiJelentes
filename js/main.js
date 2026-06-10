@@ -6,7 +6,7 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
 import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
 import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
-         applyLayout, initLayout } from './utils.js';
+         applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
          autoAddToList, delFromList, editItem,
          getWorkerMaterials, updIdoszakosFilters } from './db.js';
@@ -440,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initColorTheme();
   initLayout();
+  initKiosk();
 
   // Auth screen
   E('googleBtn').addEventListener('click', doGoogleLogin);
@@ -466,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     E('colorPickerPanel').classList.toggle('open');
   });
   E('colorPickerPanel').addEventListener('click', async e => {
+    if (e.target.closest('#kioszkToggle')) { toggleKiosk(); return; }
     const swatchWrap = e.target.closest('.color-swatch-wrap');
     const layoutBtn  = e.target.closest('.layout-opt');
     if (swatchWrap) {
@@ -596,6 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('rogzitBtn').addEventListener('click',   rogzit);
   E('torlesBtn').addEventListener('click',   () => clearF(true));
+  E('kioszkExitBtn')?.addEventListener('click', toggleKiosk);
 
   // Draft banner gombok
   E('draftRestoreBtn').addEventListener('click', () => {
