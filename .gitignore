@@ -1,0 +1,6 @@
+# Firebase lokális deploy-cache — minden deploynál változik
+.firebase/
+
+# Claude Code lokális session-fájlok
+.claude/settings.local.json
+*.jsonl
