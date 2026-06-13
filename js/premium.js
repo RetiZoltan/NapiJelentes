@@ -42,16 +42,23 @@ function renderAdminConfig() {
 
   let html = `<div class="pc-table">
     <div class="pc-row pc-head">
-      <div>Anyag</div><div>Napi alap (kg)</div><div>Arány (%)</div><div>Ár (Ft/kg)</div>
+      <div>Anyag</div><div>Mód</div><div>Napi alap (kg)</div><div>Arány (%)</div><div>Ár (Ft/kg)</div>
     </div>`;
 
   allMats.forEach(mat => {
-    const cfg = premiumConfig[mat] || {};
-    const sid = matSafeId(mat);
+    const cfg  = premiumConfig[mat] || {};
+    const sid  = matSafeId(mat);
+    const auto = cfg.mode === 'auto';
     html += `<div class="pc-row">
       <div class="pc-mat">${esc(mat)}</div>
-      <div><input type="number" class="pc-input" id="pcAlap_${sid}"  value="${cfg.napiAlap ?? ''}" placeholder="—" min="0" step="1"></div>
-      <div><input type="number" class="pc-input" id="pcArany_${sid}" value="${cfg.arany   ?? ''}" placeholder="—" min="0" max="100" step="0.1"></div>
+      <div>
+        <select class="pc-input pc-mode" id="pcMode_${sid}" data-sid="${sid}">
+          <option value="manual" ${auto ? '' : 'selected'}>Kézi</option>
+          <option value="auto" ${auto ? 'selected' : ''}>Félautomata</option>
+        </select>
+      </div>
+      <div><input type="number" class="pc-input" id="pcAlap_${sid}"  value="${cfg.napiAlap ?? ''}" placeholder="—" min="0" step="1" ${auto ? 'disabled' : ''}></div>
+      <div><input type="number" class="pc-input" id="pcArany_${sid}" value="${cfg.arany   ?? ''}" placeholder="—" min="0" max="100" step="0.1" ${auto ? 'disabled' : ''}></div>
       <div><input type="number" class="pc-input" id="pcAr_${sid}"    value="${cfg.arPerKg ?? ''}" placeholder="—" min="0" step="1"></div>
     </div>`;
   });
@@ -59,6 +66,17 @@ function renderAdminConfig() {
   html += '</div>';
   div.innerHTML = html;
   btn.style.display = '';
+
+  div.querySelectorAll('.pc-mode').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const sid    = sel.dataset.sid;
+      const isAuto = sel.value === 'auto';
+      const aEl  = document.getElementById(`pcAlap_${sid}`);
+      const arEl = document.getElementById(`pcArany_${sid}`);
+      if (aEl)  aEl.disabled  = isAuto;
+      if (arEl) arEl.disabled = isAuto;
+    });
+  });
 }
 
 export async function savePremiumAdminConfig() {
@@ -66,16 +84,25 @@ export async function savePremiumAdminConfig() {
   const newCfg  = {};
 
   allMats.forEach(mat => {
-    const sid  = matSafeId(mat);
-    const aEl  = document.getElementById(`pcAlap_${sid}`);
-    const arEl = document.getElementById(`pcArany_${sid}`);
-    const pEl  = document.getElementById(`pcAr_${sid}`);
+    const sid     = matSafeId(mat);
+    const modeEl  = document.getElementById(`pcMode_${sid}`);
+    const aEl     = document.getElementById(`pcAlap_${sid}`);
+    const arEl    = document.getElementById(`pcArany_${sid}`);
+    const pEl     = document.getElementById(`pcAr_${sid}`);
     if (!aEl) return;
+    const arPerKg = parseFloat(pEl.value);
+
+    if (modeEl?.value === 'auto') {
+      if (!isNaN(arPerKg) && arPerKg > 0) {
+        newCfg[mat] = { mode: 'auto', arPerKg };
+      }
+      return;
+    }
+
     const napiAlap = parseFloat(aEl.value);
     const arany    = parseFloat(arEl.value);
-    const arPerKg  = parseFloat(pEl.value);
     if (!isNaN(napiAlap) && napiAlap > 0 && !isNaN(arany) && !isNaN(arPerKg)) {
-      newCfg[mat] = { napiAlap, arany, arPerKg };
+      newCfg[mat] = { mode: 'manual', napiAlap, arany, arPerKg };
     }
   });
 
@@ -124,7 +151,7 @@ export async function savePremiumHistory() {
       premiumDays: d.premiumDays || 0,
       totalKg: d.totalKg, totalExcess: d.totalExcess || 0,
       premium: d.premium, noConfig: d.noConfig || false,
-      napiAlap: d.cfg?.napiAlap || null
+      napiAlap: d.cfg?.napiAlap || null, auto: d.auto || false
     }))
   }));
 
@@ -233,6 +260,16 @@ async function computePremium(year, month, reszlegFilter = '') {
     byWMD[nev][mat][a.datum] = (byWMD[nev][mat][a.datum] || 0) + kg;
   });
 
+  // Félautomata anyagokhoz: medián napi termelés az összes dolgozó adott napjai alapján
+  const matDayValues = {};
+  Object.values(byWMD).forEach(mats => {
+    Object.entries(mats).forEach(([mat, dayMap]) => {
+      (matDayValues[mat] ??= []).push(...Object.values(dayMap));
+    });
+  });
+  const matMedian = {};
+  Object.entries(matDayValues).forEach(([mat, vals]) => { matMedian[mat] = median(vals); });
+
   const results = [];
   Object.entries(byWMD).forEach(([nev, mats]) => {
     let totalPremium = 0;
@@ -243,21 +280,35 @@ async function computePremium(year, month, reszlegFilter = '') {
       const activeDays = Object.keys(dayMap).length;
       const totalKg    = Object.values(dayMap).reduce((s, v) => s + v, 0);
 
-      if (!cfg?.napiAlap || !cfg?.arPerKg) {
+      if (!cfg?.arPerKg) {
         details.push({ mat, activeDays, totalKg, premium: 0, noConfig: true });
         return;
       }
 
-      // Minden napot külön értékelünk: csak az adott napi alap feletti rész ad prémiumbázist
+      const auto    = cfg.mode === 'auto';
+      const napiAlap = auto ? matMedian[mat] : cfg.napiAlap;
+
+      if (!auto && !napiAlap) {
+        details.push({ mat, activeDays, totalKg, premium: 0, noConfig: true });
+        return;
+      }
+
+      // Minden napot külön értékelünk: csak a napi alap (kézi) vagy medián (félautomata) feletti rész ad prémiumbázist
       let totalExcess = 0;
       let premiumDays = 0;
       Object.values(dayMap).forEach(dayKg => {
-        const dayExcess = Math.max(0, dayKg - cfg.napiAlap);
+        const dayExcess = Math.max(0, dayKg - napiAlap);
         if (dayExcess > 0) { totalExcess += dayExcess; premiumDays++; }
       });
 
-      const premium = Math.round(totalExcess * (cfg.arany / 100) * cfg.arPerKg);
-      details.push({ mat, activeDays, premiumDays, totalKg, totalExcess, premium, cfg });
+      const premium = auto
+        ? Math.round(totalExcess * cfg.arPerKg)
+        : Math.round(totalExcess * (cfg.arany / 100) * cfg.arPerKg);
+
+      details.push({
+        mat, activeDays, premiumDays, totalKg, totalExcess, premium, auto,
+        cfg: { ...cfg, napiAlap }
+      });
       totalPremium += premium;
     });
 
@@ -266,6 +317,13 @@ async function computePremium(year, month, reszlegFilter = '') {
   });
 
   return results.sort((a, b) => b.totalPremium - a.totalPremium);
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function fmtFt(n) {
@@ -308,7 +366,7 @@ function renderPremiumResults(results, label) {
         html += `<tr>
           <td style="font-weight:600;">${esc(d.mat)}</td>
           <td style="color:var(--text3);">${d.activeDays}</td>
-          <td style="color:var(--text3);">${d.cfg.napiAlap} kg</td>
+          <td style="color:var(--text3);" title="${d.auto ? 'Medián (félautomata)' : ''}">${d.auto ? '≈' : ''}${d.cfg.napiAlap.toFixed(d.auto ? 1 : 0)} kg</td>
           <td class="v-bold">${d.totalKg.toFixed(0)} kg</td>
           <td style="color:${d.premiumDays > 0 ? 'var(--green)' : 'var(--text3)'};">${d.premiumDays}</td>
           <td style="color:${d.totalExcess > 0 ? 'var(--green)' : 'var(--text3)'};">${d.totalExcess.toFixed(0)} kg</td>
@@ -372,7 +430,7 @@ function premiumNyomtat() {
         if (d.noConfig) {
           body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays}</td><td>${d.totalKg.toFixed(0)} kg</td><td colspan="3" style="color:#64748B;font-style:italic;">Nincs konfig</td><td>—</td></tr>`;
         } else {
-          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays}</td><td>${d.cfg.napiAlap} kg</td><td>${d.totalKg.toFixed(0)} kg</td><td>${d.premiumDays}</td><td>${d.totalExcess.toFixed(0)} kg</td><td style="font-weight:700;">${fmtFt(d.premium)}</td></tr>`;
+          body += `<tr><td>${esc(d.mat)}</td><td>${d.activeDays}</td><td>${d.auto ? '≈' : ''}${d.cfg.napiAlap.toFixed(d.auto ? 1 : 0)} kg</td><td>${d.totalKg.toFixed(0)} kg</td><td>${d.premiumDays}</td><td>${d.totalExcess.toFixed(0)} kg</td><td style="font-weight:700;">${fmtFt(d.premium)}</td></tr>`;
         }
       });
       body += `</tbody></table></div>`;
