@@ -58,7 +58,7 @@ function renderAdminConfig() {
         </select>
       </div>
       <div><input type="number" class="pc-input" id="pcAlap_${sid}"  value="${cfg.napiAlap ?? ''}" placeholder="—" min="0" step="1" ${auto ? 'disabled' : ''}></div>
-      <div><input type="number" class="pc-input" id="pcArany_${sid}" value="${cfg.arany   ?? ''}" placeholder="—" min="0" max="100" step="0.1" ${auto ? 'disabled' : ''}></div>
+      <div><input type="number" class="pc-input" id="pcArany_${sid}" value="${cfg.arany   ?? ''}" placeholder="—" min="0" max="100" step="0.1"></div>
       <div><input type="number" class="pc-input" id="pcAr_${sid}"    value="${cfg.arPerKg ?? ''}" placeholder="—" min="0" step="1"></div>
     </div>`;
   });
@@ -69,12 +69,9 @@ function renderAdminConfig() {
 
   div.querySelectorAll('.pc-mode').forEach(sel => {
     sel.addEventListener('change', () => {
-      const sid    = sel.dataset.sid;
-      const isAuto = sel.value === 'auto';
+      const sid  = sel.dataset.sid;
       const aEl  = document.getElementById(`pcAlap_${sid}`);
-      const arEl = document.getElementById(`pcArany_${sid}`);
-      if (aEl)  aEl.disabled  = isAuto;
-      if (arEl) arEl.disabled = isAuto;
+      if (aEl) aEl.disabled = sel.value === 'auto';
     });
   });
 }
@@ -93,8 +90,10 @@ export async function savePremiumAdminConfig() {
     const arPerKg = parseFloat(pEl.value);
 
     if (modeEl?.value === 'auto') {
+      const aranyVal = parseFloat(arEl.value);
+      const arany    = !isNaN(aranyVal) ? aranyVal : 100;
       if (!isNaN(arPerKg) && arPerKg > 0) {
-        newCfg[mat] = { mode: 'auto', arPerKg };
+        newCfg[mat] = { mode: 'auto', arany, arPerKg };
       }
       return;
     }
@@ -301,9 +300,8 @@ async function computePremium(year, month, reszlegFilter = '') {
         if (dayExcess > 0) { totalExcess += dayExcess; premiumDays++; }
       });
 
-      const premium = auto
-        ? Math.round(totalExcess * cfg.arPerKg)
-        : Math.round(totalExcess * (cfg.arany / 100) * cfg.arPerKg);
+      const arany   = auto ? (cfg.arany ?? 100) : cfg.arany;
+      const premium = Math.round(totalExcess * (arany / 100) * cfg.arPerKg);
 
       details.push({
         mat, activeDays, premiumDays, totalKg, totalExcess, premium, auto,
