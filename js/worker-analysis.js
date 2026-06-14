@@ -101,6 +101,70 @@ function _svgDualLineChart(perDay1, perDay2, name1, name2) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;margin:10px 0 4px;overflow:visible;">${grid}${makeLine(map1,'var(--accent)')}${makeLine(map2,'var(--green)')}${makeDots(map1,'var(--accent)')}${makeDots(map2,'var(--green)')}${xLabels}${legend}</svg>`;
 }
 
+/* ── Naptár-hőtérkép (GitHub-szerű) ── */
+function _calendarHeatmap(perDay) {
+  if (perDay.length < 5) return '';
+  const map = new Map(perDay.map(d => [d.datum, d.kg]));
+  const dates = [...map.keys()].sort();
+  const minD = new Date(dates[0] + 'T00:00:00');
+  const maxD = new Date(dates[dates.length - 1] + 'T00:00:00');
+
+  const start = new Date(minD);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // hétfőre igazítás
+  const end = new Date(maxD);
+  end.setDate(end.getDate() + (6 - (end.getDay() + 6) % 7)); // vasárnapra igazítás
+
+  const maxV   = Math.max(...map.values());
+  const dayMs  = 86400000;
+  const weeks  = Math.round((end - start) / dayMs / 7) + 1;
+  const monthNames = ['Jan','Feb','Márc','Ápr','Máj','Jún','Júl','Aug','Szept','Okt','Nov','Dec'];
+  const dowLabels   = ['H','K','Sze','Cs','P','Szo','V'];
+
+  let cells = '', monthLabels = '', lastMonth = -1;
+  const cur = new Date(start);
+  for (let w = 0; w < weeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      const iso     = cur.toISOString().split('T')[0];
+      const inRange = cur >= minD && cur <= maxD;
+      const val     = map.get(iso) || 0;
+      if (d === 0 && inRange && cur.getMonth() !== lastMonth) {
+        monthLabels += `<div style="grid-row:1;grid-column:${w + 2};font-size:9px;color:var(--text3);">${monthNames[cur.getMonth()]}</div>`;
+        lastMonth = cur.getMonth();
+      }
+      let bg = 'transparent', title = '';
+      if (inRange) {
+        if (val > 0) {
+          const pct = Math.round((val / maxV) * 70 + 12);
+          bg = `color-mix(in srgb, var(--accent) ${pct}%, var(--surf2))`;
+        } else {
+          bg = 'var(--surf2)';
+        }
+        title = `${iso}: ${val > 0 ? val.toFixed(0) + ' kg' : 'nincs adat'}`;
+      }
+      cells += `<div style="grid-row:${d + 2};grid-column:${w + 2};width:11px;height:11px;border-radius:2px;background:${bg};" title="${title}"></div>`;
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+  const dowCol = dowLabels.map((l, i) =>
+    `<div style="grid-row:${i + 2};grid-column:1;font-size:9px;color:var(--text3);display:flex;align-items:center;">${l}</div>`
+  ).join('');
+
+  return `<div style="overflow-x:auto;padding-bottom:4px;">
+    <div style="display:grid;grid-template-columns:24px repeat(${weeks},11px);grid-template-rows:14px repeat(7,11px);gap:2px;width:max-content;">
+      ${dowCol}${monthLabels}${cells}
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--text3);margin-top:6px;">
+    <span>Kevesebb</span>
+    <div style="width:11px;height:11px;border-radius:2px;background:var(--surf2);"></div>
+    <div style="width:11px;height:11px;border-radius:2px;background:color-mix(in srgb, var(--accent) 26%, var(--surf2));"></div>
+    <div style="width:11px;height:11px;border-radius:2px;background:color-mix(in srgb, var(--accent) 48%, var(--surf2));"></div>
+    <div style="width:11px;height:11px;border-radius:2px;background:color-mix(in srgb, var(--accent) 70%, var(--surf2));"></div>
+    <div style="width:11px;height:11px;border-radius:2px;background:color-mix(in srgb, var(--accent) 82%, var(--surf2));"></div>
+    <span>Több</span>
+  </div>`;
+}
+
 /* ── Dolgozók és anyagok feltöltése ── */
 async function populateWorkers() {
   const entries = await getEntries();
@@ -201,6 +265,12 @@ async function egyeniElemzes() {
   if (perDay.length >= 2) {
     html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📉</span>Trend</div>
       ${_svgLineChart(perDay)}</div>`;
+  }
+
+  // Naptár-hőtérkép
+  const heatmap = _calendarHeatmap(perDay);
+  if (heatmap) {
+    html += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🗓️</span>Naptár nézet</div>${heatmap}</div>`;
   }
 
   // Saját anyag rangsor (az összes anyag amit ez a dolgozó dolgozott)

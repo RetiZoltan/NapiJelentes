@@ -167,6 +167,7 @@ const SECTIONS = [
         <li>Válassz dolgozót és anyagot → Összefoglaló: aktív napok, legjobb/leggyengébb nap, napi átlag, szórás</li>
         <li>Üzemi átlaggal való összehasonlítás (+/-% eltérés)</li>
         <li><strong>📉 Trend vonaldiagram</strong> — SVG grafikon az időbeli változásról (≥2 adatpont esetén)</li>
+        <li><strong>🗓️ Naptár nézet</strong> — hőtérkép-szerű naptár, ahol a sötétebb cella nagyobb napi termelést jelent (≥5 aktív nap esetén); hover megmutatja a pontos értéket</li>
         <li><strong>📦 Anyagok szerinti rangsor</strong> — az adott dolgozó összes anyaga átlag/nap szerint sorrendben; a kiválasztott anyag ◀ jelöléssel kiemelve</li>
         <li>Napi bontás táblázat a végén</li>
       </ul>
