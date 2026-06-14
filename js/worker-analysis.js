@@ -29,7 +29,7 @@ function _invalidateCache() { cachedEntries = null; _cacheKey = ''; }
 
 /* ── Tab váltás ── */
 function switchETab(name) {
-  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Matrix','Muszak','Reszleg'].forEach(t => {
+  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Muszak','Reszleg'].forEach(t => {
     const panel = E('eTab' + t), btn = E('eBtn' + t);
     if (panel) panel.style.display = t === name ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t === name);
@@ -342,60 +342,6 @@ async function osszehasonlitas() {
 }
 
 /* ══════════════════════════════════════
-   5. fül: Anyag × Dolgozó mátrix
-══════════════════════════════════════ */
-async function materialWorkerMatrix() {
-  E('matrixDiv').innerHTML='<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
-  const entries=await getEntries();
-  const workers=[...new Set(entries.map(a=>a.nev))].sort((a,b)=>a.localeCompare(b,'hu'));
-  const mats=[...new Set(entries.filter(a=>(a.anyag||'').trim()).map(a=>(a.anyag||'').trim()))].sort((a,b)=>a.localeCompare(b,'hu'));
-  if (!workers.length||!mats.length){E('matrixDiv').innerHTML=`<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat</div>`;return;}
-
-  // (dolgozó, anyag, nap) → kg
-  const byWMD={};
-  entries.forEach(a=>{
-    const mat=(a.anyag||'').trim(); if(!mat)return;
-    const kg=(a.sulyok||[]).reduce((s,x)=>s+x.suly,0); if(kg<=0)return;
-    const key=`${a.nev}||${mat}||${a.datum}`;
-    byWMD[key]=(byWMD[key]||0)+kg;
-  });
-  // Átlag per (dolgozó, anyag)
-  const matrix={};
-  Object.entries(byWMD).forEach(([key,kg])=>{
-    const [nev,mat]=key.split('||');
-    if (!matrix[nev])matrix[nev]={};
-    if (!matrix[nev][mat])matrix[nev][mat]={total:0,days:0};
-    matrix[nev][mat].total+=kg; matrix[nev][mat].days+=1;
-  });
-  let globalMax=0;
-  workers.forEach(w=>mats.forEach(m=>{ const c=matrix[w]?.[m]; if(c)globalMax=Math.max(globalMax,c.total/c.days); }));
-
-  let h=`<div style="overflow-x:auto;"><table class="stbl" style="min-width:500px;">
-    <thead><tr><th style="white-space:nowrap;position:sticky;left:0;background:var(--surf2);">Dolgozó</th>
-    ${mats.map(m=>`<th style="text-align:center;font-size:11px;white-space:nowrap;" title="${esc(m)}">${m.length>12?m.slice(0,12)+'…':esc(m)}</th>`).join('')}</tr></thead><tbody>`;
-  workers.forEach(w=>{
-    h+=`<tr><td style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surf);">${esc(w)}</td>`;
-    mats.forEach(m=>{
-      const c=matrix[w]?.[m];
-      if (!c){h+=`<td style="text-align:center;color:var(--border2);">—</td>`;return;}
-      const avg=c.total/c.days, ratio=globalMax>0?avg/globalMax:0;
-      const pct=Math.round(ratio*72+6);
-      const bg=`color-mix(in srgb, var(--accent) ${pct}%, var(--surf2))`;
-      const textCol=pct>46?'#fff':'var(--text)';
-      h+=`<td style="text-align:center;background:${bg};color:${textCol};font-size:12px;font-weight:600;" title="${esc(w)} – ${esc(m)}: ${avg.toFixed(0)} kg/nap (${c.days} nap)">${(avg/1000).toFixed(2)}t</td>`;
-    });
-    h+=`</tr>`;
-  });
-  h+=`</tbody></table></div>
-  <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);margin-top:8px;">
-    <span>Alacsony</span>
-    <div style="width:100px;height:8px;border-radius:3px;background:linear-gradient(to right,color-mix(in srgb,var(--accent) 6%,var(--surf2)),color-mix(in srgb,var(--accent) 78%,var(--surf2)));"></div>
-    <span>Magas · Cellák: átlagos napi termelés · Hover = részletek</span>
-  </div>`;
-  E('matrixDiv').innerHTML=h;
-}
-
-/* ══════════════════════════════════════
    6. fül: Műszak elemzés
 ══════════════════════════════════════ */
 async function muszakElemzes() {
@@ -536,7 +482,6 @@ export async function initElemzes() {
   E('eBtnAnyagRangsor').addEventListener('click',   () => switchETab('AnyagRangsor'));
   E('eBtnRekordok').addEventListener('click',  async () => { switchETab('Rekordok'); await rekordok(); });
   E('eBtnOsszehasonlit').addEventListener('click',  () => switchETab('Osszehasonlit'));
-  E('eBtnMatrix').addEventListener('click',    async () => { switchETab('Matrix'); await materialWorkerMatrix(); });
   E('eBtnMuszak').addEventListener('click',    async () => { switchETab('Muszak'); await muszakElemzes(); });
   E('eBtnReszleg').addEventListener('click',   async () => { switchETab('Reszleg'); await reszlegElemzes(); });
 
@@ -555,6 +500,5 @@ function _rerunActiveTab() {
   if (id==='eBtnEgyeni'&&E('egyeniDolgozo')?.value) egyeniElemzes();
   else if (id==='eBtnAnyagRangsor'&&E('anyagRangsorSel')?.value) anyagRangsor();
   else if (id==='eBtnRekordok') rekordok();
-  else if (id==='eBtnMatrix') materialWorkerMatrix();
   else if (id==='eBtnMuszak') muszakElemzes();
 }

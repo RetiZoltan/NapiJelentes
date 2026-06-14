@@ -177,8 +177,6 @@ const SECTIONS = [
 
       <p><strong>⚖️ Összehasonlítás:</strong> Két dolgozó egymás mellé helyezve ugyanarra az anyagra — statisztikai tábla (✓ jelöli a győztest) + vizuális sávdiagram.</p>
 
-      <p><strong>📊 Anyag × Dolgozó mátrix:</strong> Táblázat ahol sorok = dolgozók, oszlopok = anyagok, cellák = átlagos napi termelés. Hőtérkép szín: kék (alacsony) → narancs (magas). Hover tooltip részleteket mutat.</p>
-
       <p><strong>🕐 Műszak elemzés:</strong> Dolgozónként Délelőtt vs. Délután átlagos napi termelés, ✓ jelöli a jobb műszakot. Üzemi összesítő: melyik műszak termel többet és mennyivel.</p>
     `
   },
