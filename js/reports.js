@@ -855,7 +855,7 @@ export function idoszakosXlsxMent() {
 export function napiNyomtat()      { nyomtatDiv('napiRiportDiv'); }
 export function idoszakosNyomtat() { nyomtatDiv('idoszakosRiportDiv'); }
 
-function nyomtatDiv(divId) {
+export function nyomtatDiv(divId) {
   const src = E(divId);
   if (!src.children.length || src.querySelector('.empty-st')) {
     msg('Nincs nyomtatható tartalom.', 'error'); return;

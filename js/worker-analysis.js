@@ -1,5 +1,6 @@
 import { fetchEntries } from './db.js';
 import { E, esc, msg, fmtKg, fmtS } from './utils.js';
+import { nyomtatDiv } from './reports.js';
 
 /* ── Dátumszűrő állapot ── */
 let cachedEntries = null;
@@ -561,6 +562,24 @@ export async function initElemzes() {
   E('egyeniBtn').addEventListener('click',       egyeniElemzes);
   E('anyagRangsorBtn').addEventListener('click', anyagRangsor);
   E('osszBtn').addEventListener('click',         osszehasonlitas);
+  E('elemzesNyomtatBtn')?.addEventListener('click', _elemzesNyomtat);
+}
+
+/* ── Nyomtatás: az aktív al-fül tartalma a közös print-stílussal ── */
+const _ETAB_DIVS = {
+  eBtnEgyeni:        'egyeniDiv',
+  eBtnAnyagRangsor:  'anyagRangsorDiv',
+  eBtnRekordok:      'rekordokDiv',
+  eBtnOsszehasonlit: 'osszDiv',
+  eBtnMuszak:        'muszakDiv',
+  eBtnReszleg:       'reszlegElemzesDiv'
+};
+
+function _elemzesNyomtat() {
+  const active = document.querySelector('#tab-elemzes .vbtn.active');
+  const divId  = active && _ETAB_DIVS[active.id];
+  if (!divId) { msg('Nincs nyomtatható tartalom.', 'error'); return; }
+  nyomtatDiv(divId);
 }
 
 function _rerunActiveTab() {

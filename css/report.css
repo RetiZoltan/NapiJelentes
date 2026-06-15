@@ -82,7 +82,16 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 
   /* Hide everything except the print frame */
   body.is-printing>*:not(#print-frame){display:none!important;}
-  #print-frame{display:block!important;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:13px;line-height:1.6;color:#1E293B;background:#fff;}
+  #print-frame{display:block!important;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:13px;line-height:1.6;color:#1E293B;background:#fff;
+    /* Világos téma színeinek kényszerítése (inline SVG-k és var()-os elemek számára, sötét téma esetén is) */
+    --bg:#EFF2F7; --surf:#FFFFFF; --surf2:#F8FAFC; --surf3:#EEF2F8;
+    --border:#E2E8F0; --border2:#CBD5E1; --border3:#94A3B8;
+    --text:#1E293B; --text2:#475569; --text3:#94A3B8;
+    --accent:#1565C0; --accent2:#0D47A1; --agl:rgba(21,101,192,.10);
+    --green:#2E7D32; --greenl:#E8F5E9;
+    --amber:#E65100; --amberl:#FFF3E0;
+    --red:#C62828; --redl:#FFEBEE;
+  }
 
   /* Print header & footer */
   .pf-hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-bottom:10px;border-bottom:2.5px solid #1565C0;}
