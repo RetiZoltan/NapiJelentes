@@ -1,13 +1,20 @@
 import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
-import { saveNapiFor, loadNapiFor, autoAddToList } from './db.js';
+import { saveNapiFor, loadNapiFor, autoAddToList,
+         filterAnyagForReszleg, fillSelGrouped } from './db.js';
 import { logAction } from './auditlog.js';
 
 const OFFLINE_KEY = 'nj_offlineQueue';
 const DRAFT_TTL   = 24 * 60 * 60 * 1000; // 24 óra
 
 function _draftKey() { return `nj_draft_${state.appUser?.uid || 'anon'}`; }
+
+export function updateAnyagSel(reszleg = '', currentVal = '') {
+  const mats = filterAnyagForReszleg(reszleg, currentVal);
+  fillSelGrouped(E('anyag'), mats, '— Válassz anyagot —');
+  if (currentVal) E('anyag').value = currentVal;
+}
 
 export function saveDraft() {
   if (!state.appUser || state.editingEntryId) return;
@@ -46,7 +53,7 @@ export function restoreDraft(d) {
   if (d.ido)     E('ido').value     = d.ido;
   if (d.reszleg) E('reszleg').value = d.reszleg;
   if (d.nev)     E('nev').value     = d.nev;
-  if (d.anyag)   E('anyag').value   = d.anyag;
+  updateAnyagSel(d.reszleg || '', d.anyag || '');
   if (d.megj)    E('megj').value    = d.megj;
   if (d.sulyok?.length) {
     E('sulyC').innerHTML = '';
@@ -227,7 +234,7 @@ export function clearF(sh = true) {
   if (banner) banner.style.display = 'none';
   if (!state.isNamePinned)    E('nev').value    = '';
   if (!state.isReszlegPinned) E('reszleg').value = '';
-  E('anyag').value = '';
+  updateAnyagSel(E('reszleg').value.trim());
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
   E('zsakC').innerHTML = ''; addZsak();
@@ -241,7 +248,7 @@ export async function startEditEntry(entry) {
   E('ido').value     = entry.ido         || 'Délelőtt';
   E('nev').value     = entry.nev         || '';
   E('reszleg').value = entry.reszleg     || '';
-  E('anyag').value   = entry.anyag       || '';
+  updateAnyagSel(entry.reszleg || '', entry.anyag || '');
   E('megj').value    = entry.megjegyzes  || '';
 
   await loadNapiFor(entry.datum, entry.reszleg || '', entry.ido || '');

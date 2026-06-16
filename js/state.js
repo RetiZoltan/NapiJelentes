@@ -7,6 +7,7 @@ export const state = {
   reszlegek:        [],
   anyagCsoportok:   [],
   anyagCsoportMap:  {},
+  reszlegAnyagMap:  {},
   prevDatum:        null,
   isNamePinned:     false,
   isReszlegPinned:  false,

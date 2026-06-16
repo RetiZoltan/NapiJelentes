@@ -12,23 +12,36 @@ export async function loadLists() {
       state.reszlegek        = s.data().reszlegek        || [];
       state.anyagCsoportok   = s.data().csoportok        || [];
       state.anyagCsoportMap  = s.data().anyagCsoportMap  || {};
+      state.reszlegAnyagMap  = s.data().reszlegAnyagMap  || {};
     }
     refreshListUI();
   } catch { msg('Lista betöltési hiba', 'error'); }
 }
 
 export async function saveLists() {
-  const cleanMap = {};
-  const anyagSet    = new Set(state.anyagok);
-  const csoportSet  = new Set(state.anyagCsoportok);
+  const anyagSet   = new Set(state.anyagok);
+  const csoportSet = new Set(state.anyagCsoportok);
+  const reszlegSet = new Set(state.reszlegek);
+
+  const cleanCsMap = {};
   Object.entries(state.anyagCsoportMap).forEach(([a, cs]) => {
-    if (anyagSet.has(a) && csoportSet.has(cs)) cleanMap[a] = cs;
+    if (anyagSet.has(a) && csoportSet.has(cs)) cleanCsMap[a] = cs;
   });
-  state.anyagCsoportMap = cleanMap;
+  state.anyagCsoportMap = cleanCsMap;
+
+  const cleanRaMap = {};
+  Object.entries(state.reszlegAnyagMap).forEach(([r, mats]) => {
+    if (!reszlegSet.has(r)) return;
+    const valid = mats.filter(a => anyagSet.has(a));
+    if (valid.length) cleanRaMap[r] = valid;
+  });
+  state.reszlegAnyagMap = cleanRaMap;
+
   try {
     await setDoc(doc(db, 'config', 'lists'), {
       nevek: state.nevek, anyagok: state.anyagok, reszlegek: state.reszlegek,
-      csoportok: state.anyagCsoportok, anyagCsoportMap: cleanMap,
+      csoportok: state.anyagCsoportok, anyagCsoportMap: cleanCsMap,
+      reszlegAnyagMap: cleanRaMap,
     });
   } catch { msg('Lista mentési hiba', 'error'); }
 }
@@ -43,6 +56,7 @@ export function refreshListUI() {
   fillSel(E('reszlegLista'),   state.reszlegek);
   fillSel(E('csoportLista'),   state.anyagCsoportok);
   renderCsoportMapUI();
+  renderReszlegAnyagMapUI();
   updDolgSzuro();
   updReszlegSzuro();
   updIdoszakosFilters();
@@ -162,6 +176,50 @@ export async function saveCsoportMap() {
   await saveLists();
   msg('Hozzárendelés mentve.');
   renderCsoportMapUI();
+}
+
+export function filterAnyagForReszleg(reszleg, forceInclude = '') {
+  const assigned = reszleg && state.reszlegAnyagMap[reszleg];
+  const mats = assigned?.length ? [...assigned] : [...state.anyagok];
+  if (forceInclude && !mats.includes(forceInclude)) mats.push(forceInclude);
+  return mats;
+}
+
+function renderReszlegAnyagMapUI() {
+  const section = E('reszlegAnyagMapSection');
+  if (!section) return;
+  if (!state.reszlegek.length || !state.anyagok.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  const srt     = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const anyagok = srt(state.anyagok);
+  const map     = state.reszlegAnyagMap;
+  let html = '';
+  srt(state.reszlegek).forEach(r => {
+    const assigned = map[r] || [];
+    const boxes = anyagok.map(a => {
+      const chk = assigned.includes(a) ? ' checked' : '';
+      return `<label class="ram-chk">
+        <input type="checkbox" class="ram-cb" data-reszleg="${esc(r)}" data-anyag="${esc(a)}"${chk}>
+        <span>${esc(a)}</span>
+      </label>`;
+    }).join('');
+    html += `<div class="ram-section"><div class="ram-rname">${esc(r)}</div><div class="ram-cblist">${boxes}</div></div>`;
+  });
+  E('reszlegAnyagGrid').innerHTML = html;
+}
+
+export async function saveReszlegAnyagMap() {
+  const map = {};
+  document.querySelectorAll('.ram-cb:checked').forEach(cb => {
+    const r = cb.dataset.reszleg, a = cb.dataset.anyag;
+    if (r && a) (map[r] ??= []).push(a);
+  });
+  state.reszlegAnyagMap = map;
+  await saveLists();
+  msg('Hozzárendelés mentve.');
 }
 
 export async function updDolgSzuro() {

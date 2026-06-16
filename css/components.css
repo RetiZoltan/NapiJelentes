@@ -234,6 +234,12 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 .pc-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--agl);outline:none;}
 .pc-input:disabled{opacity:.45;cursor:not-allowed;}
 .pc-group-hdr{padding:5px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);background:var(--surf2);border-bottom:1px solid var(--border);}
+.ram-section{margin-bottom:12px;}
+.ram-rname{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.ram-cblist{display:flex;flex-wrap:wrap;gap:4px 10px;}
+.ram-chk{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text2);cursor:pointer;padding:3px 7px;border:1px solid var(--border);border-radius:4px;background:var(--surf);user-select:none;}
+.ram-chk:has(input:checked){background:var(--agl);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.ram-chk input{accent-color:var(--accent);}
 @media(max-width:680px){.pc-row{grid-template-columns:1fr 1fr;}.pc-head{display:none;}.pc-row>div:first-child{grid-column:1/-1;background:var(--surf2);font-weight:700;}}
 
 /* ── Edit banner & edit button ── */

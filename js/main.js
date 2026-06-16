@@ -9,10 +9,11 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
          autoAddToList, addToList, delFromList, editItem,
-         getWorkerMaterials, updIdoszakosFilters, saveCsoportMap } from './db.js';
+         getWorkerMaterials, updIdoszakosFilters,
+         saveCsoportMap, saveReszlegAnyagMap } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
-         syncOfflineQueue, getOfflineCount } from './data-entry.js';
+         syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
 import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
          napiKepMent, idoszakosKepMent,
          napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
@@ -561,6 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
+    updateAnyagSel(newReszleg, E('anyag').value);
     updateIdoszakBadge();
   });
   E('pinMuszakBtn').addEventListener('click', () => {
@@ -1053,6 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('csoportInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('csoportInput'), state.anyagCsoportok); });
   E('csoportTorBtn').addEventListener('click',  () => delFromList(E('csoportLista'), state.anyagCsoportok));
   E('csoportMapSaveBtn').addEventListener('click', saveCsoportMap);
+  E('reszlegAnyagSaveBtn').addEventListener('click', saveReszlegAnyagMap);
 
   // Admin — közlemény
   E('noticeSaveBtn').addEventListener('click', saveNotice);
