@@ -445,10 +445,6 @@ function premiumNyomtat() {
   const bodyEl = document.createElement('div');
   bodyEl.innerHTML = body;
   pf.appendChild(bodyEl);
-  const ftr = document.createElement('div');
-  ftr.className = 'pf-ftr';
-  ftr.textContent = 'Plasticnapi termelési nyilvántartó';
-  pf.appendChild(ftr);
   document.body.classList.add('is-printing');
   window.print();
 }

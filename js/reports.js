@@ -879,10 +879,6 @@ export function nyomtatDiv(divId) {
   hdr.innerHTML = `<span class="pf-brand">Plexiq – Termelési nyilvántartó</span><span class="pf-meta">Nyomtatva: ${esc(nyomtatva)}</span>`;
   pf.appendChild(hdr);
   pf.appendChild(clone);
-  const ftr = document.createElement('div');
-  ftr.className = 'pf-ftr';
-  ftr.textContent = 'Plasticnapi termelési nyilvántartó';
-  pf.appendChild(ftr);
   document.body.classList.add('is-printing');
   window.print();
 }
