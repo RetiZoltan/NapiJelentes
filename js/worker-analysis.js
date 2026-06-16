@@ -1,4 +1,4 @@
-import { fetchEntries } from './db.js';
+import { fetchEntries, fillSelGrouped } from './db.js';
 import { E, esc, msg, fmtKg, fmtS } from './utils.js';
 import { nyomtatDiv } from './reports.js';
 
@@ -180,14 +180,15 @@ async function populateWorkers() {
 
 function filterMaterials(entries, nev) {
   const mats = [...new Set(entries.filter(a => a.nev===nev && (a.anyag||'').trim()).map(a => (a.anyag||'').trim()))].sort((a,b) => a.localeCompare(b,'hu'));
-  E('egyeniAnyag').innerHTML = mats.length ? mats.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') : '<option value="">—</option>';
+  if (!mats.length) { E('egyeniAnyag').innerHTML = '<option value="">—</option>'; return; }
+  fillSelGrouped(E('egyeniAnyag'), mats);
 }
 
 async function populateAnyagSel() {
   const entries = await getEntries();
   const mats = [...new Set(entries.filter(a=>(a.anyag||'').trim()).map(a=>(a.anyag||'').trim()))].sort((a,b)=>a.localeCompare(b,'hu'));
-  const opts = mats.length ? mats.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('') : '<option value="">Nincs adat</option>';
-  E('anyagRangsorSel').innerHTML = opts;
+  if (!mats.length) { E('anyagRangsorSel').innerHTML = '<option value="">Nincs adat</option>'; return; }
+  fillSelGrouped(E('anyagRangsorSel'), mats);
 }
 
 async function filterOsszAnyag() {
@@ -202,9 +203,8 @@ async function filterOsszAnyag() {
   const mats1 = new Set(entries.filter(a => a.nev===nev1 && (a.anyag||'').trim()).map(a => (a.anyag||'').trim()));
   const mats2 = new Set(entries.filter(a => a.nev===nev2 && (a.anyag||'').trim()).map(a => (a.anyag||'').trim()));
   const common = [...mats1].filter(m => mats2.has(m)).sort((a,b) => a.localeCompare(b,'hu'));
-  E('osszAnyag').innerHTML = common.length
-    ? common.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
-    : '<option value="">Nincs közös anyag</option>';
+  if (!common.length) { E('osszAnyag').innerHTML = '<option value="">Nincs közös anyag</option>'; return; }
+  fillSelGrouped(E('osszAnyag'), common);
 }
 
 /* ══════════════════════════════════════

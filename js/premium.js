@@ -40,16 +40,15 @@ function renderAdminConfig() {
     return;
   }
 
-  let html = `<div class="pc-table">
-    <div class="pc-row pc-head">
-      <div>Anyag</div><div>Mód</div><div>Napi alap (kg)</div><div>Arány (%)</div><div>Ár (Ft/kg)</div>
-    </div>`;
+  const srt        = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const csMap      = state.anyagCsoportMap || {};
+  const csoportok  = srt(state.anyagCsoportok || []);
 
-  allMats.forEach(mat => {
+  const matRow = mat => {
     const cfg  = premiumConfig[mat] || {};
     const sid  = matSafeId(mat);
     const auto = cfg.mode === 'auto';
-    html += `<div class="pc-row">
+    return `<div class="pc-row">
       <div class="pc-mat">${esc(mat)}</div>
       <div>
         <select class="pc-input pc-mode" id="pcMode_${sid}" data-sid="${sid}">
@@ -61,7 +60,31 @@ function renderAdminConfig() {
       <div><input type="number" class="pc-input" id="pcArany_${sid}" value="${cfg.arany   ?? ''}" placeholder="—" min="0" max="100" step="0.1"></div>
       <div><input type="number" class="pc-input" id="pcAr_${sid}"    value="${cfg.arPerKg ?? ''}" placeholder="—" min="0" step="1"></div>
     </div>`;
-  });
+  };
+
+  let html = `<div class="pc-table">
+    <div class="pc-row pc-head">
+      <div>Anyag</div><div>Mód</div><div>Napi alap (kg)</div><div>Arány (%)</div><div>Ár (Ft/kg)</div>
+    </div>`;
+
+  if (!csoportok.length) {
+    allMats.forEach(mat => { html += matRow(mat); });
+  } else {
+    const grouped = {}, ungrouped = [];
+    srt(allMats).forEach(mat => {
+      const cs = csMap[mat];
+      cs && csoportok.includes(cs) ? (grouped[cs] ??= []).push(mat) : ungrouped.push(mat);
+    });
+    csoportok.forEach(cs => {
+      const items = grouped[cs]; if (!items?.length) return;
+      html += `<div class="pc-group-hdr">${esc(cs)}</div>`;
+      items.forEach(mat => { html += matRow(mat); });
+    });
+    if (ungrouped.length) {
+      html += `<div class="pc-group-hdr" style="color:var(--text3);">— Egyéb —</div>`;
+      ungrouped.forEach(mat => { html += matRow(mat); });
+    }
+  }
 
   html += '</div>';
   div.innerHTML = html;

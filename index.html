@@ -1158,6 +1158,24 @@
               <select id="reszlegLista" multiple size="5" style="width:100%;"></select>
               <button class="btn btn-danger btn-sm btn-full" id="reszlegTorBtn">Kijelöltek törlése</button>
             </div>
+            <div class="lbox">
+              <div class="lbox-t">Anyagcsoportok</div>
+              <p class="lhint">Dupla klik = szerkesztés · Ctrl+klik = több</p>
+              <select id="csoportLista" multiple size="5" style="width:100%;"></select>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <input id="csoportInput" type="text" placeholder="Új csoport neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
+                <button class="btn btn-primary btn-sm" id="csoportAddBtn">+</button>
+              </div>
+              <button class="btn btn-danger btn-sm btn-full" id="csoportTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
+            </div>
+          </div>
+          <div id="csoportMapSection" style="margin-top:12px;display:none;">
+            <div class="lbox">
+              <div class="lbox-t" style="margin-bottom:6px;">Anyag → Csoport hozzárendelés</div>
+              <p class="lhint">Rendeld hozzá az anyagokat a megfelelő csoporthoz</p>
+              <div id="csoportMapGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
+              <button class="btn btn-primary btn-sm" id="csoportMapSaveBtn">Mentés</button>
+            </div>
           </div>
         </div>
 

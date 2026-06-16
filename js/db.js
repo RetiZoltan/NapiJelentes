@@ -7,18 +7,28 @@ export async function loadLists() {
   try {
     const s = await getDoc(doc(db, 'config', 'lists'));
     if (s.exists()) {
-      state.nevek     = s.data().nevek     || [];
-      state.anyagok   = s.data().anyagok   || [];
-      state.reszlegek = s.data().reszlegek || [];
+      state.nevek            = s.data().nevek            || [];
+      state.anyagok          = s.data().anyagok          || [];
+      state.reszlegek        = s.data().reszlegek        || [];
+      state.anyagCsoportok   = s.data().csoportok        || [];
+      state.anyagCsoportMap  = s.data().anyagCsoportMap  || {};
     }
     refreshListUI();
   } catch { msg('Lista betöltési hiba', 'error'); }
 }
 
 export async function saveLists() {
+  const cleanMap = {};
+  const anyagSet    = new Set(state.anyagok);
+  const csoportSet  = new Set(state.anyagCsoportok);
+  Object.entries(state.anyagCsoportMap).forEach(([a, cs]) => {
+    if (anyagSet.has(a) && csoportSet.has(cs)) cleanMap[a] = cs;
+  });
+  state.anyagCsoportMap = cleanMap;
   try {
     await setDoc(doc(db, 'config', 'lists'), {
-      nevek: state.nevek, anyagok: state.anyagok, reszlegek: state.reszlegek
+      nevek: state.nevek, anyagok: state.anyagok, reszlegek: state.reszlegek,
+      csoportok: state.anyagCsoportok, anyagCsoportMap: cleanMap,
     });
   } catch { msg('Lista mentési hiba', 'error'); }
 }
@@ -28,9 +38,11 @@ export function refreshListUI() {
   E('nevDL').innerHTML     = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
   E('anyagDL').innerHTML   = srt(state.anyagok).map(a => `<option value="${esc(a)}"></option>`).join('');
   E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
-  fillSel(E('nevLista'),     state.nevek);
-  fillSel(E('anyagLista'),   state.anyagok);
-  fillSel(E('reszlegLista'), state.reszlegek);
+  fillSel(E('nevLista'),       state.nevek);
+  fillSel(E('anyagLista'),     state.anyagok);
+  fillSel(E('reszlegLista'),   state.reszlegek);
+  fillSel(E('csoportLista'),   state.anyagCsoportok);
+  renderCsoportMapUI();
   updDolgSzuro();
   updReszlegSzuro();
   updIdoszakosFilters();
@@ -53,13 +65,7 @@ export function updIdoszakosFilters() {
       srt(state.nevek).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if (prev) dEl.value = prev;
   }
-  const aEl = E('idoszakosAnyagSzuro');
-  if (aEl) {
-    const prev = aEl.value;
-    aEl.innerHTML = '<option value="">— Mind —</option>' +
-      srt(state.anyagok).map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
-    if (prev) aEl.value = prev;
-  }
+  fillSelGrouped(E('idoszakosAnyagSzuro'), state.anyagok, '— Mind —');
 }
 
 export function fillSel(sel, list) {
@@ -72,6 +78,90 @@ export function fillSel(sel, list) {
     if (prev.includes(item)) o.selected = true;
     sel.appendChild(o);
   });
+}
+
+export function fillSelGrouped(sel, anyagok, emptyLabel = '') {
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (emptyLabel) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = emptyLabel;
+    sel.appendChild(o);
+  }
+  const srt      = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const map      = state.anyagCsoportMap;
+  const csoportok = srt(state.anyagCsoportok);
+  if (!csoportok.length) {
+    srt(anyagok).forEach(a => {
+      const o = document.createElement('option');
+      o.value = o.textContent = a;
+      sel.appendChild(o);
+    });
+  } else {
+    const grouped = {}, ungrouped = [];
+    srt(anyagok).forEach(a => {
+      const cs = map[a];
+      cs && csoportok.includes(cs) ? (grouped[cs] ??= []).push(a) : ungrouped.push(a);
+    });
+    csoportok.forEach(cs => {
+      const items = grouped[cs];
+      if (!items?.length) return;
+      const grp = document.createElement('optgroup');
+      grp.label = cs;
+      items.forEach(a => {
+        const o = document.createElement('option');
+        o.value = o.textContent = a;
+        grp.appendChild(o);
+      });
+      sel.appendChild(grp);
+    });
+    if (ungrouped.length) {
+      const grp = document.createElement('optgroup');
+      grp.label = '— Egyéb —';
+      ungrouped.forEach(a => {
+        const o = document.createElement('option');
+        o.value = o.textContent = a;
+        grp.appendChild(o);
+      });
+      sel.appendChild(grp);
+    }
+  }
+  if (prev) sel.value = prev;
+}
+
+function renderCsoportMapUI() {
+  const section = E('csoportMapSection');
+  if (!section) return;
+  if (!state.anyagCsoportok.length || !state.anyagok.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  const srt      = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const csOpts   = srt(state.anyagCsoportok).map(cs => `<option value="${esc(cs)}">${esc(cs)}</option>`).join('');
+  const map      = state.anyagCsoportMap;
+  const sorted   = srt(state.anyagok);
+  const rows     = sorted.map(a => `<div style="display:flex;align-items:center;gap:8px;">
+      <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a)}">${esc(a)}</span>
+      <select class="pc-input cmap-sel" data-anyag="${esc(a)}" style="width:130px;padding:3px 5px;">
+        <option value="">—</option>${csOpts}
+      </select>
+    </div>`).join('');
+  E('csoportMapGrid').innerHTML = rows;
+  const selEls = E('csoportMapGrid').querySelectorAll('.cmap-sel');
+  sorted.forEach((a, i) => { if (selEls[i] && map[a]) selEls[i].value = map[a]; });
+}
+
+export async function saveCsoportMap() {
+  const map = {};
+  document.querySelectorAll('.cmap-sel').forEach(sel => {
+    if (sel.value && sel.dataset.anyag) map[sel.dataset.anyag] = sel.value;
+  });
+  state.anyagCsoportMap = map;
+  await saveLists();
+  msg('Hozzárendelés mentve.');
+  renderCsoportMapUI();
 }
 
 export async function updDolgSzuro() {

@@ -7,9 +7,9 @@ import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from '.
 import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
-import { loadLists, refreshListUI, saveNapiFor, loadNapiFor,
-         autoAddToList, delFromList, editItem,
-         getWorkerMaterials, updIdoszakosFilters } from './db.js';
+import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
+         autoAddToList, addToList, delFromList, editItem,
+         getWorkerMaterials, updIdoszakosFilters, saveCsoportMap } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount } from './data-entry.js';
@@ -1032,6 +1032,25 @@ document.addEventListener('DOMContentLoaded', () => {
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
   E('reszlegTorBtn').addEventListener('click',() => delFromList(E('reszlegLista'),state.reszlegek));
+  E('csoportLista').addEventListener('dblclick', async e => {
+    const sel = e.target.closest('select'); if (!sel || sel.selectedOptions.length !== 1) return;
+    const old = sel.selectedOptions[0].value;
+    const nv  = prompt(`"${old}" átnevezése:`, old); if (nv === null) return;
+    const t   = nv.trim(); if (!t || t.toLowerCase() === old.toLowerCase()) return;
+    if (state.anyagCsoportok.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
+    const i = state.anyagCsoportok.findIndex(x => x.toLowerCase() === old.toLowerCase());
+    if (i > -1) {
+      state.anyagCsoportok[i] = t;
+      Object.keys(state.anyagCsoportMap).forEach(a => { if (state.anyagCsoportMap[a] === old) state.anyagCsoportMap[a] = t; });
+      refreshListUI();
+      await saveLists();
+      msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 4000);
+    }
+  });
+  E('csoportAddBtn').addEventListener('click',  () => addToList(E('csoportInput'), state.anyagCsoportok));
+  E('csoportInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('csoportInput'), state.anyagCsoportok); });
+  E('csoportTorBtn').addEventListener('click',  () => delFromList(E('csoportLista'), state.anyagCsoportok));
+  E('csoportMapSaveBtn').addEventListener('click', saveCsoportMap);
 
   // Admin — közlemény
   E('noticeSaveBtn').addEventListener('click', saveNotice);
