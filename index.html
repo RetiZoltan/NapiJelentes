@@ -245,8 +245,7 @@
           <div class="field">
             <label class="lbl">Részleg</label>
             <div style="display:flex;gap:7px;">
-              <input list="reszlegDL" id="reszleg" autocomplete="off" placeholder="Válassz vagy írj be…" style="flex:1;">
-              <datalist id="reszlegDL"></datalist>
+              <select id="reszleg" style="flex:1;"><option value="">— Válassz részleget —</option></select>
               <button class="btn btn-ghost btn-sq" id="pinReszlegBtn" title="Részleg rögzítése">📌</button>
             </div>
           </div>
@@ -257,8 +256,7 @@
         <div class="g2">
           <div class="irow">
             <div class="field"><label class="lbl">Dolgozó neve</label>
-              <input list="nevDL" id="nev" autocomplete="off" placeholder="Válassz vagy írj be…">
-              <datalist id="nevDL"></datalist>
+              <select id="nev"><option value="">— Válassz dolgozót —</option></select>
             </div>
             <button class="btn btn-ghost btn-sq" id="pinNevBtn" title="Név rögzítése">📌</button>
           </div>
@@ -876,6 +874,7 @@
             <div class="field"><label class="lbl">Határidő (opcionális)</label><input type="date" id="feladatDatum"></div>
             <div class="field"><label class="lbl">Részleg</label>
               <input list="reszlegDL" id="feladatReszleg" autocomplete="off" placeholder="Opcionális…">
+              <datalist id="reszlegDL"></datalist>
             </div>
           </div>
           <div class="field"><label class="lbl">Felelős (opcionális)</label>
@@ -1145,7 +1144,11 @@
               <div class="lbox-t">Névlista</div>
               <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
               <select id="nevLista" multiple size="5" style="width:100%;"></select>
-              <button class="btn btn-danger btn-sm btn-full" id="nevTorBtn">Kijelöltek törlése</button>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <input id="nevInput" type="text" placeholder="Új dolgozó neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
+                <button class="btn btn-primary btn-sm" id="nevAddBtn">+</button>
+              </div>
+              <button class="btn btn-danger btn-sm btn-full" id="nevTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
             </div>
             <div class="lbox">
               <div class="lbox-t">Anyaglista</div>
@@ -1161,7 +1164,11 @@
               <div class="lbox-t">Részleglista</div>
               <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
               <select id="reszlegLista" multiple size="5" style="width:100%;"></select>
-              <button class="btn btn-danger btn-sm btn-full" id="reszlegTorBtn">Kijelöltek törlése</button>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <input id="reszlegInput" type="text" placeholder="Új részleg neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
+                <button class="btn btn-primary btn-sm" id="reszlegAddBtn">+</button>
+              </div>
+              <button class="btn btn-danger btn-sm btn-full" id="reszlegTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
             </div>
             <div class="lbox">
               <div class="lbox-t">Anyagcsoportok</div>

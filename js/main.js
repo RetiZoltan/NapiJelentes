@@ -8,7 +8,7 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
-         autoAddToList, addToList, delFromList, editItem,
+         addToList, delFromList, editItem,
          getWorkerMaterials, updIdoszakosFilters,
          saveCsoportMap, saveReszlegAnyagMap } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
@@ -539,9 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
     E('nev').classList.toggle('pinned', state.isNamePinned);
   });
-  E('nev').addEventListener('change',     async () => autoAddToList(E('nev').value,     state.nevek));
-  E('anyag').addEventListener('change',   async () => autoAddToList(E('anyag').value,   state.anyagok));
-  E('reszleg').addEventListener('change', async () => autoAddToList(E('reszleg').value, state.reszlegek));
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
     const btn = E('pinReszlegBtn');
@@ -618,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   E('sulyC').addEventListener('input',  _triggerDraft);
   E('zsakC').addEventListener('input',  _triggerDraft);
   E('napiMegj').addEventListener('input',    () => ag(E('napiMegj')));
-[E('nev'), E('reszleg'), E('anyag'), E('megj')].forEach(el => el.addEventListener('focus', e => e.target.select()));
+E('megj').addEventListener('focus', e => e.target.select());
   E('napiMegj').addEventListener('focus', e => e.target.select());
   E('datum').addEventListener('change', async e => {
     const curReszleg = E('reszleg').value.trim();
@@ -1031,11 +1028,15 @@ document.addEventListener('DOMContentLoaded', () => {
   E('nevLista').addEventListener('dblclick',    e => editItem(e, state.nevek));
   E('anyagLista').addEventListener('dblclick',  e => editItem(e, state.anyagok));
   E('reszlegLista').addEventListener('dblclick',e => editItem(e, state.reszlegek));
+  E('nevAddBtn').addEventListener('click',    () => addToList(E('nevInput'),      state.nevek));
+  E('nevInput').addEventListener('keydown',   e => { if (e.key === 'Enter') addToList(E('nevInput'), state.nevek); });
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
   E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
   E('anyagInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('anyagInput'), state.anyagok); });
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
-  E('reszlegTorBtn').addEventListener('click',() => delFromList(E('reszlegLista'),state.reszlegek));
+  E('reszlegAddBtn').addEventListener('click',  () => addToList(E('reszlegInput'),  state.reszlegek));
+  E('reszlegInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('reszlegInput'), state.reszlegek); });
+  E('reszlegTorBtn').addEventListener('click',  () => delFromList(E('reszlegLista'),state.reszlegek));
   E('csoportLista').addEventListener('dblclick', async e => {
     const sel = e.target.closest('select'); if (!sel || sel.selectedOptions.length !== 1) return;
     const old = sel.selectedOptions[0].value;

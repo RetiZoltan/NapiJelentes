@@ -1,7 +1,7 @@
 import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
-import { saveNapiFor, loadNapiFor, autoAddToList,
+import { saveNapiFor, loadNapiFor,
          filterAnyagForReszleg, fillSelGrouped } from './db.js';
 import { logAction } from './auditlog.js';
 
@@ -136,7 +136,6 @@ export async function rogzit() {
   const napiSzoveg = E('napiMegj').value.trim();
 
   if (!datum) { msg('Dátum kötelező!', 'error'); E('datum').focus(); return; }
-  await autoAddToList(nev, state.nevek);
 
   const sm = E('sulyC').querySelectorAll('.wrow');
   const zm = E('zsakC').querySelectorAll('.wrow');

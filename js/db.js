@@ -48,8 +48,9 @@ export async function saveLists() {
 
 export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
-  E('nevDL').innerHTML     = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
   E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
+  fillSel(E('nev'),    state.nevek,    '— Válassz dolgozót —');
+  fillSel(E('reszleg'), state.reszlegek, '— Válassz részleget —');
   fillSelGrouped(E('anyag'), state.anyagok, '— Válassz anyagot —');
   fillSel(E('nevLista'),       state.nevek);
   fillSel(E('anyagLista'),     state.anyagok);
@@ -82,10 +83,15 @@ export function updIdoszakosFilters() {
   fillSelGrouped(E('idoszakosAnyagSzuro'), state.anyagok, '— Mind —');
 }
 
-export function fillSel(sel, list) {
+export function fillSel(sel, list, emptyLabel = '') {
   if (!sel) return;
   const prev = Array.from(sel.selectedOptions).map(o => o.value);
   sel.innerHTML = '';
+  if (emptyLabel) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = emptyLabel;
+    sel.appendChild(o);
+  }
   [...list].sort((a, b) => a.localeCompare(b, 'hu')).forEach(item => {
     const o = document.createElement('option');
     o.value = o.textContent = item;
