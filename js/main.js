@@ -1030,6 +1030,8 @@ document.addEventListener('DOMContentLoaded', () => {
   E('anyagLista').addEventListener('dblclick',  e => editItem(e, state.anyagok));
   E('reszlegLista').addEventListener('dblclick',e => editItem(e, state.reszlegek));
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
+  E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
+  E('anyagInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('anyagInput'), state.anyagok); });
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
   E('reszlegTorBtn').addEventListener('click',() => delFromList(E('reszlegLista'),state.reszlegek));
   E('csoportLista').addEventListener('dblclick', async e => {

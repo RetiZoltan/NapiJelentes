@@ -1151,7 +1151,11 @@
               <div class="lbox-t">Anyaglista</div>
               <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
               <select id="anyagLista" multiple size="5" style="width:100%;"></select>
-              <button class="btn btn-danger btn-sm btn-full" id="anyagTorBtn">Kijelöltek törlése</button>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <input id="anyagInput" type="text" placeholder="Új anyag neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
+                <button class="btn btn-primary btn-sm" id="anyagAddBtn">+</button>
+              </div>
+              <button class="btn btn-danger btn-sm btn-full" id="anyagTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
             </div>
             <div class="lbox">
               <div class="lbox-t">Részleglista</div>
