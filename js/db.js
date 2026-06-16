@@ -36,8 +36,8 @@ export async function saveLists() {
 export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   E('nevDL').innerHTML     = srt(state.nevek).map(n => `<option value="${esc(n)}"></option>`).join('');
-  E('anyagDL').innerHTML   = srt(state.anyagok).map(a => `<option value="${esc(a)}"></option>`).join('');
   E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
+  fillSelGrouped(E('anyag'), state.anyagok, '— Válassz anyagot —');
   fillSel(E('nevLista'),       state.nevek);
   fillSel(E('anyagLista'),     state.anyagok);
   fillSel(E('reszlegLista'),   state.reszlegek);

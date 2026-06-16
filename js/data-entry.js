@@ -130,7 +130,6 @@ export async function rogzit() {
 
   if (!datum) { msg('Dátum kötelező!', 'error'); E('datum').focus(); return; }
   await autoAddToList(nev, state.nevek);
-  await autoAddToList(anyagB, state.anyagok);
 
   const sm = E('sulyC').querySelectorAll('.wrow');
   const zm = E('zsakC').querySelectorAll('.wrow');
