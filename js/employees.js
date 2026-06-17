@@ -537,7 +537,7 @@ export async function exportEmpPdf(emp) {
   };
 
   const keret  = emp.szabadsagKeret ?? 20;
-  const felh   = _szabadsagMap[emp.nev] || 0;
+  const felh   = _getAbsStats(emp.nev).szabadsag;
   const marad  = Math.max(0, keret - felh);
   const ST     = { aktiv:{l:'Aktív',c:LM.green}, inaktiv:{l:'Inaktív',c:LM.t3}, szabadsag:{l:'Szabadságon',c:LM.amber} };
   const st     = ST[emp.statusz || 'aktiv'] || ST.aktiv;
