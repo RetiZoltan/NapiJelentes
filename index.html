@@ -1186,28 +1186,34 @@
             </div>
           </div>
           <div id="nevMetaSection" style="margin-top:12px;display:none;">
-            <div class="lbox">
-              <div class="lbox-t" style="margin-bottom:6px;">Dolgozó → Alapértelmezett részleg</div>
-              <p class="lhint">Névválasztáskor a részleg mező automatikusan kitöltődik (ha nincs rögzítve).</p>
-              <div id="nevMetaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
-              <button class="btn btn-primary btn-sm" id="nevMetaSaveBtn">Mentés</button>
-            </div>
+            <details class="map-details">
+              <summary class="map-summary">Dolgozó → Alapértelmezett részleg</summary>
+              <div class="map-body">
+                <p class="lhint">Névválasztáskor a részleg mező automatikusan kitöltődik (ha nincs rögzítve).</p>
+                <div id="nevMetaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
+                <button class="btn btn-primary btn-sm" id="nevMetaSaveBtn">Mentés</button>
+              </div>
+            </details>
           </div>
           <div id="reszlegAnyagMapSection" style="margin-top:12px;display:none;">
-            <div class="lbox">
-              <div class="lbox-t" style="margin-bottom:6px;">Részleg → Anyag hozzárendelés</div>
-              <p class="lhint">Jelöld be, melyik részleg melyik anyagokkal dolgozik. Ha nincs bejelölve semmi, az adott részlegnél minden anyag látható.</p>
-              <div id="reszlegAnyagGrid" style="margin-bottom:10px;"></div>
-              <button class="btn btn-primary btn-sm" id="reszlegAnyagSaveBtn">Mentés</button>
-            </div>
+            <details class="map-details">
+              <summary class="map-summary">Részleg → Anyag hozzárendelés</summary>
+              <div class="map-body">
+                <p class="lhint">Jelöld be, melyik részleg melyik anyagokkal dolgozik. Ha nincs bejelölve semmi, az adott részlegnél minden anyag látható.</p>
+                <div id="reszlegAnyagGrid" style="margin-bottom:10px;"></div>
+                <button class="btn btn-primary btn-sm" id="reszlegAnyagSaveBtn">Mentés</button>
+              </div>
+            </details>
           </div>
           <div id="csoportMapSection" style="margin-top:12px;display:none;">
-            <div class="lbox">
-              <div class="lbox-t" style="margin-bottom:6px;">Anyag → Csoport hozzárendelés</div>
-              <p class="lhint">Rendeld hozzá az anyagokat a megfelelő csoporthoz</p>
-              <div id="csoportMapGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
-              <button class="btn btn-primary btn-sm" id="csoportMapSaveBtn">Mentés</button>
-            </div>
+            <details class="map-details">
+              <summary class="map-summary">Anyag → Csoport hozzárendelés</summary>
+              <div class="map-body">
+                <p class="lhint">Rendeld hozzá az anyagokat a megfelelő csoporthoz</p>
+                <div id="csoportMapGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
+                <button class="btn btn-primary btn-sm" id="csoportMapSaveBtn">Mentés</button>
+              </div>
+            </details>
           </div>
         </div>
 
