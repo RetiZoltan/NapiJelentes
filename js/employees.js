@@ -364,6 +364,12 @@ export function openEmpDrawer(emp) {
   }
   body += `<div class="emp-drawer-section"><div class="emp-drawer-section-title">Képzési napló</div>${kepBody}</div>`;
 
+  // Termelési teljesítmény szekció (async-töltve)
+  body += `<div class="emp-drawer-section">
+    <div class="emp-drawer-section-title">📈 Termelési teljesítmény</div>
+    <div id="empPerfDiv"></div>
+  </div>`;
+
   const isInaktiv = (emp.statusz || 'aktiv') === 'inaktiv';
   body += `<div class="emp-drawer-actions">
     ${canEditEmp() ? `<button class="btn btn-primary btn-sm" id="drawerEditBtn">✎ Szerkeszt</button>` : ''}
@@ -374,6 +380,7 @@ export function openEmpDrawer(emp) {
   </div>`;
 
   E('empDrawerBody').innerHTML = body;
+  loadEmpPerf(emp.nev);
   E('drawerEditBtn')?.addEventListener('click', () => { closeEmpDrawer(); openEmpForm(emp); });
   E('drawerPdfBtn')?.addEventListener('click',  () => exportEmpPdf(emp));
   E('drawerArchBtn')?.addEventListener('click', async () => {
@@ -435,6 +442,86 @@ export function closeEmpDrawer() {
   E('empDrawerOverlay').classList.remove('open');
   E('empDrawer').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+/* ══════════════════════════════════════
+   TERMELÉSI TELJESÍTMÉNY KÁRTYA
+══════════════════════════════════════ */
+async function loadEmpPerf(nev) {
+  const div = document.getElementById('empPerfDiv'); if (!div) return;
+  div.innerHTML = '<div style="text-align:center;padding:14px 0;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'entries'), where('nev', '==', nev)));
+    const entries = snap.docs.map(d => d.data());
+
+    if (!entries.length) {
+      div.innerHTML = '<div style="font-size:12.5px;color:var(--text3);padding:4px 0;">Nincs rögzített termelési adat.</div>';
+      return;
+    }
+
+    let totalKg = 0;
+    const byDay = {}, byAnyag = {}, byMonth = {};
+    entries.forEach(e => {
+      const sulyKg = (e.sulyok  || []).reduce((s, w) => s + (Number(w.suly) || 0), 0);
+      const zsakKg = (e.zsakSulyok || []).reduce((s, v) => s + (Number(v) || 0), 0);
+      const kg = sulyKg + zsakKg;
+      totalKg += kg;
+      const d = e.datum || '';
+      if (d && kg > 0) byDay[d] = (byDay[d] || 0) + kg;
+      if (e.anyag && kg > 0) byAnyag[e.anyag] = (byAnyag[e.anyag] || 0) + kg;
+      const mo = d.slice(0, 7);
+      if (mo && kg > 0) byMonth[mo] = (byMonth[mo] || 0) + kg;
+    });
+
+    const activeDays = Object.keys(byDay).length;
+    const [bestDay,  bestDayKg]  = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0]  || ['—', 0];
+    const [topAnyag, topAnyagKg] = Object.entries(byAnyag).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+
+    // Utolsó 12 hónap sparkline adatai
+    const now = new Date();
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`);
+    }
+    const monthVals = months.map(m => byMonth[m] || 0);
+    const maxVal    = Math.max(...monthVals, 1);
+    const HONAP     = ['jan','feb','már','ápr','máj','jún','júl','aug','szep','okt','nov','dec'];
+
+    let h = '<div class="nossz" style="margin-bottom:12px;">';
+    h += `<div class="nossz-item"><div class="nossz-val" style="font-size:14px;">${totalKg.toLocaleString('hu-HU')}</div><div class="nossz-lbl">Összes kg</div></div>`;
+    h += `<div class="nossz-item"><div class="nossz-val" style="font-size:14px;">${activeDays}</div><div class="nossz-lbl">Aktív nap</div></div>`;
+    h += `<div class="nossz-item"><div class="nossz-val" style="font-size:14px;">${bestDayKg.toLocaleString('hu-HU')}</div><div class="nossz-lbl">Rekord/nap</div></div>`;
+    h += '</div>';
+
+    if (topAnyag !== '—') {
+      h += `<div style="font-size:12.5px;color:var(--text2);margin-bottom:5px;">📦 Fő anyag: <strong>${esc(topAnyag)}</strong> · ${topAnyagKg.toLocaleString('hu-HU')} kg</div>`;
+    }
+    if (bestDay !== '—') {
+      h += `<div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;">🏆 Rekord nap: <strong>${esc(bestDay)}</strong> · ${bestDayKg.toLocaleString('hu-HU')} kg</div>`;
+    }
+
+    // Mini sávdiagram — utolsó 12 hónap
+    h += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px;">Havi termelés (elmúlt 12 hó)</div>';
+    h += '<div style="display:flex;align-items:flex-end;gap:2px;height:54px;">';
+    monthVals.forEach((val, i) => {
+      const barH     = val > 0 ? Math.max(5, Math.round(val / maxVal * 44)) : 0;
+      const mo       = months[i];
+      const m        = Number(mo.split('-')[1]);
+      const isCur    = i === 11;
+      const bgColor  = isCur ? 'var(--accent)' : 'var(--agl)';
+      h += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;" title="${esc(mo)}: ${val.toLocaleString('hu-HU')} kg">
+        <div style="width:100%;background:${bgColor};border-radius:2px 2px 0 0;height:${barH}px;${val===0?'opacity:0;':''}"></div>
+        <div style="font-size:8px;color:var(--text3);white-space:nowrap;">${HONAP[m - 1]}</div>
+      </div>`;
+    });
+    h += '</div>';
+
+    div.innerHTML = h;
+  } catch (err) {
+    const d2 = document.getElementById('empPerfDiv');
+    if (d2) d2.innerHTML = '<div style="font-size:12px;color:var(--red);">Betöltési hiba.</div>';
+  }
 }
 
 /* ══════════════════════════════════════
