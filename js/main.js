@@ -8,9 +8,10 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, delFromList, editItem,
+         addToList, delFromList, editItem, editNevItem,
          getWorkerMaterials, updIdoszakosFilters,
-         saveCsoportMap, saveReszlegAnyagMap } from './db.js';
+         saveCsoportMap, saveReszlegAnyagMap,
+         saveNevMeta, archivNev, visszaNev } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
@@ -561,6 +562,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   E('nev').addEventListener('change', () => {
     if (state.isNamePinned) localStorage.setItem('pinnedNev', E('nev').value);
+    if (!state.isReszlegPinned) {
+      const defR = state.nevMetadata[E('nev').value]?.reszleg;
+      if (defR) { E('reszleg').value = defR; _prevReszleg = defR; updateAnyagSel(defR, E('anyag').value); }
+    }
   });
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
@@ -1048,12 +1053,15 @@ E('megj').addEventListener('focus', e => e.target.select());
   });
 
   // Admin — listák
-  E('nevLista').addEventListener('dblclick',    e => editItem(e, state.nevek));
+  E('nevLista').addEventListener('dblclick',    e => editNevItem(e));
   E('anyagLista').addEventListener('dblclick',  e => editItem(e, state.anyagok));
   E('reszlegLista').addEventListener('dblclick',e => editItem(e, state.reszlegek));
   E('nevAddBtn').addEventListener('click',    () => addToList(E('nevInput'),      state.nevek));
   E('nevInput').addEventListener('keydown',   e => { if (e.key === 'Enter') addToList(E('nevInput'), state.nevek); });
+  E('nevArchivBtn').addEventListener('click', archivNev);
+  E('nevVisszaBtn').addEventListener('click', visszaNev);
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
+  E('nevMetaSaveBtn').addEventListener('click', saveNevMeta);
   E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
   E('anyagInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('anyagInput'), state.anyagok); });
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));

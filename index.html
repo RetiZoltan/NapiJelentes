@@ -1142,11 +1142,15 @@
           <div class="lmgrid">
             <div class="lbox">
               <div class="lbox-t">Névlista</div>
-              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
-              <select id="nevLista" multiple size="5" style="width:100%;"></select>
+              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés · dőlt = archivált</p>
+              <select id="nevLista" multiple size="6" style="width:100%;"></select>
               <div style="display:flex;gap:6px;margin-top:4px;">
                 <input id="nevInput" type="text" placeholder="Új dolgozó neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
                 <button class="btn btn-primary btn-sm" id="nevAddBtn">+</button>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button class="btn btn-warning btn-sm" style="flex:1;" id="nevArchivBtn">Archiválás</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1;" id="nevVisszaBtn">Visszaállítás</button>
               </div>
               <button class="btn btn-danger btn-sm btn-full" id="nevTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
             </div>
@@ -1179,6 +1183,14 @@
                 <button class="btn btn-primary btn-sm" id="csoportAddBtn">+</button>
               </div>
               <button class="btn btn-danger btn-sm btn-full" id="csoportTorBtn" style="margin-top:6px;">Kijelöltek törlése</button>
+            </div>
+          </div>
+          <div id="nevMetaSection" style="margin-top:12px;display:none;">
+            <div class="lbox">
+              <div class="lbox-t" style="margin-bottom:6px;">Dolgozó → Alapértelmezett részleg</div>
+              <p class="lhint">Névválasztáskor a részleg mező automatikusan kitöltődik (ha nincs rögzítve).</p>
+              <div id="nevMetaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
+              <button class="btn btn-primary btn-sm" id="nevMetaSaveBtn">Mentés</button>
             </div>
           </div>
           <div id="reszlegAnyagMapSection" style="margin-top:12px;display:none;">

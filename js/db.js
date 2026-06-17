@@ -13,6 +13,7 @@ export async function loadLists() {
       state.anyagCsoportok   = s.data().csoportok        || [];
       state.anyagCsoportMap  = s.data().anyagCsoportMap  || {};
       state.reszlegAnyagMap  = s.data().reszlegAnyagMap  || {};
+      state.nevMetadata      = s.data().nevMetadata      || {};
     }
     refreshListUI();
   } catch { msg('Lista betöltési hiba', 'error'); }
@@ -37,11 +38,16 @@ export async function saveLists() {
   });
   state.reszlegAnyagMap = cleanRaMap;
 
+  const nevSet = new Set(state.nevek);
+  const cleanNevMeta = {};
+  state.nevek.forEach(n => { if (state.nevMetadata[n]) cleanNevMeta[n] = { ...state.nevMetadata[n] }; });
+  state.nevMetadata = cleanNevMeta;
+
   try {
     await setDoc(doc(db, 'config', 'lists'), {
       nevek: state.nevek, anyagok: state.anyagok, reszlegek: state.reszlegek,
       csoportok: state.anyagCsoportok, anyagCsoportMap: cleanCsMap,
-      reszlegAnyagMap: cleanRaMap,
+      reszlegAnyagMap: cleanRaMap, nevMetadata: cleanNevMeta,
     });
   } catch { msg('Lista mentési hiba', 'error'); }
 }
@@ -49,15 +55,17 @@ export async function saveLists() {
 export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
-  fillSel(E('nev'),    state.nevek,    '— Válassz dolgozót —');
+  const activeNev = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
+  fillSel(E('nev'),    activeNev,        '— Válassz dolgozót —');
   fillSel(E('reszleg'), state.reszlegek, '— Válassz részleget —');
   fillSelGrouped(E('anyag'), state.anyagok, '— Válassz anyagot —');
-  fillSel(E('nevLista'),       state.nevek);
+  fillNevListaAdmin();
   fillSel(E('anyagLista'),     state.anyagok);
   fillSel(E('reszlegLista'),   state.reszlegek);
   fillSel(E('csoportLista'),   state.anyagCsoportok);
   renderCsoportMapUI();
   renderReszlegAnyagMapUI();
+  renderNevMetaUI();
   updDolgSzuro();
   updReszlegSzuro();
   updIdoszakosFilters();
@@ -226,6 +234,82 @@ export async function saveReszlegAnyagMap() {
   state.reszlegAnyagMap = map;
   await saveLists();
   msg('Hozzárendelés mentve.');
+}
+
+function fillNevListaAdmin() {
+  const sel = E('nevLista'); if (!sel) return;
+  const prev = Array.from(sel.selectedOptions).map(o => o.value);
+  sel.innerHTML = '';
+  [...state.nevek].sort((a, b) => a.localeCompare(b, 'hu')).forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    const arch = state.nevMetadata[n]?.archivalt;
+    o.textContent = arch ? `${n} (archivált)` : n;
+    if (arch) { o.style.color = 'var(--text3)'; o.style.fontStyle = 'italic'; }
+    if (prev.includes(n)) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function renderNevMetaUI() {
+  const section = E('nevMetaSection'); if (!section) return;
+  const activeNev = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
+  if (!activeNev.length || !state.reszlegek.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const srt    = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const rOpts  = srt(state.reszlegek).map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  const sorted = srt(activeNev);
+  E('nevMetaGrid').innerHTML = sorted.map(n => `<div style="display:flex;align-items:center;gap:8px;">
+    <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(n)}">${esc(n)}</span>
+    <select class="pc-input nmeta-sel" data-nev="${esc(n)}" style="width:140px;padding:3px 5px;">
+      <option value="">—</option>${rOpts}
+    </select>
+  </div>`).join('');
+  const selEls = E('nevMetaGrid').querySelectorAll('.nmeta-sel');
+  sorted.forEach((n, i) => { if (selEls[i] && state.nevMetadata[n]?.reszleg) selEls[i].value = state.nevMetadata[n].reszleg; });
+}
+
+export async function saveNevMeta() {
+  document.querySelectorAll('.nmeta-sel').forEach(sel => {
+    const n = sel.dataset.nev; if (!n) return;
+    if (!state.nevMetadata[n]) state.nevMetadata[n] = {};
+    if (sel.value) state.nevMetadata[n].reszleg = sel.value;
+    else delete state.nevMetadata[n].reszleg;
+  });
+  await saveLists();
+  msg('Hozzárendelés mentve.');
+}
+
+export async function archivNev() {
+  const sel = E('nevLista');
+  const names = Array.from(sel.selectedOptions).map(o => o.value).filter(n => !state.nevMetadata[n]?.archivalt);
+  if (!names.length) { msg('Válassz ki aktív dolgozót!', 'error'); return; }
+  if (!confirm(`Archiválod: ${names.join(', ')}?`)) return;
+  names.forEach(n => { (state.nevMetadata[n] ??= {}).archivalt = true; });
+  refreshListUI(); await saveLists(); msg(`${names.length} dolgozó archiválva.`);
+}
+
+export async function visszaNev() {
+  const sel = E('nevLista');
+  const names = Array.from(sel.selectedOptions).map(o => o.value).filter(n => state.nevMetadata[n]?.archivalt);
+  if (!names.length) { msg('Válassz ki archivált dolgozót!', 'error'); return; }
+  names.forEach(n => { state.nevMetadata[n].archivalt = false; });
+  refreshListUI(); await saveLists(); msg(`${names.length} dolgozó visszaállítva.`);
+}
+
+export async function editNevItem(e) {
+  const sel = e.target.closest('select'); if (!sel || sel.selectedOptions.length !== 1) return;
+  const old = sel.selectedOptions[0].value;
+  const nv  = prompt(`"${old}" módosítása:`, old); if (nv === null) return;
+  const t   = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
+  if (t.toLowerCase() === old.toLowerCase()) return;
+  if (state.nevek.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
+  const i = state.nevek.findIndex(x => x.toLowerCase() === old.toLowerCase());
+  if (i > -1) {
+    state.nevek[i] = t;
+    if (state.nevMetadata[old]) { state.nevMetadata[t] = state.nevMetadata[old]; delete state.nevMetadata[old]; }
+    refreshListUI(); await saveLists(); msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 5000);
+  }
 }
 
 export async function updDolgSzuro() {

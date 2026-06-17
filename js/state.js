@@ -8,6 +8,7 @@ export const state = {
   anyagCsoportok:   [],
   anyagCsoportMap:  {},
   reszlegAnyagMap:  {},
+  nevMetadata:      {},
   prevDatum:        null,
   isNamePinned:     false,
   isReszlegPinned:  false,
