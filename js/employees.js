@@ -536,8 +536,9 @@ export async function exportEmpPdf(emp) {
     agl:'rgba(21,101,192,0.10)'
   };
 
+  const absAll = _getAbsStats(emp.nev);
   const keret  = emp.szabadsagKeret ?? 20;
-  const felh   = _getAbsStats(emp.nev).szabadsag;
+  const felh   = absAll.szabadsag;
   const marad  = Math.max(0, keret - felh);
   const ST     = { aktiv:{l:'Aktív',c:LM.green}, inaktiv:{l:'Inaktív',c:LM.t3}, szabadsag:{l:'Szabadságon',c:LM.amber} };
   const st     = ST[emp.statusz || 'aktiv'] || ST.aktiv;
@@ -545,9 +546,62 @@ export async function exportEmpPdf(emp) {
   function row(icon, label, val) {
     if (!val) return '';
     return `<tr>
-      <td style="padding:5px 10px;color:${LM.t3};font-size:12px;white-space:nowrap;">${icon} ${label}</td>
-      <td style="padding:5px 10px;color:${LM.t1};font-size:13px;">${esc(String(val))}</td></tr>`;
+      <td style="padding:5px 10px 5px 0;color:${LM.t3};font-size:12px;white-space:nowrap;">${icon} ${label}</td>
+      <td style="padding:5px 0 5px 10px;color:${LM.t1};font-size:13px;">${esc(String(val))}</td></tr>`;
   }
+
+  // Termelési adatok (entries kollekció)
+  let perfHtml = '';
+  try {
+    const perfSnap = await getDocs(query(collection(db, 'entries'), where('nev', '==', emp.nev)));
+    const perfEntries = perfSnap.docs.map(d => d.data());
+    if (perfEntries.length) {
+      let totalKg = 0;
+      const byDay = {}, byAnyag = {};
+      perfEntries.forEach(e => {
+        const kg = (e.sulyok || []).reduce((s, w) => s + (Number(w.suly) || 0), 0);
+        totalKg += kg;
+        const d = e.datum || '';
+        if (d && kg > 0) byDay[d] = (byDay[d] || 0) + kg;
+        if (e.anyag && kg > 0) byAnyag[e.anyag] = (byAnyag[e.anyag] || 0) + kg;
+      });
+      const activeDays   = Object.keys(byDay).length;
+      const [bestDay, bestDayKg]   = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0]   || ['—', 0];
+      const [topAnyag, topAnyagKg] = Object.entries(byAnyag).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+      perfHtml = `
+      <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:12px;">Termelési teljesítmény</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          ${[
+            [totalKg.toLocaleString('hu-HU') + ' kg', 'Összes termelt', LM.acc],
+            [activeDays + ' nap', 'Aktív napok', LM.t1],
+            [bestDayKg.toLocaleString('hu-HU') + ' kg', 'Rekord/nap', LM.t1]
+          ].map(([v, l, c]) =>
+            `<div style="flex:1;text-align:center;background:${LM.surf2};border-radius:7px;padding:10px 6px;">
+              <div style="font-size:17px;font-weight:700;color:${c};">${v}</div>
+              <div style="font-size:10px;color:${LM.t3};text-transform:uppercase;margin-top:2px;">${l}</div>
+            </div>`).join('')}
+        </div>
+        ${topAnyag !== '—' ? `<div style="font-size:12px;color:${LM.t2};">📦 Fő anyag: <strong>${esc(topAnyag)}</strong> — ${topAnyagKg.toLocaleString('hu-HU')} kg</div>` : ''}
+        ${bestDay !== '—' ? `<div style="font-size:12px;color:${LM.t2};margin-top:3px;">🏆 Legjobb nap: <strong>${esc(bestDay)}</strong> — ${bestDayKg.toLocaleString('hu-HU')} kg</div>` : ''}
+      </div>`;
+    }
+  } catch {}
+
+  // Képzési napló
+  const kepzesek = [...(emp.kepzesek || [])].sort((a, b) => b.datum.localeCompare(a.datum));
+  const kepzesHtml = kepzesek.length ? `
+    <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:10px;">Képzési napló</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${kepzesek.map(k => `
+          <tr style="border-bottom:1px solid ${LM.b};">
+            <td style="padding:5px 10px 5px 0;color:${LM.t3};font-size:11.5px;white-space:nowrap;">${esc(k.datum)}</td>
+            <td style="padding:5px 10px;color:${LM.t1};font-size:12.5px;font-weight:600;">${esc(k.nev)}</td>
+            <td style="padding:5px 0 5px 10px;color:${LM.t2};font-size:11.5px;">${k.megjegyzes ? esc(k.megjegyzes) : ''}</td>
+          </tr>`).join('')}
+      </table>
+    </div>` : '';
 
   const wrap = document.createElement('div');
   wrap.style.cssText = `position:absolute;left:-9999px;top:${window.scrollY}px;width:600px;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:14px;line-height:1.6;color:${LM.t1};background:${LM.bg};padding:24px;box-sizing:border-box;`;
@@ -563,31 +617,38 @@ export async function exportEmpPdf(emp) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:10px;">Adatok</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:10px;">Alapadatok</div>
         <table style="width:100%;border-collapse:collapse;">
-          ${row('📞','Telefon',emp.telefon)}
-          ${row('✉️','E-mail',emp.email)}
-          ${row('📅','Belépett',emp.belepet)}
-          ${row('🎂','Születési dátum',emp.szulDatum)}
-          ${row('📋','Szerződés',SZERZODES[emp.szerzodesTipus])}
+          ${row('🏭', 'Részleg',          emp.reszleg)}
+          ${row('💼', 'Pozíció',          emp.pozicio)}
+          ${row('📅', 'Belépési dátum',   emp.belepet)}
+          ${row('🎂', 'Születési dátum',  emp.szulDatum)}
+          ${row('📋', 'Szerződés',        SZERZODES[emp.szerzodesTipus])}
+          ${row('📞', 'Telefon',          emp.telefon)}
+          ${row('✉️', 'E-mail',           emp.email)}
         </table>
       </div>
       <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:12px;">Szabadság — ${new Date().getFullYear()}</div>
-        <div style="display:flex;gap:8px;">
-          ${[[felh,'Felhasznált',LM.t1],[keret,'Keret',LM.t1],[marad,'Maradt',marad<5?LM.red:LM.green]].map(([v,l,c])=>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:12px;">Hiányzások — ${new Date().getFullYear()}</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          ${[[felh,'Felhasznált szab.',LM.t1],[keret,'Keret',LM.t1],[marad,'Maradt',marad<5?LM.red:LM.green]].map(([v,l,c])=>
             `<div style="flex:1;text-align:center;background:${LM.surf2};border-radius:7px;padding:10px 6px;">
-              <div style="font-size:22px;font-weight:700;color:${c};">${v}</div>
-              <div style="font-size:10px;color:${LM.t3};text-transform:uppercase;margin-top:2px;">${l}</div></div>`
+              <div style="font-size:20px;font-weight:700;color:${c};">${v}</div>
+              <div style="font-size:9px;color:${LM.t3};text-transform:uppercase;margin-top:2px;">${l}</div></div>`
           ).join('')}
         </div>
+        ${absAll.betegseg      > 0 ? `<div style="font-size:12px;color:${LM.t2};margin-bottom:4px;">🤒 Betegszabadság: <strong>${absAll.betegseg} nap</strong></div>` : ''}
+        ${absAll.fizetesnelkuli> 0 ? `<div style="font-size:12px;color:${LM.t2};margin-bottom:4px;">📋 Fizetés nélküli: <strong>${absAll.fizetesnelkuli} nap</strong></div>` : ''}
+        ${absAll.egyeb         > 0 ? `<div style="font-size:12px;color:${LM.t2};margin-bottom:4px;">❓ Egyéb hiányzás: <strong>${absAll.egyeb} nap</strong></div>` : ''}
       </div>
     </div>
+    ${perfHtml}
     ${(emp.kompetenciak||[]).length ? `
     <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:10px;">Kompetenciák</div>
       <div>${emp.kompetenciak.map(k=>`<span style="display:inline-block;background:${LM.agl};color:${LM.acc};border:1px solid rgba(21,101,192,.2);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;margin:2px;">${esc(k)}</span>`).join('')}</div>
     </div>` : ''}
+    ${kepzesHtml}
     ${emp.megjegyzes ? `
     <div style="background:${LM.surf};border:1px solid ${LM.b};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${LM.t3};border-bottom:1px solid ${LM.b};padding-bottom:7px;margin-bottom:8px;">Megjegyzés</div>
