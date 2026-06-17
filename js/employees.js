@@ -462,9 +462,7 @@ async function loadEmpPerf(nev) {
     let totalKg = 0;
     const byDay = {}, byAnyag = {}, byMonth = {};
     entries.forEach(e => {
-      const sulyKg = (e.sulyok  || []).reduce((s, w) => s + (Number(w.suly) || 0), 0);
-      const zsakKg = (e.zsakSulyok || []).reduce((s, v) => s + (Number(v) || 0), 0);
-      const kg = sulyKg + zsakKg;
+      const kg = (e.sulyok || []).reduce((s, w) => s + (Number(w.suly) || 0), 0);
       totalKg += kg;
       const d = e.datum || '';
       if (d && kg > 0) byDay[d] = (byDay[d] || 0) + kg;
