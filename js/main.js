@@ -153,17 +153,25 @@ function buildAppUI() {
   E('datum').value   = state.prevDatum;
   E('riportD').value = state.prevDatum;
 
+  // Restore pinned nev from localStorage
+  const savedNev = localStorage.getItem('pinnedNev');
+  if (savedNev !== null) {
+    state.isNamePinned = true;
+    E('pinNevBtn').style.background = 'var(--accent)';
+    E('pinNevBtn').style.color      = '#fff';
+    E('pinNevBtn').title = 'Név rögzítve — kattints a feloldáshoz';
+    E('nev').classList.add('pinned');
+  }
   // Restore pinned reszleg from localStorage
   const savedReszleg = localStorage.getItem('pinnedReszleg');
   if (savedReszleg !== null) {
     state.isReszlegPinned = true;
-    E('reszleg').value = savedReszleg;
     E('pinReszlegBtn').style.background = 'var(--accent)';
     E('pinReszlegBtn').style.color      = '#fff';
     E('pinReszlegBtn').title = 'Részleg rögzítve — kattints a feloldáshoz';
     E('reszleg').classList.add('pinned');
   }
-  _prevReszleg = E('reszleg').value.trim();
+  _prevReszleg = '';
 
   // Restore pinned műszak from localStorage, egyébként auto-detektál
   const savedMuszak = localStorage.getItem('pinnedMuszak');
@@ -198,7 +206,17 @@ function buildAppUI() {
 
   applyColorTheme(state.userData.colorTheme || 'plexiq');
   applyLayout(state.userData.layout || 'classic');
-  loadLists().then(() => _updateFeladatReszlegF());
+  loadLists().then(() => {
+    _updateFeladatReszlegF();
+    if (state.isNamePinned) {
+      const sv = localStorage.getItem('pinnedNev');
+      if (sv) E('nev').value = sv;
+    }
+    if (state.isReszlegPinned) {
+      const sv = localStorage.getItem('pinnedReszleg');
+      if (sv) { E('reszleg').value = sv; _prevReszleg = sv; updateAnyagSel(sv, E('anyag').value); }
+    }
+  });
   addSuly(); addZsak();
   // Login logolás + lastLoginAt mentés
   logAction('auth.login', { email: state.appUser.email, ua: navigator.userAgent.slice(0, 300) });
@@ -538,6 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.color      = state.isNamePinned ? '#fff' : '';
     btn.title = state.isNamePinned ? 'Név rögzítve — kattints a feloldáshoz' : 'Név rögzítése';
     E('nev').classList.toggle('pinned', state.isNamePinned);
+    if (state.isNamePinned) localStorage.setItem('pinnedNev', E('nev').value);
+    else localStorage.removeItem('pinnedNev');
+  });
+  E('nev').addEventListener('change', () => {
+    if (state.isNamePinned) localStorage.setItem('pinnedNev', E('nev').value);
   });
   E('pinReszlegBtn').addEventListener('click', () => {
     state.isReszlegPinned = !state.isReszlegPinned;
