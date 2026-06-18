@@ -337,22 +337,35 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 .ssc-lbl{font-size:11px;color:var(--text3);margin-top:2px;}
 
 /* ── Súgó / Help ── */
-.help-section{border:1px solid var(--border);border-radius:var(--rlg);margin-bottom:8px;overflow:hidden;box-shadow:var(--sh);}
-.help-section-hdr{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;background:var(--surf);border:none;width:100%;text-align:left;font-family:'Source Sans 3',sans-serif;transition:background var(--tr);}
-.help-section-hdr:hover{background:var(--surf2);}
-.help-section-icon{font-size:18px;flex-shrink:0;}
-.help-section-title{font-size:14px;font-weight:600;color:var(--text);flex:1;}
-.help-section-arrow{color:var(--text3);transition:transform .2s;font-size:16px;flex-shrink:0;}
-.help-section-hdr.open .help-section-arrow{transform:rotate(90deg);}
-.help-section-body{display:none;padding:16px 18px 20px;background:var(--surf);border-top:1px solid var(--border);font-size:13.5px;color:var(--text2);line-height:1.7;}
-.help-section-body p{margin:0 0 10px;}
-.help-section-body p:last-child{margin-bottom:0;}
-.help-section-body ul{padding-left:20px;margin:0 0 10px;}
-.help-section-body li{margin-bottom:4px;}
-.help-section-body strong{color:var(--text);font-weight:600;}
-.help-section-body em{color:var(--red);font-style:normal;}
+/* Tile rács */
+.help-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;padding:4px 0;}
+.help-tile{background:var(--surf);border:1px solid var(--border);border-radius:var(--rlg);padding:20px 14px 16px;cursor:pointer;text-align:center;transition:background var(--tr),border-color var(--tr),transform .15s,box-shadow .15s;box-shadow:var(--sh);font-family:'Source Sans 3',sans-serif;}
+.help-tile:hover{background:var(--surf2);border-color:var(--accent);transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.13);}
+.help-tile:active{transform:translateY(-1px);}
+.help-tile-icon{font-size:30px;margin-bottom:10px;line-height:1;}
+.help-tile-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;}
+.help-tile-desc{font-size:11.5px;color:var(--text3);line-height:1.45;}
+/* Modal overlay */
+.help-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);}
+.help-modal{background:var(--surf);border:1px solid var(--border);border-radius:var(--rlg);max-width:660px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.28);animation:hmIn .18s ease;}
+@keyframes hmIn{from{opacity:0;transform:scale(.95) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.help-modal-hdr{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.help-modal-hdr-icon{font-size:22px;flex-shrink:0;}
+.help-modal-hdr-title{font-size:15px;font-weight:700;color:var(--text);flex:1;}
+.help-modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);padding:4px 8px;border-radius:var(--rsm);font-family:inherit;transition:background var(--tr),color var(--tr);}
+.help-modal-close:hover{background:var(--surf2);color:var(--text);}
+.help-modal-body{overflow-y:auto;padding:18px 22px 22px;flex:1;}
+/* Megosztott body stílusok (modal + régi) */
+.help-section-body,.help-modal-body{font-size:13.5px;color:var(--text2);line-height:1.7;}
+.help-section-body p,.help-modal-body p{margin:0 0 10px;}
+.help-section-body p:last-child,.help-modal-body p:last-child{margin-bottom:0;}
+.help-section-body ul,.help-modal-body ul{padding-left:20px;margin:0 0 10px;}
+.help-section-body li,.help-modal-body li{margin-bottom:4px;}
+.help-section-body strong,.help-modal-body strong{color:var(--text);font-weight:600;}
+.help-section-body em,.help-modal-body em{color:var(--red);font-style:normal;}
 .help-tip{background:color-mix(in srgb,var(--accent) 8%,var(--surf2));border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:var(--rsm);padding:9px 12px;font-size:12.5px;color:var(--text2);margin-top:8px;}
 .help-tip::before{content:'💡 ';}
+@media(max-width:480px){.help-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));}.help-modal{max-height:90vh;border-radius:var(--rlg) var(--rlg) 0 0;align-self:flex-end;margin:0 -20px -20px;width:calc(100% + 40px);max-width:none;}}
 
 /* ── Dolgozók lista nézet ── */
 .emp-list { display:flex; flex-direction:column; gap:4px; }
