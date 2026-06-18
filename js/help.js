@@ -391,7 +391,19 @@ const SECTIONS = [
       ` : ''}
 
       ${isMainAdmin() || hasPerm('felhasznalokKezelese') ? `
-      <p><strong>📋 Listák:</strong> Névlista, anyaglista, részleglista szerkesztése. Dupla kattintás = helyszíni szerkesztés. Ctrl+klik = több kijelölés, majd törlés.</p>
+      <p><strong>📋 Listák:</strong></p>
+      <ul>
+        <li><strong>Névlista</strong> — dolgozónevek az adatbeviteli legördülőhöz. Ctrl+klik = több kijelölés · Dupla klik = helyszíni szerkesztés · dőlt betű = archivált. Gombok: <em>Archiválás</em> (eltünteti a legördülőből, de az adatok megmaradnak), <em>Visszaállítás</em>, <em>Kijelöltek törlése</em></li>
+        <li><strong>Anyaglista</strong> — anyagtípusok listája. Ctrl+klik = több · Dupla klik = szerkesztés · Kijelöltek törlése</li>
+        <li><strong>Részleglista</strong> — részlegek listája. Ctrl+klik = több · Dupla klik = szerkesztés · Kijelöltek törlése</li>
+        <li><strong>Anyagcsoportok</strong> — anyagokat csoportokba szervezhetsz (pl. egy-egy gyártási sor). Dupla klik = szerkesztés · Kijelöltek törlése</li>
+      </ul>
+      <p><strong>Hozzárendelések</strong> (összecsukható szekciók a listák alatt):</p>
+      <ul>
+        <li><strong>Dolgozó → Alapértelmezett részleg</strong> — névválasztáskor a részleg mező automatikusan kitöltődik ezzel az értékkel (ha nincs rögzítve a 📌 gombbal)</li>
+        <li><strong>Részleg → Anyag hozzárendelés</strong> — melyik részleg melyik anyagokkal dolgozik; ha nincs bejelölve, az adott részlegnél minden anyag látható az adatbevitelben</li>
+        <li><strong>Anyag → Csoport hozzárendelés</strong> — anyagokat csoporthoz rendeled; az adatbevitelben a legördülő csoportosítva jeleníti meg az anyagokat</li>
+      </ul>
       ` : ''}
 
       ${isMainAdmin() || hasPerm('kozlemenyIras') ? `
