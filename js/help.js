@@ -179,6 +179,8 @@ const SECTIONS = [
       <p><strong>⚖️ Összehasonlítás:</strong> Két dolgozó egymás mellé helyezve ugyanarra az anyagra — statisztikai tábla (✓ jelöli a győztest) + vizuális sávdiagram.</p>
 
       <p><strong>🕐 Műszak elemzés:</strong> Dolgozónként Délelőtt vs. Délután átlagos napi termelés, ✓ jelöli a jobb műszakot. Üzemi összesítő: melyik műszak termel többet és mennyivel.</p>
+
+      <p><strong>🏭 Részleg összesítő:</strong> Részlegenként össztermelés sávdiagrammal (🥇🥈🥉 érmek a top 3-nak), napi átlag és legjobb nap feltüntetésével. Alatta részletes összehasonlító táblázat: össztermelés · aktív napok · napi átlag · legjobb nap.</p>
     `
   },
 
@@ -213,16 +215,26 @@ const SECTIONS = [
         <li>Rendezés: Névsor / Belépési dátum / Részleg szerint</li>
         <li>Kártyára kattintva részletes <strong>drawer</strong> nyílik:
           <ul>
-            <li>Alap kapcsolattartási adatok (telefon, e-mail)</li>
-            <li><strong>Teljes hiányzás összefoglaló</strong> — 🌴 Szabadság X/Y nap + 🤒 Betegszabadság + 📋 Fizetés nélküli + ❓ Egyéb + összesen</li>
+            <li><strong>Alapadatok</strong> — telefon, e-mail, belépési dátum, születési dátum, szerződéstípus (ha meg van adva)</li>
+            <li><strong>Hiányzások</strong> — 🌴 Szabadság felhasznált/keret/maradt · 🤒 Betegszabadság · 📋 Fizetés nélküli · ❓ Egyéb · összes idei hiányzás</li>
             <li><strong>Kompetenciák</strong> chipek formájában</li>
-            <li><strong>📚 Képzési napló</strong> — dátum + képzés neve + megjegyzés listában. Szerkesztési joggal új bejegyzés adható hozzá</li>
-            <li><strong>📄 PDF adatlap</strong> generálható (adatok + szabadságkeret + kompetenciák)</li>
+            <li><strong>Megjegyzés</strong> — ha rögzítve van a dolgozóhoz</li>
+            <li><strong>📚 Képzési napló</strong> — dátum + képzés neve + megjegyzés listában, időrendben visszafelé. Szerkesztési joggal új bejegyzés adható hozzá (képzés neve + dátum + opcionális megjegyzés), egyenként is törölhető</li>
+            <li><strong>📈 Termelési teljesítmény</strong> — az összes rögzített adat alapján: összes kg · aktív napok · rekord/nap · fő anyag · legjobb nap dátuma + 12 havi mini sávdiagram</li>
+            <li><strong>📄 PDF adatlap</strong> — teljes tartalmú exportált dokumentum (lásd lent)</li>
           </ul>
         </li>
       </ul>
 
-      <p><strong>📅 Hiányzások:</strong> Havi szűrővel listázhatók. Típusok: 🌴 Szabadság · 🤒 Betegszabadság · 📋 Fizetés nélküli · ❓ Egyéb.</p>
+      <p><strong>📄 PDF adatlap tartalma:</strong></p>
+      <ul>
+        <li>Alapadatok tábla: részleg, pozíció, belépési dátum, születési dátum, szerződéstípus, telefon, e-mail</li>
+        <li>Hiányzások panel: szabadság keret / felhasznált / maradt + betegszabadság, fizetés nélküli, egyéb napok</li>
+        <li>Termelési teljesítmény: összes kg, aktív napok, rekord/nap, fő anyag, legjobb nap</li>
+        <li>Kompetenciák · Képzési napló (rendezett táblázat) · Megjegyzés</li>
+      </ul>
+
+      <p><strong>📅 Hiányzások:</strong> Havi szűrővel listázhatók. Típusok: 🌴 Szabadság · 🤒 Betegszabadság · 📋 Fizetés nélküli · ❓ Egyéb. Csak admin rögzíthet hiányzást.</p>
 
       <p><strong>🗓 Naptár (roster):</strong> Havi táblázat, ki mikor volt távol. Üres munkanapra kattintva gyors beviteli form jelenik meg alul — nem kell átmenni a Hiányzások fülre.</p>
 
@@ -231,7 +243,7 @@ const SECTIONS = [
       <p><strong>📊 Statisztika:</strong> Éves összesítő hiányzásból típusonként, részlegenként. Az év kiválasztása után a túlóra összesítő is megjelenik. CSV export.</p>
 
       ${isMainAdmin() || hasPerm('dolgozokKezeles') ? `
-      <p><strong>Dolgozó felvitelekor</strong> megadható: név, részleg, pozíció/beosztás, belépési dátum, szerződés típusa (határozatlan/határozott/megbízási), éves szabadságkeret. A <strong>Kompetenciák</strong> mezőbe gépelj és nyomj Entert — chipként adódnak hozzá, × gombbal törölhetők.</p>
+      <p><strong>Dolgozó felvitelekor</strong> megadható: név (kötelező), részleg, pozíció/beosztás, belépési dátum, születési dátum, státusz (Aktív/Inaktív/Szabadságon), szerződés típusa (határozatlan/határozott/megbízási), éves szabadságkeret (alapért.: 20 nap), telefon, e-mail, megjegyzés. A <strong>Kompetenciák</strong> mezőbe gépelj és nyomj Entert — chipként adódnak hozzá, × gombbal törölhetők.</p>
       ` : ''}
     `
   },
@@ -393,6 +405,8 @@ const SECTIONS = [
         <li><strong>Szűrők</strong>: típus (10 kategória: bejegyzés, dolgozó, feladat, közlemény, bejelentkezés, szerepkör, prémium, felhasználó, hiányzás, túlóra) · felhasználó · dátum tól–ig</li>
         <li>Logolt események: bejegyzés/nap törlése, dolgozó CRUD, feladat CRUD, közlemény CRUD, bejelentkezés, szerepkör változás, prémium konfig mentés, felhasználó letiltás/aktiválás</li>
       </ul>
+
+      <p><strong>🔑 Belépési napló:</strong> Minden sikeres Google-bejelentkezés időpontja, e-mail címe és neve — időrendben visszafelé.</p>
 
       <p><strong>💾 Adatok:</strong></p>
       <ul>
