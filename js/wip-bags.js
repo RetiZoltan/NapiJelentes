@@ -1,7 +1,7 @@
 import { db, doc, getDoc, setDoc, deleteDoc, updateDoc, collection, getDocs, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, esc, msg } from './utils.js';
-import { addSuly, addZsak } from './data-entry.js';
+import { addSuly, addZsak, updateAnyagSel } from './data-entry.js';
 
 function _wipId(reszleg, anyag) {
   try {
@@ -80,8 +80,8 @@ export async function completeWipBag(id, finalSuly) {
     const wip = snap.data();
     const net = Math.max(0, Math.round((finalSuly - (wip.jelenlegiSuly || 0)) * 100) / 100);
 
-    if (E('anyag') && !E('anyag').value.trim()) E('anyag').value = wip.anyag;
     if (E('reszleg') && !E('reszleg').value.trim()) E('reszleg').value = wip.reszleg;
+    updateAnyagSel(E('reszleg')?.value || wip.reszleg, wip.anyag);
 
     E('sulyC').innerHTML = '';
     addSuly(net > 0 ? net : '', 'teli');
