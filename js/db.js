@@ -67,7 +67,11 @@ export function refreshListUI() {
   const activeNev = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
   fillSel(E('nev'),    activeNev,        '— Válassz dolgozót —');
   fillSel(E('reszleg'), state.reszlegek, '— Válassz részleget —');
-  fillSelGrouped(E('anyag'), state.anyagok, '— Válassz anyagot —');
+  // Reszleg-szűrést figyelembe vesszük, hogy a lista frissülésekor ne tűnjenek el az anyagok
+  const _curReszleg = E('reszleg')?.value || '';
+  const _curAnyag   = E('anyag')?.value   || '';
+  fillSelGrouped(E('anyag'), filterAnyagForReszleg(_curReszleg, _curAnyag), '— Válassz anyagot —');
+  if (_curAnyag) { const a = E('anyag'); if (a) a.value = _curAnyag; }
   fillNevListaAdmin();
   fillSel(E('anyagLista'),     state.anyagok);
   fillSel(E('reszlegLista'),   state.reszlegek);
