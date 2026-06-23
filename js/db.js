@@ -348,6 +348,14 @@ export async function addToList(inp, list) {
   if (!v) { msg('Adj meg értéket!', 'error'); return; }
   if (list.some(x => x.toLowerCase() === v.toLowerCase())) { msg(`"${esc(v)}" már szerepel.`, 'error'); return; }
   list.push(v);
+  // Új anyagnál: automatikusan bekerül minden meglévő részleg→anyag mappingba,
+  // hogy ne tűnjön el az adatbevitelnél ha szűkített lista van beállítva
+  if (list === state.anyagok) {
+    Object.keys(state.reszlegAnyagMap).forEach(r => {
+      if (state.reszlegAnyagMap[r]?.length) state.reszlegAnyagMap[r].push(v);
+    });
+  }
+  inp.value = '';
   refreshListUI();
   await saveLists();
   msg(`"${esc(v)}" hozzáadva.`);
