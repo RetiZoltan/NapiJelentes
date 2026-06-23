@@ -29,9 +29,11 @@ export async function loadLists() {
   }
   refreshListUI();
 
-  // Élő frissítés: más felhasználók változtatásai azonnal megjelennek
+  // Élő frissítés: csak szerver-megerősített adatot fogadunk el,
+  // hogy az elavult IndexedDB cache ne írja felül a frissen betöltött állapotot
   if (!_listsUnsub) {
     _listsUnsub = onSnapshot(doc(db, 'config', 'lists'), s => {
+      if (s.metadata.fromCache) return;
       if (s.exists()) _applyListsSnapshot(s.data());
       refreshListUI();
     }, () => {});
