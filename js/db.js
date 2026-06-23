@@ -1,31 +1,41 @@
-import { db, doc, getDoc, setDoc, deleteDoc, collection, query,
+import { db, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, query,
          where, getDocs, orderBy, serverTimestamp, onSnapshot } from './firebase.js';
 import { state, canSeeAllReports } from './state.js';
 import { E, esc, msg, ag } from './utils.js';
 
 let _listsUnsub = null;
 
-export function loadLists() {
-  return new Promise((resolve, reject) => {
-    if (_listsUnsub) { resolve(); return; }
-    let _first = false;
+function _applyListsSnapshot(data) {
+  state.nevek           = data.nevek           || [];
+  state.anyagok         = data.anyagok         || [];
+  state.reszlegek       = data.reszlegek       || [];
+  state.anyagCsoportok  = data.csoportok       || [];
+  state.anyagCsoportMap = data.anyagCsoportMap || {};
+  state.reszlegAnyagMap = data.reszlegAnyagMap || {};
+  state.nevMetadata     = data.nevMetadata     || {};
+}
+
+export async function loadLists() {
+  // Szerverfetch: mindig friss adatot kap, megkerüli az elavult Firestore cache-t
+  try {
+    const s = await getDocFromServer(doc(db, 'config', 'lists'));
+    if (s.exists()) _applyListsSnapshot(s.data());
+  } catch {
+    // Hálózat nélkül: normál getDoc (cache fallback)
+    try {
+      const s = await getDoc(doc(db, 'config', 'lists'));
+      if (s.exists()) _applyListsSnapshot(s.data());
+    } catch { msg('Lista betöltési hiba', 'error'); }
+  }
+  refreshListUI();
+
+  // Élő frissítés: más felhasználók változtatásai azonnal megjelennek
+  if (!_listsUnsub) {
     _listsUnsub = onSnapshot(doc(db, 'config', 'lists'), s => {
-      if (s.exists()) {
-        state.nevek           = s.data().nevek           || [];
-        state.anyagok         = s.data().anyagok         || [];
-        state.reszlegek       = s.data().reszlegek       || [];
-        state.anyagCsoportok  = s.data().csoportok       || [];
-        state.anyagCsoportMap = s.data().anyagCsoportMap || {};
-        state.reszlegAnyagMap = s.data().reszlegAnyagMap || {};
-        state.nevMetadata     = s.data().nevMetadata     || {};
-      }
+      if (s.exists()) _applyListsSnapshot(s.data());
       refreshListUI();
-      if (!_first) { _first = true; resolve(); }
-    }, err => {
-      msg('Lista betöltési hiba', 'error');
-      if (!_first) { _first = true; reject(err); }
-    });
-  });
+    }, () => {});
+  }
 }
 
 export async function saveLists() {

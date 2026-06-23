@@ -2,7 +2,7 @@ import { initializeApp }                                      from 'https://www.
 import { getAuth, onAuthStateChanged, signInWithPopup,
          GoogleAuthProvider, createUserWithEmailAndPassword,
          signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc,
+import { getFirestore, doc, getDoc, getDocFromServer, setDoc, addDoc,
          updateDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, limit, serverTimestamp,
          writeBatch, onSnapshot, arrayUnion }                 from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -24,7 +24,7 @@ export {
   onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, updateProfile,
-  doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+  doc, getDoc, getDocFromServer, setDoc, addDoc, updateDoc, deleteDoc,
   collection, query, where, getDocs, orderBy, limit,
   serverTimestamp, writeBatch, onSnapshot, arrayUnion
 };
