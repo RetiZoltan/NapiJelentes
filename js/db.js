@@ -1,22 +1,31 @@
 import { db, doc, getDoc, setDoc, deleteDoc, collection, query,
-         where, getDocs, orderBy, serverTimestamp } from './firebase.js';
+         where, getDocs, orderBy, serverTimestamp, onSnapshot } from './firebase.js';
 import { state, canSeeAllReports } from './state.js';
 import { E, esc, msg, ag } from './utils.js';
 
-export async function loadLists() {
-  try {
-    const s = await getDoc(doc(db, 'config', 'lists'));
-    if (s.exists()) {
-      state.nevek            = s.data().nevek            || [];
-      state.anyagok          = s.data().anyagok          || [];
-      state.reszlegek        = s.data().reszlegek        || [];
-      state.anyagCsoportok   = s.data().csoportok        || [];
-      state.anyagCsoportMap  = s.data().anyagCsoportMap  || {};
-      state.reszlegAnyagMap  = s.data().reszlegAnyagMap  || {};
-      state.nevMetadata      = s.data().nevMetadata      || {};
-    }
-    refreshListUI();
-  } catch { msg('Lista betöltési hiba', 'error'); }
+let _listsUnsub = null;
+
+export function loadLists() {
+  return new Promise((resolve, reject) => {
+    if (_listsUnsub) { resolve(); return; }
+    let _first = false;
+    _listsUnsub = onSnapshot(doc(db, 'config', 'lists'), s => {
+      if (s.exists()) {
+        state.nevek           = s.data().nevek           || [];
+        state.anyagok         = s.data().anyagok         || [];
+        state.reszlegek       = s.data().reszlegek       || [];
+        state.anyagCsoportok  = s.data().csoportok       || [];
+        state.anyagCsoportMap = s.data().anyagCsoportMap || {};
+        state.reszlegAnyagMap = s.data().reszlegAnyagMap || {};
+        state.nevMetadata     = s.data().nevMetadata     || {};
+      }
+      refreshListUI();
+      if (!_first) { _first = true; resolve(); }
+    }, err => {
+      msg('Lista betöltési hiba', 'error');
+      if (!_first) { _first = true; reject(err); }
+    });
+  });
 }
 
 export async function saveLists() {
