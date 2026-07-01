@@ -11,7 +11,8 @@ import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
          addToList, delFromList, editItem, editNevItem,
          getWorkerMaterials, updIdoszakosFilters,
          saveCsoportMap, saveReszlegAnyagMap,
-         saveNevMeta, archivNev, visszaNev } from './db.js';
+         saveNevMeta, archivNev, visszaNev,
+         saveMuszakVezetokMap, getMuszakVezetok, updMuszakVezetoSzuro } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
@@ -147,6 +148,10 @@ function buildAppUI() {
   E('stab-belepes-btn').style.display     = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
+  const _hasMV = () => getMuszakVezetok().length > 0 && canSeeAllReports();
+  if (E('napiMVSzuroWrap'))      E('napiMVSzuroWrap').style.display      = _hasMV() ? '' : 'none';
+  if (E('idoszakosMVSzuroWrap')) E('idoszakosMVSzuroWrap').style.display = _hasMV() ? '' : 'none';
+  updMuszakVezetoSzuro();
 
   E('nev').value    = '';
   E('reszleg').value = '';
@@ -700,6 +705,7 @@ E('megj').addEventListener('focus', e => e.target.select());
   // Napi szűrők → azonnali újrarajzolás
   E('napiMuszakSzuro').addEventListener('change',  rerenderNapi);
   E('napiReszlegSzuro').addEventListener('change', rerenderNapi);
+  E('napiMuszakVezetoSzuro')?.addEventListener('change', rerenderNapi);
 
   // Napi jelentés — navigáció
   function navNap(delta) {
@@ -764,6 +770,7 @@ E('megj').addEventListener('focus', e => e.target.select());
       materials.map(m => `<option value="${esc(m)}"${m === prev ? ' selected' : ''}>${esc(m)}</option>`).join('');
     if (prev && !materials.includes(prev)) aEl.value = '';
   });
+  E('idoszakosMuszakVezetoSzuro')?.addEventListener('change', idoszakosRiport);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
   // Időszakos — szekció beállítások
@@ -1062,6 +1069,7 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('nevVisszaBtn').addEventListener('click', visszaNev);
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
   E('nevMetaSaveBtn').addEventListener('click', saveNevMeta);
+  E('muszakVezetoSaveBtn')?.addEventListener('click', saveMuszakVezetokMap);
   E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
   E('anyagInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('anyagInput'), state.anyagok); });
   E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));

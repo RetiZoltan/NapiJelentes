@@ -1,4 +1,5 @@
-import { fetchEntries, fillSelGrouped } from './db.js';
+import { fetchEntries, fillSelGrouped, getMuszakVezetok } from './db.js';
+import { state } from './state.js';
 import { E, esc, msg, fmtKg, fmtS } from './utils.js';
 import { nyomtatDiv } from './reports.js';
 
@@ -30,7 +31,7 @@ function _invalidateCache() { cachedEntries = null; _cacheKey = ''; }
 
 /* ── Tab váltás ── */
 function switchETab(name) {
-  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Muszak','Reszleg'].forEach(t => {
+  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Muszak','Reszleg','MuszakVezeto'].forEach(t => {
     const panel = E('eTab' + t), btn = E('eBtn' + t);
     if (panel) panel.style.display = t === name ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t === name);
@@ -523,6 +524,102 @@ async function reszlegElemzes() {
 }
 
 /* ══════════════════════════════════════
+   8. fül: Műszakvezető csapat elemzés
+══════════════════════════════════════ */
+async function muszakVezetoElemzes() {
+  const vezeto = E('mvElemzSel').value;
+  if (!vezeto) { msg('Válassz műszakvezetőt!', 'error'); return; }
+  E('muszakVezetoDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+  const csapat  = [...(state.muszakVezetokMap[vezeto] || [])];
+  if (!csapat.length) {
+    E('muszakVezetoDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">👷</div>Nincs beosztott dolgozó hozzárendelve</div>`;
+    return;
+  }
+  const csapatAll = [vezeto, ...csapat];  // vezető + beosztottak összesítve
+  const csapatEntries = entries.filter(a => csapatAll.includes(a.nev));
+  if (!csapatEntries.length) {
+    E('muszakVezetoDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a csapathoz</div>`;
+    return;
+  }
+
+  // Csapat összesítő statisztika
+  const byWD = {};
+  csapatEntries.forEach(a => {
+    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0); if (kg <= 0) return;
+    const key = `${a.nev}||${a.datum}`; byWD[key] = (byWD[key] || 0) + kg;
+  });
+  const byW = {};
+  Object.entries(byWD).forEach(([key, kg]) => {
+    const [nev] = key.split('||');
+    if (!byW[nev]) byW[nev] = { total: 0, days: new Set(), best: 0 };
+    byW[nev].total += kg; byW[nev].days.add(key.split('||')[1]); byW[nev].best = Math.max(byW[nev].best, kg);
+  });
+  const rank = Object.entries(byW).map(([nev, s]) => ({ nev, total: s.total, napok: s.days.size, avg: s.total / s.days.size, best: s.best })).sort((a, b) => b.avg - a.avg);
+
+  const csapatTotal = rank.reduce((s, r) => s + r.total, 0);
+  const csapatDays  = new Set(csapatEntries.map(a => a.datum)).size;
+  const csapatAvg   = rank.length ? rank.reduce((s, r) => s + r.avg, 0) / rank.length : 0;
+  const medals      = ['🥇', '🥈', '🥉'];
+
+  let h = `<div class="r-head">${esc(vezeto)} csapata <span class="r-shift">· ${csapat.length} beosztott</span></div>`;
+
+  // Csapat összesítő kártyák
+  h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Csapat összesítő</div>
+    <table class="stbl"><thead><tr><th>Mutató</th><th>Érték</th></tr></thead><tbody>
+    <tr><td>Csapattagok száma</td><td style="font-weight:600;">${csapat.length} fő (+ vezető)</td></tr>
+    <tr><td>Csapat össztermelés</td><td class="v-bold">${fmtKg(csapatTotal)}</td></tr>
+    <tr><td>Aktív napok (összesen)</td><td style="font-weight:600;">${csapatDays}</td></tr>
+    <tr><td>Átlagos napi teljesítmény/fő</td><td class="v-bold">${fmtKg(csapatAvg)}</td></tr>
+    </tbody></table></div>`;
+
+  // Rangsor sávdiagrammal
+  const maxAvg = rank.length ? rank[0].avg : 1;
+  h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">🏅</span>Csapat rangsor</div>`;
+  rank.forEach((r, i) => {
+    const bar = Math.round(r.avg / maxAvg * 100);
+    const isVezeto = r.nev === vezeto;
+    h += `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-weight:${isVezeto?700:600};font-size:13px;">${i < 3 ? medals[i] + ' ' : (i+1)+'. '}${esc(r.nev)}${isVezeto ? ' 👑' : ''}</span>
+        <span style="font-size:12px;color:var(--text3);">${r.napok} nap</span>
+      </div>
+      <div style="height:20px;background:var(--surf2);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${bar}%;background:${isVezeto?'var(--amber)':'var(--accent)'};border-radius:4px;opacity:${isVezeto?1:0.9-i*0.12};display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+          ${bar>18?`<span style="font-size:11px;color:#fff;font-weight:700;">${fmtKg(r.avg)}/nap</span>`:''}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">Összesen: ${fmtKg(r.total)} · Legjobb nap: ${fmtKg(r.best)}</div>
+    </div>`;
+  });
+  h += `</div>`;
+
+  // Részletes táblázat
+  h += `<div class="card"><div class="card-title"><span class="card-title-icon">📋</span>Részletes táblázat</div>
+    <table class="stbl"><thead><tr><th>#</th><th>Dolgozó</th><th>Össztermelés</th><th>Aktív napok</th><th>Napi átlag</th><th>Legjobb nap</th></tr></thead><tbody>`;
+  rank.forEach((r, i) => {
+    const isVezeto = r.nev === vezeto;
+    h += `<tr style="${isVezeto ? 'background:var(--agl);' : ''}">
+      <td>${i < 3 ? `<span style="font-size:15px;">${medals[i]}</span>` : `<span style="color:var(--text3);">${i+1}.</span>`}</td>
+      <td style="font-weight:${isVezeto?700:600};">${esc(r.nev)}${isVezeto ? ' 👑' : ''}</td>
+      <td class="v-bold">${fmtKg(r.total)}</td><td>${r.napok}</td>
+      <td>${fmtKg(r.avg)}</td><td>${fmtKg(r.best)}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+
+  E('muszakVezetoDiv').innerHTML = h;
+}
+
+function populateMuszakVezetoSel() {
+  const sel = E('mvElemzSel'); if (!sel) return;
+  const prev = sel.value;
+  const vezetok = getMuszakVezetok();
+  sel.innerHTML = '<option value="">— Válassz műszakvezetőt —</option>' +
+    vezetok.map(mv => `<option value="${esc(mv)}">${esc(mv)}</option>`).join('');
+  if (prev) sel.value = prev;
+}
+
+/* ══════════════════════════════════════
    INICIALIZÁLÁS
 ══════════════════════════════════════ */
 export async function initElemzes() {
@@ -555,6 +652,8 @@ export async function initElemzes() {
   E('eBtnOsszehasonlit').addEventListener('click',  () => switchETab('Osszehasonlit'));
   E('eBtnMuszak').addEventListener('click',    async () => { switchETab('Muszak'); await muszakElemzes(); });
   E('eBtnReszleg').addEventListener('click',   async () => { switchETab('Reszleg'); await reszlegElemzes(); });
+  E('eBtnMuszakVezeto')?.addEventListener('click',  () => { switchETab('MuszakVezeto'); populateMuszakVezetoSel(); });
+  E('mvElemzBtn')?.addEventListener('click', muszakVezetoElemzes);
 
   E('egyeniDolgozo').addEventListener('change', async () => { const e=await getEntries(); filterMaterials(e,E('egyeniDolgozo').value); });
   E('osszDolg1').addEventListener('change', filterOsszAnyag);
@@ -567,12 +666,13 @@ export async function initElemzes() {
 
 /* ── Nyomtatás: az aktív al-fül tartalma a közös print-stílussal ── */
 const _ETAB_DIVS = {
-  eBtnEgyeni:        'egyeniDiv',
-  eBtnAnyagRangsor:  'anyagRangsorDiv',
-  eBtnRekordok:      'rekordokDiv',
-  eBtnOsszehasonlit: 'osszDiv',
-  eBtnMuszak:        'muszakDiv',
-  eBtnReszleg:       'reszlegElemzesDiv'
+  eBtnEgyeni:         'egyeniDiv',
+  eBtnAnyagRangsor:   'anyagRangsorDiv',
+  eBtnRekordok:       'rekordokDiv',
+  eBtnOsszehasonlit:  'osszDiv',
+  eBtnMuszak:         'muszakDiv',
+  eBtnReszleg:        'reszlegElemzesDiv',
+  eBtnMuszakVezeto:   'muszakVezetoDiv'
 };
 
 function _elemzesNyomtat() {
@@ -590,4 +690,6 @@ function _rerunActiveTab() {
   else if (id==='eBtnAnyagRangsor'&&E('anyagRangsorSel')?.value) anyagRangsor();
   else if (id==='eBtnRekordok') rekordok();
   else if (id==='eBtnMuszak') muszakElemzes();
+  else if (id==='eBtnReszleg') reszlegElemzes();
+  else if (id==='eBtnMuszakVezeto'&&E('mvElemzSel')?.value) muszakVezetoElemzes();
 }

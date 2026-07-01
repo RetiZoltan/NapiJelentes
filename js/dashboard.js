@@ -18,7 +18,8 @@ const ALL_WIDGETS = [
   { id: 'jubileum',     label: 'Belépési jubileumok',        icon: '🎖️', def: false },
   { id: 'utobbiBeir',   label: 'Utóbbi bejegyzések',        icon: '📋', def: false },
   { id: 'gepKarbantartas', label: 'Karbantartást igénylő gépek', icon: '🔧', def: false },
-  { id: 'muszakAtadas', label: 'Műszak-átadás',                 icon: '🔄', def: false },
+  { id: 'muszakAtadas',  label: 'Műszak-átadás',                 icon: '🔄', def: false },
+  { id: 'csapatOsszes', label: 'Csapat összesítő',              icon: '👥', def: false },
 ];
 
 let _inited            = false;
@@ -58,7 +59,8 @@ function _canSeeWidget(id) {
   if (id === 'jubileum')  return _empPerm();
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
   if (id === 'gepKarbantartas') return canViewMachines();
-  if (id === 'muszakAtadas') return isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes') || hasPerm('feladatokKezeles');
+  if (id === 'muszakAtadas')  return isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes') || hasPerm('feladatokKezeles');
+  if (id === 'csapatOsszes') return Object.keys(state.muszakVezetokMap).length > 0 && (canSeeAllReports() || Object.keys(state.muszakVezetokMap).includes(state.userData?.name || ''));
   return true;
 }
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
@@ -140,7 +142,8 @@ const _WD_META = {
   jubileum:    { icon:'🎖️', title:'Belépési jubileumok' },
   utobbiBeir:  { icon:'📋', title:'Utóbbi bejegyzések' },
   gepKarbantartas: { icon:'🔧', title:'Karbantartást igénylő gépek' },
-  muszakAtadas: { icon:'🔄', title:'Műszak-átadás – mit kell tudni a leváltó műszaknak' },
+  muszakAtadas:  { icon:'🔄', title:'Műszak-átadás – mit kell tudni a leváltó műszaknak' },
+  csapatOsszes:  { icon:'👥', title:'Csapat összesítő – részletes csapatteljesítmény' },
 };
 
 async function _openWidgetDrawer(wid) {
@@ -688,6 +691,34 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
     return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">${list.length} gép a következő 14 napban${overdue?` · <span style="color:var(--red);font-weight:600;">${overdue} lejárt</span>`:''}</div>
       ${rows}
       <div style="margin-top:14px;"><button class="btn btn-ghost btn-sm wd-goto-machines" style="width:100%;">🔧 Gépek megnyitása →</button></div>`;
+  }
+
+  /* ── 👥 Csapat összesítő – drawer ── */
+  if (wid === 'csapatOsszes') {
+    const vezeto  = Object.keys(state.muszakVezetokMap).includes(state.userData?.name || '')
+      ? (state.userData?.name || '')
+      : Object.keys(state.muszakVezetokMap)[0] || '';
+    const csapat  = state.muszakVezetokMap[vezeto] || [];
+    if (!csapat.length) return `<div class="empty-st"><div class="empty-ic">👥</div><div class="empty-title">Nincs beosztott dolgozó</div></div>`;
+    const csapatAll = [vezeto, ...csapat];
+    const allKg = e => (e.sulyok||[]).reduce((s,x)=>s+x.suly,0);
+    const cEntries = monthEntries.filter(e => csapatAll.includes(e.nev));
+    if (!cEntries.length) return `<div class="empty-st"><div class="empty-ic">📭</div><div class="empty-title">Nincs adat a csapathoz</div></div>`;
+    const byWD = {};
+    cEntries.forEach(e => { const k=`${e.nev}||${e.datum}`,kg=allKg(e); if(kg>0)byWD[k]=(byWD[k]||0)+kg; });
+    const byW = {};
+    Object.entries(byWD).forEach(([k,kg])=>{ const [nev,dat]=k.split('||'); if(!byW[nev])byW[nev]={total:0,days:new Set(),best:0}; byW[nev].total+=kg; byW[nev].days.add(dat); byW[nev].best=Math.max(byW[nev].best,kg); });
+    const rank = Object.entries(byW).map(([nev,s])=>({nev,total:s.total,napok:s.days.size,avg:s.total/s.days.size,best:s.best})).sort((a,b)=>b.avg-a.avg);
+    const medals=['🥇','🥈','🥉'];
+    const rows = rank.map((r,i)=>`<tr>
+      <td style="font-size:15px;text-align:center;">${medals[i]||`${i+1}.`}</td>
+      <td style="font-weight:${r.nev===vezeto?700:600}">${esc(r.nev)}${r.nev===vezeto?' 👑':''}</td>
+      <td>${fmtKg(r.total)}</td><td>${r.napok}</td><td style="font-weight:700;">${fmtKg(r.avg)}</td>
+    </tr>`).join('');
+    return section('Havi csapat rangsor',
+      `<table style="width:100%;font-size:13px;border-collapse:collapse;">
+        <thead><tr style="color:var(--text3);font-size:11px;"><th></th><th style="text-align:left;">Dolgozó</th><th>Összes</th><th>Napok</th><th>Átlag/nap</th></tr></thead>
+        <tbody>${rows}</tbody></table>`);
   }
 
   return '';
@@ -1785,6 +1816,26 @@ function _buildWidget(id, ctx, large = false) {
     const svg = `<svg viewBox="0 0 ${svgW} ${BAR_H + 16}" style="width:100%;margin-top:10px;overflow:visible;">${bars}</svg>`;
     const sub = totalKg > 0 ? `${(totalKg/1000).toFixed(2)} t ezen a héten` : 'Még nincs adat ezen a héten';
     return _wcrd('📉', 'Heti bontás', '', sub, svg, large);
+  }
+
+  if (id === 'csapatOsszes') {
+    const vezeto = Object.keys(state.muszakVezetokMap).includes(state.userData?.name || '')
+      ? (state.userData?.name || '')
+      : Object.keys(state.muszakVezetokMap)[0] || '';
+    const csapat = state.muszakVezetokMap[vezeto] || [];
+    if (!csapat.length) return _wcrd('👥', 'Csapat összesítő', '–', 'Nincs beosztott dolgozó', '', large);
+    const csapatAll = [vezeto, ...csapat];
+    const allKg = e => (e.sulyok||[]).reduce((s,x)=>s+x.suly,0);
+    const cToday = todayEntries.filter(e => csapatAll.includes(e.nev));
+    const todayKg = cToday.reduce((s,e)=>s+allKg(e),0);
+    const cMonth  = monthEntries.filter(e => csapatAll.includes(e.nev));
+    const spkM = {};
+    cMonth.forEach(e=>{ const kg=allKg(e); if(kg>0) spkM[e.datum]=(spkM[e.datum]||0)+kg; });
+    const spk14 = Array.from({length:14},(_,i)=>({ datum:addD(today,-(13-i)), kg:spkM[addD(today,-(13-i))]||0 }));
+    const val  = todayKg > 0 ? `${(todayKg/1000).toFixed(2)} t` : '–';
+    const sub  = `${esc(vezeto)} csapata · ${csapat.length} fő`;
+    const spkExtra = _sparkline(spk14) + `<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text3);margin-top:2px;"><span>−14 nap</span><span>Ma</span></div>`;
+    return _wcrd('👥', 'Csapat összesítő', val, sub, spkExtra, large);
   }
 
   return '';

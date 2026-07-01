@@ -164,10 +164,10 @@ const SECTIONS = [
   /* ── Elemzés ─────────────────────────────────────────── */
   {
     id: 'elemzes', icon: '📈', title: 'Elemzés',
-    teaser: '6 al-fül: egyéni, rangsor, rekordok, összehasonlítás, műszak, részleg',
+    teaser: '7 al-fül: egyéni, rangsor, rekordok, összehasonlítás, műszak, részleg, műszakvezető',
     perm: () => isMainAdmin() || hasPerm('elemzes'),
     content: () => `
-      <p>Az <strong>Elemzés</strong> lapon 6 al-fül érhető el. Minden nézethez <strong>időszak szűrő</strong> állítható be a tetején: Minden adat / 30 nap / 90 nap / Ez az év / Egyéni tól–ig.</p>
+      <p>Az <strong>Elemzés</strong> lapon 7 al-fül érhető el. Minden nézethez <strong>időszak szűrő</strong> állítható be a tetején: Minden adat / 30 nap / 90 nap / Ez az év / Egyéni tól–ig.</p>
 
       <p><strong>👤 Egyéni elemzés:</strong></p>
       <ul>
@@ -187,7 +187,9 @@ const SECTIONS = [
 
       <p><strong>🕐 Műszak elemzés:</strong> Dolgozónként Délelőtt vs. Délután átlagos napi termelés, ✓ jelöli a jobb műszakot. Üzemi összesítő: melyik műszak termel többet és mennyivel.</p>
 
-      <p><strong>🏭 Részleg összesítő:</strong> Részlegenként össztermelés sávdiagrammal (🥇🥈🥉 érmek), napi átlag és legjobb nap feltüntetésével. Alatta részletes összehasonlító táblázat: össztermelés · aktív napok · napi átlag · legjobb nap.</p>
+      <p><strong>🏭 Részleg összesítő:</strong> Részlegenként össztermelés sávdiagrammal (🥇🥈🥈 érmek), napi átlag és legjobb nap feltüntetésével. Alatta részletes összehasonlító táblázat: össztermelés · aktív napok · napi átlag · legjobb nap.</p>
+
+      <p><strong>👥 Műszakvezető csapat elemzés:</strong> Válassz egy műszakvezetőt → látod a teljes csapat havi rangsorát sávdiagrammal és részletes táblázattal. A vezető 👑 koronával jelölve. Minden taghoz megjelenik: össztermelés, aktív napok száma, napi átlag, legjobb nap.</p>
     `
   },
 
@@ -412,6 +414,7 @@ const SECTIONS = [
         <li><strong>Dolgozó → Alapértelmezett részleg</strong> — névválasztáskor automatikusan kitöltődik (ha nincs 📌-el rögzítve)</li>
         <li><strong>Részleg → Anyag hozzárendelés</strong> — melyik részleg melyik anyagokkal dolgozik; ha üres, minden anyag látható</li>
         <li><strong>Anyag → Csoport hozzárendelés</strong> — anyagokat csoporthoz rendelve csoportosított legördülő az adatbevitelben</li>
+        <li><strong>Dolgozó → Műszakvezető hozzárendelés</strong> — minden aktív dolgozóhoz egy műszakvezetőt lehet rendelni. Szekció automatikusan megjelenik, ha legalább 2 aktív dolgozó van. Mentés után a napi és időszakos jelentésekben megjelenik a műszakvezető szűrő, az Elemzés lapon a Műszakvezető al-fül, és a dashboardon a Csapat összesítő widget.</li>
       </ul>
       ` : ''}
 
