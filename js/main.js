@@ -770,7 +770,6 @@ E('megj').addEventListener('focus', e => e.target.select());
       materials.map(m => `<option value="${esc(m)}"${m === prev ? ' selected' : ''}>${esc(m)}</option>`).join('');
     if (prev && !materials.includes(prev)) aEl.value = '';
   });
-  E('idoszakosMuszakVezetoSzuro')?.addEventListener('change', idoszakosRiport);
   E('idoszakosRiportDiv').addEventListener('click', riportKlikk);
 
   // Időszakos — szekció beállítások
