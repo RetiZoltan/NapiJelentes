@@ -64,6 +64,7 @@ const ALL_PERMS = [
   { htmlId:'pNaptar',             key:'naptar',               group:'termel'  },
   { htmlId:'pElemzes',            key:'elemzes',              group:'termel'  },
   { htmlId:'pAdatExport',         key:'adatExport',           group:'termel'  },
+  { htmlId:'pMuszakVezeto',       key:'muszakVezeto',         group:'termel'  },
   { htmlId:'pDolgozokMegtekintes',key:'dolgozokMegtekintes',  group:'szervez' },
   { htmlId:'pDolgozokKezeles',    key:'dolgozokKezeles',      group:'szervez' },
   { htmlId:'pFeladatokKezeles',   key:'feladatokKezeles',     group:'szervez' },
@@ -79,7 +80,7 @@ const ALL_PERMS = [
 
 const PERM_LABELS = {
   adatbevitel:'Adatbevitel', sajatJelentes:'Saját jelentés', mindenJelentes:'Mindenki jelentése',
-  naptar:'Naptár', elemzes:'Elemzés', adatExport:'Adat export',
+  naptar:'Naptár', elemzes:'Elemzés', adatExport:'Adat export', muszakVezeto:'Műszakvezető',
   dolgozokMegtekintes:'Dolgozók megtekintés', dolgozokKezeles:'Dolgozók kezelése',
   feladatokKezeles:'Feladatok kezelése', keszletMegtekintes:'Készlet megtekintés', keszletKezeles:'Készlet kezelése', gepekMegtekintes:'Gépek megtekintés', gepekKezeles:'Gépek kezelése', premiumMegtekintes:'Prémium megtekintés',
   premiumKezeles:'Prémium kezelés', kozlemenyIras:'Közlemény írás',
@@ -94,10 +95,11 @@ const GROUP_META = {
 };
 
 const ROLE_TEMPLATES = {
-  dolgozo:       { perms: ['adatbevitel','sajatJelentes'] },
-  csoportvezeto: { perms: ['adatbevitel','mindenJelentes','naptar','elemzes','feladatokKezeles','adatExport'] },
-  hr:            { perms: ['sajatJelentes','mindenJelentes','naptar','dolgozokKezeles','feladatokKezeles','premiumMegtekintes'] },
-  konyvelő:      { perms: ['mindenJelentes','premiumMegtekintes','adatExport'] },
+  dolgozo:        { perms: ['adatbevitel','sajatJelentes'] },
+  muszakvezeto:   { perms: ['adatbevitel','sajatJelentes','muszakVezeto','elemzes','feladatokKezeles'] },
+  csoportvezeto:  { perms: ['adatbevitel','mindenJelentes','naptar','elemzes','feladatokKezeles','adatExport'] },
+  hr:             { perms: ['sajatJelentes','mindenJelentes','naptar','dolgozokKezeles','feladatokKezeles','premiumMegtekintes'] },
+  konyvelő:       { perms: ['mindenJelentes','premiumMegtekintes','adatExport'] },
 };
 
 export function applyRoleTemplate(tplId) {

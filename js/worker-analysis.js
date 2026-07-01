@@ -31,7 +31,7 @@ function _invalidateCache() { cachedEntries = null; _cacheKey = ''; }
 
 /* ── Tab váltás ── */
 function switchETab(name) {
-  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Muszak','Reszleg','MuszakVezeto'].forEach(t => {
+  ['Egyeni','AnyagRangsor','Rekordok','Osszehasonlit','Muszak','Reszleg','MuszakVezeto','CsapatOssz'].forEach(t => {
     const panel = E('eTab' + t), btn = E('eBtn' + t);
     if (panel) panel.style.display = t === name ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t === name);
@@ -607,7 +607,36 @@ async function muszakVezetoElemzes() {
   });
   h += `</tbody></table></div>`;
 
+  // Csapat napi trend vonaldiagram
+  const byDay = {};
+  csapatEntries.forEach(a => {
+    const kg = (a.sulyok||[]).reduce((s,x)=>s+x.suly,0); if(kg<=0) return;
+    byDay[a.datum] = (byDay[a.datum]||0) + kg;
+  });
+  const days = Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0]));
+  if (days.length >= 2) {
+    const vals = days.map(([,v])=>v), maxV = Math.max(...vals,1);
+    const W=600,H=110,PL=46,PR=10,PT=10,PB=22;
+    const cW=W-PL-PR,cH=H-PT-PB,n=days.length;
+    const xP=i=>PL+(i/Math.max(n-1,1))*cW, yP=v=>PT+cH-(v/maxV)*cH;
+    const pts=vals.map((v,i)=>`${xP(i).toFixed(1)},${yP(v).toFixed(1)}`).join(' ');
+    const area=`M${xP(0).toFixed(1)},${(PT+cH).toFixed(1)} `+vals.map((v,i)=>`L${xP(i).toFixed(1)},${yP(v).toFixed(1)}`).join(' ')+` L${xP(n-1).toFixed(1)},${(PT+cH).toFixed(1)} Z`;
+    const yLabels=[0,maxV/2,maxV].map(v=>`<text x="${PL-4}" y="${yP(v)+4}" text-anchor="end" font-size="9" font-family="Source Sans 3,sans-serif" fill="var(--text3)">${(v/1000).toFixed(1)}t</text>`).join('');
+    const first=days[0][0].slice(5), last=days[n-1][0].slice(5);
+    const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+      <defs><linearGradient id="mvTrG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity=".25"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#mvTrG)"/>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${yLabels}
+      <text x="${PL}" y="${H}" font-size="9" font-family="Source Sans 3,sans-serif" fill="var(--text3)">${first}</text>
+      <text x="${W-PR}" y="${H}" text-anchor="end" font-size="9" font-family="Source Sans 3,sans-serif" fill="var(--text3)">${last}</text>
+    </svg>`;
+    h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📉</span>Csapat napi trend</div>${svg}</div>`;
+  }
+
+  h += `<div style="margin-top:6px;"><button class="btn btn-ghost btn-sm mv-print-btn">🖨️ Nyomtat / PDF</button></div>`;
   E('muszakVezetoDiv').innerHTML = h;
+  E('muszakVezetoDiv').querySelector('.mv-print-btn')?.addEventListener('click', () => nyomtatDiv('muszakVezetoDiv'));
 }
 
 function populateMuszakVezetoSel() {
@@ -617,6 +646,114 @@ function populateMuszakVezetoSel() {
   sel.innerHTML = '<option value="">— Válassz műszakvezetőt —</option>' +
     vezetok.map(mv => `<option value="${esc(mv)}">${esc(mv)}</option>`).join('');
   if (prev) sel.value = prev;
+}
+
+/* ══════════════════════════════════════
+   9. fül: Csapatok összehasonlítása
+══════════════════════════════════════ */
+function populateCsapatOsszSels() {
+  const vezetok = getMuszakVezetok();
+  const opts = '<option value="">— Válassz —</option>' + vezetok.map(mv => `<option value="${esc(mv)}">${esc(mv)}</option>`).join('');
+  ['csapatOssz1Sel','csapatOssz2Sel'].forEach(id => { const el=E(id); if(el){const p=el.value;el.innerHTML=opts;if(p)el.value=p;} });
+}
+
+async function csapatOsszehasonlit() {
+  const mv1 = E('csapatOssz1Sel')?.value, mv2 = E('csapatOssz2Sel')?.value;
+  if (!mv1 || !mv2) { msg('Válassz két műszakvezetőt!', 'error'); return; }
+  if (mv1 === mv2)  { msg('Válassz két különböző műszakvezetőt!', 'error'); return; }
+  E('csapatOsszDiv').innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  const entries = await getEntries();
+
+  function csapatStats(vezeto) {
+    const csapat = [vezeto, ...(state.muszakVezetokMap[vezeto]||[])];
+    const ents = entries.filter(a => csapat.includes(a.nev));
+    const byWD = {};
+    ents.forEach(a => { const kg=(a.sulyok||[]).reduce((s,x)=>s+x.suly,0); if(kg<=0)return; const k=`${a.nev}||${a.datum}`; byWD[k]=(byWD[k]||0)+kg; });
+    const byDay = {};
+    ents.forEach(a => { const kg=(a.sulyok||[]).reduce((s,x)=>s+x.suly,0); if(kg<=0)return; byDay[a.datum]=(byDay[a.datum]||0)+kg; });
+    const dayVals = Object.values(byDay);
+    const total = dayVals.reduce((s,v)=>s+v,0);
+    const napok = dayVals.length;
+    const avg   = napok ? total/napok : 0;
+    const best  = napok ? Math.max(...dayVals) : 0;
+    const tagok = (state.muszakVezetokMap[vezeto]||[]).length;
+    const perFo = (napok && tagok+1) ? total/(napok*(tagok+1)) : 0;
+    return { total, napok, avg, best, tagok, perFo, byDay, csapat };
+  }
+
+  const s1 = csapatStats(mv1), s2 = csapatStats(mv2);
+  const win = (a,b) => a>b ? 1 : a<b ? -1 : 0;
+  const badge = (v1,v2,inv=false) => {
+    const w = inv ? win(v2,v1) : win(v1,v2);
+    return w===1 ? '✓' : w===-1 ? '–' : '=';
+  };
+
+  const rows = [
+    ['Csapattagok', `${s1.tagok} fő`, `${s2.tagok} fő`, null],
+    ['Aktív napok', s1.napok, s2.napok, win(s1.napok,s2.napok)],
+    ['Össztermelés', fmtKg(s1.total), fmtKg(s2.total), win(s1.total,s2.total)],
+    ['Napi átlag (csapat)', fmtKg(s1.avg), fmtKg(s2.avg), win(s1.avg,s2.avg)],
+    ['Napi átlag/fő', fmtKg(s1.perFo), fmtKg(s2.perFo), win(s1.perFo,s2.perFo)],
+    ['Legjobb nap', fmtKg(s1.best), fmtKg(s2.best), win(s1.best,s2.best)],
+  ];
+
+  let h = `<div class="r-head">${esc(mv1)} csapata vs. ${esc(mv2)} csapata</div>`;
+  h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">⚖️</span>Összehasonlítás</div>
+    <table class="stbl"><thead><tr><th>Mutató</th><th>${esc(mv1)}</th><th>${esc(mv2)}</th></tr></thead><tbody>`;
+  rows.forEach(([lbl,v1,v2,w]) => {
+    const c1 = w===1?'color:var(--green);font-weight:700':w===-1?'color:var(--text3)':'';
+    const c2 = w===-1?'color:var(--green);font-weight:700':w===1?'color:var(--text3)':'';
+    const check1 = w===1?'<span style="color:var(--green);margin-left:4px;">✓</span>':'';
+    const check2 = w===-1?'<span style="color:var(--green);margin-left:4px;">✓</span>':'';
+    h += `<tr><td>${lbl}</td><td style="${c1}">${v1}${check1}</td><td style="${c2}">${v2}${check2}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+
+  // Sávdiagram összehasonlítás
+  const maxAvg = Math.max(s1.avg, s2.avg, 1);
+  const barH = (v) => Math.round(v/maxAvg*100);
+  h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📊</span>Napi átlag összehasonlítás</div>
+    <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:8px;">
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--accent);">${esc(mv1)}</div>
+        <div style="background:var(--surf2);border-radius:4px;height:24px;overflow:hidden;">
+          <div style="height:100%;width:${barH(s1.avg)}%;background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+            ${barH(s1.avg)>15?`<span style="font-size:11px;color:#fff;font-weight:700;">${fmtKg(s1.avg)}/nap</span>`:''}
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--amber);">${esc(mv2)}</div>
+        <div style="background:var(--surf2);border-radius:4px;height:24px;overflow:hidden;">
+          <div style="height:100%;width:${barH(s2.avg)}%;background:var(--amber);border-radius:4px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;">
+            ${barH(s2.avg)>15?`<span style="font-size:11px;color:#fff;font-weight:700;">${fmtKg(s2.avg)}/nap</span>`:''}
+          </div>
+        </div>
+      </div>
+    </div></div>`;
+
+  // Napi trend mindkét csapatnak
+  const allDays = [...new Set([...Object.keys(s1.byDay),...Object.keys(s2.byDay)])].sort();
+  if (allDays.length >= 2) {
+    const maxV = Math.max(...allDays.map(d=>Math.max(s1.byDay[d]||0,s2.byDay[d]||0)),1);
+    const W=600,H=110,PL=46,PR=10,PT=10,PB=22;
+    const cW=W-PL-PR,cH=H-PT-PB,n=allDays.length;
+    const xP=i=>PL+(i/Math.max(n-1,1))*cW, yP=v=>PT+cH-(v/maxV)*cH;
+    const line=(key,col)=>allDays.map((d,i)=>`${xP(i).toFixed(1)},${yP(key.byDay[d]||0).toFixed(1)}`).join(' ');
+    h += `<div class="card"><div class="card-title"><span class="card-title-icon">📉</span>Napi trend összehasonlítás</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+        <polyline points="${line(s1,'var(--accent)')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="${line(s2,'var(--amber)')}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6 3"/>
+        <text x="${PL}" y="${H}" font-size="9" font-family="Source Sans 3,sans-serif" fill="var(--text3)">${allDays[0].slice(5)}</text>
+        <text x="${W-PR}" y="${H}" text-anchor="end" font-size="9" font-family="Source Sans 3,sans-serif" fill="var(--text3)">${allDays[n-1].slice(5)}</text>
+      </svg>
+      <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;">
+        <span><span style="display:inline-block;width:20px;height:2px;background:var(--accent);vertical-align:middle;margin-right:4px;"></span>${esc(mv1)}</span>
+        <span><span style="display:inline-block;width:20px;height:2px;background:var(--amber);vertical-align:middle;margin-right:4px;border-top:2px dashed var(--amber);"></span>${esc(mv2)}</span>
+      </div></div>`;
+  }
+
+  E('csapatOsszDiv').innerHTML = h;
 }
 
 /* ══════════════════════════════════════
@@ -654,6 +791,8 @@ export async function initElemzes() {
   E('eBtnReszleg').addEventListener('click',   async () => { switchETab('Reszleg'); await reszlegElemzes(); });
   E('eBtnMuszakVezeto')?.addEventListener('click',  () => { switchETab('MuszakVezeto'); populateMuszakVezetoSel(); });
   E('mvElemzBtn')?.addEventListener('click', muszakVezetoElemzes);
+  E('eBtnCsapatOssz')?.addEventListener('click',   () => { switchETab('CsapatOssz'); populateCsapatOsszSels(); });
+  E('csapatOsszBtn')?.addEventListener('click', csapatOsszehasonlit);
 
   E('egyeniDolgozo').addEventListener('change', async () => { const e=await getEntries(); filterMaterials(e,E('egyeniDolgozo').value); });
   E('osszDolg1').addEventListener('change', filterOsszAnyag);
@@ -672,7 +811,8 @@ const _ETAB_DIVS = {
   eBtnOsszehasonlit:  'osszDiv',
   eBtnMuszak:         'muszakDiv',
   eBtnReszleg:        'reszlegElemzesDiv',
-  eBtnMuszakVezeto:   'muszakVezetoDiv'
+  eBtnMuszakVezeto:   'muszakVezetoDiv',
+  eBtnCsapatOssz:     'csapatOsszDiv'
 };
 
 function _elemzesNyomtat() {
@@ -692,4 +832,5 @@ function _rerunActiveTab() {
   else if (id==='eBtnMuszak') muszakElemzes();
   else if (id==='eBtnReszleg') reszlegElemzes();
   else if (id==='eBtnMuszakVezeto'&&E('mvElemzSel')?.value) muszakVezetoElemzes();
+  else if (id==='eBtnCsapatOssz'&&E('csapatOssz1Sel')?.value&&E('csapatOssz2Sel')?.value) csapatOsszehasonlit();
 }

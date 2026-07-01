@@ -532,6 +532,7 @@
         <button class="vbtn" id="eBtnMuszak">Műszak</button>
         <button class="vbtn" id="eBtnReszleg">Részleg</button>
         <button class="vbtn" id="eBtnMuszakVezeto">Műszakvezető</button>
+        <button class="vbtn" id="eBtnCsapatOssz">Csapatok</button>
       </div>
 
       <!-- 1. fül: Egyéni elemzés -->
@@ -606,6 +607,21 @@
           </div>
         </div>
         <div id="muszakVezetoDiv"><div class="empty-st"><div class="empty-ic">👷</div>Válassz műszakvezetőt és kattints a Mutat gombra</div></div>
+      </div>
+
+      <!-- 9. fül: Csapatok összehasonlítása -->
+      <div id="eTabCsapatOssz" style="display:none;">
+        <div class="card" style="margin-bottom:10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">1. Műszakvezető</label><select id="csapatOssz1Sel" style="min-width:160px;"></select></div>
+            <div class="field"><label class="lbl">2. Műszakvezető</label><select id="csapatOssz2Sel" style="min-width:160px;"></select></div>
+            <div class="field" style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="csapatOsszBtn">Összehasonlít</button>
+            </div>
+          </div>
+        </div>
+        <div id="csapatOsszDiv"><div class="empty-st"><div class="empty-ic">👥</div>Válassz két műszakvezetőt</div></div>
       </div>
     </div>
 
@@ -1114,6 +1130,7 @@
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px;">Sablon alapján indulj el</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;">
                 <button class="role-tpl-btn" type="button" data-tpl="dolgozo">👷 Dolgozó</button>
+                <button class="role-tpl-btn" type="button" data-tpl="muszakvezeto">👥 Műszakvezető</button>
                 <button class="role-tpl-btn" type="button" data-tpl="csoportvezeto">👨‍💼 Csoportvezető</button>
                 <button class="role-tpl-btn" type="button" data-tpl="hr">📋 HR</button>
                 <button class="role-tpl-btn" type="button" data-tpl="konyvelő">📊 Könyvelő</button>
@@ -1130,6 +1147,7 @@
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pNaptar"><span class="perm-chk-lbl">Naptár</span></span><span class="perm-chk-desc">Termelési naptár megtekintése</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pElemzes"><span class="perm-chk-lbl">Elemzés</span></span><span class="perm-chk-desc">Teljesítmény-elemzők és rangsorok</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pAdatExport"><span class="perm-chk-lbl">Adat export</span></span><span class="perm-chk-desc">PDF, kép és CSV letöltése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pMuszakVezeto"><span class="perm-chk-lbl">Műszakvezető</span></span><span class="perm-chk-desc">Csak saját csapat adatait látja a riportokban</span></label>
               </div>
               <div class="perm-group">
                 <div class="perm-group-hdr">👥 Szervezet</div>

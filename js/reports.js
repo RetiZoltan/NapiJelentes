@@ -1,7 +1,7 @@
 import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
 import { logAction } from './auditlog.js';
-import { state, canSeeAllReports, isMainAdmin } from './state.js';
+import { state, canSeeAllReports, isMainAdmin, isMuszakVezeto } from './state.js';
 import { E, esc, msg, tod, fmtL, fmtS, fmtKg, skelHtml } from './utils.js';
 import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
 
@@ -236,7 +236,8 @@ export function napiRiport() {
   const rd = E('riportD').value;
   if (!rd) { msg('Válassz dátumot!', 'error'); return; }
   const szuro   = canSeeAllReports() ? E('dolgSzuro').value : '';
-  const mvSzuro = canSeeAllReports() ? E('napiMuszakVezetoSzuro')?.value || '' : '';
+  const autoMV  = isMuszakVezeto() ? (state.userData?.displayName || '') : '';
+  const mvSzuro = autoMV || (canSeeAllReports() ? E('napiMuszakVezetoSzuro')?.value || '' : '');
 
   E('napiRiportDiv').innerHTML = skelHtml('report');
   cleanupNapiListener();
@@ -471,7 +472,9 @@ function _applyIdoszakosFilters(hA) {
   const dF  = E('idoszakosDolgozoSzuro')?.value       || '';
   const aF  = E('idoszakosAnyagSzuro')?.value         || '';
   const mF  = E('idoszakosMuszakSzuro')?.value        || '';
-  const mvF = E('idoszakosMuszakVezetoSzuro')?.value  || '';
+  const mvF = isMuszakVezeto()
+    ? (state.userData?.displayName || '')
+    : (E('idoszakosMuszakVezetoSzuro')?.value || '');
   if (rF) hA = hA.filter(a => (a.reszleg || '') === rF);
   if (dF) hA = hA.filter(a => (a.nev     || '') === dF);
   if (aF) hA = hA.filter(a => (a.anyag   || '') === aF);

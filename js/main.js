@@ -3,7 +3,7 @@ import { auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc,
          onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, updateProfile } from './firebase.js';
-import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers } from './state.js';
+import { state, isMainAdmin, hasPerm, canSeeAllReports, canManageUsers, isMuszakVezeto } from './state.js';
 import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
@@ -127,7 +127,7 @@ function buildAppUI() {
 
   E('tabBtnDashboard').style.display   = '';
   E('tabBtnAdatbevitel').style.display = (isMainAdmin() || hasPerm('adatbevitel'))                                      ? '' : 'none';
-  E('tabBtnJelentesek').style.display  = (isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes'))       ? '' : 'none';
+  E('tabBtnJelentesek').style.display  = (isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes') || hasPerm('muszakVezeto')) ? '' : 'none';
   E('tabBtnNaptar').style.display      = (isMainAdmin() || hasPerm('naptar'))                                           ? '' : 'none';
   E('tabBtnElemzes').style.display     = (isMainAdmin() || hasPerm('elemzes'))                                          ? '' : 'none';
   E('tabBtnFeladatok').style.display   = (isMainAdmin() || hasPerm('feladatokKezeles'))                                 ? '' : 'none';
@@ -148,7 +148,7 @@ function buildAppUI() {
   E('stab-belepes-btn').style.display     = isMainAdmin() ? '' : 'none';
   E('napTorBtn').style.display      = isMainAdmin() ? '' : 'none';
   E('dolgSzuroWrap').style.display  = canSeeAllReports() ? '' : 'none';
-  const _hasMV = () => getMuszakVezetok().length > 0 && canSeeAllReports();
+  const _hasMV = () => getMuszakVezetok().length > 0 && canSeeAllReports() && !isMuszakVezeto();
   if (E('napiMVSzuroWrap'))      E('napiMVSzuroWrap').style.display      = _hasMV() ? '' : 'none';
   if (E('idoszakosMVSzuroWrap')) E('idoszakosMVSzuroWrap').style.display = _hasMV() ? '' : 'none';
   updMuszakVezetoSzuro();

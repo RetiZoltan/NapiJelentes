@@ -21,3 +21,7 @@ export function isMainAdmin()        { return state.userData?.isMainAdmin === tr
 export function hasPerm(perm)        { return isMainAdmin() || state.userRole?.permissions?.[perm] === true; }
 export function canSeeAllReports()   { return isMainAdmin() || hasPerm('mindenJelentes'); }
 export function canManageUsers()     { return isMainAdmin() || hasPerm('felhasznalokKezelese'); }
+export function isMuszakVezeto()     {
+  const nev = state.userData?.displayName || '';
+  return !isMainAdmin() && hasPerm('muszakVezeto') && !!state.muszakVezetokMap[nev];
+}

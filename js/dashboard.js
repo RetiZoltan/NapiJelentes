@@ -60,7 +60,7 @@ function _canSeeWidget(id) {
   if (id === 'nyitottF')  return isMainAdmin() || hasPerm('feladatokKezeles');
   if (id === 'gepKarbantartas') return canViewMachines();
   if (id === 'muszakAtadas')  return isMainAdmin() || hasPerm('adatbevitel') || hasPerm('mindenJelentes') || hasPerm('feladatokKezeles');
-  if (id === 'csapatOsszes') return Object.keys(state.muszakVezetokMap).length > 0 && (canSeeAllReports() || Object.keys(state.muszakVezetokMap).includes(state.userData?.name || ''));
+  if (id === 'csapatOsszes') return Object.keys(state.muszakVezetokMap).length > 0 && (canSeeAllReports() || Object.keys(state.muszakVezetokMap).includes(state.userData?.displayName || ''));
   return true;
 }
 function _availableWidgets() { return ALL_WIDGETS.filter(w => _canSeeWidget(w.id)); }
@@ -695,8 +695,8 @@ function _buildWidgetDrawerContent(wid, ctx, extra = {}) {
 
   /* ── 👥 Csapat összesítő – drawer ── */
   if (wid === 'csapatOsszes') {
-    const vezeto  = Object.keys(state.muszakVezetokMap).includes(state.userData?.name || '')
-      ? (state.userData?.name || '')
+    const vezeto  = Object.keys(state.muszakVezetokMap).includes(state.userData?.displayName || '')
+      ? (state.userData?.displayName || '')
       : Object.keys(state.muszakVezetokMap)[0] || '';
     const csapat  = state.muszakVezetokMap[vezeto] || [];
     if (!csapat.length) return `<div class="empty-st"><div class="empty-ic">👥</div><div class="empty-title">Nincs beosztott dolgozó</div></div>`;
@@ -1819,8 +1819,8 @@ function _buildWidget(id, ctx, large = false) {
   }
 
   if (id === 'csapatOsszes') {
-    const vezeto = Object.keys(state.muszakVezetokMap).includes(state.userData?.name || '')
-      ? (state.userData?.name || '')
+    const vezeto = Object.keys(state.muszakVezetokMap).includes(state.userData?.displayName || '')
+      ? (state.userData?.displayName || '')
       : Object.keys(state.muszakVezetokMap)[0] || '';
     const csapat = state.muszakVezetokMap[vezeto] || [];
     if (!csapat.length) return _wcrd('👥', 'Csapat összesítő', '–', 'Nincs beosztott dolgozó', '', large);
