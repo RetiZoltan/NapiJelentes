@@ -235,7 +235,8 @@ export function cleanupNapiListener() {
 export function napiRiport() {
   const rd = E('riportD').value;
   if (!rd) { msg('Válassz dátumot!', 'error'); return; }
-  const szuro = canSeeAllReports() ? E('dolgSzuro').value : '';
+  const szuro   = canSeeAllReports() ? E('dolgSzuro').value : '';
+  const mvSzuro = canSeeAllReports() ? E('napiMuszakVezetoSzuro')?.value || '' : '';
 
   E('napiRiportDiv').innerHTML = skelHtml('report');
   cleanupNapiListener();
@@ -249,6 +250,10 @@ export function napiRiport() {
     async snap => {
       let lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (szuro) lista = lista.filter(a => a.nev === szuro);
+      if (mvSzuro && !szuro) {
+        const csapat = state.muszakVezetokMap[mvSzuro] || [];
+        lista = lista.filter(a => csapat.includes(a.nev) || a.nev === mvSzuro);
+      }
       let napiNotes = {};
       try {
         const ns = await getDoc(doc(db, 'dailyNotes', rd));
@@ -462,23 +467,30 @@ function _weekToRange(weekStr) {
 }
 
 function _applyIdoszakosFilters(hA) {
-  const rF = E('idoszakosReszlegSzuro')?.value || '';
-  const dF = E('idoszakosDolgozoSzuro')?.value || '';
-  const aF = E('idoszakosAnyagSzuro')?.value   || '';
-  const mF = E('idoszakosMuszakSzuro')?.value  || '';
+  const rF  = E('idoszakosReszlegSzuro')?.value       || '';
+  const dF  = E('idoszakosDolgozoSzuro')?.value       || '';
+  const aF  = E('idoszakosAnyagSzuro')?.value         || '';
+  const mF  = E('idoszakosMuszakSzuro')?.value        || '';
+  const mvF = E('idoszakosMuszakVezetoSzuro')?.value  || '';
   if (rF) hA = hA.filter(a => (a.reszleg || '') === rF);
   if (dF) hA = hA.filter(a => (a.nev     || '') === dF);
   if (aF) hA = hA.filter(a => (a.anyag   || '') === aF);
   if (mF) hA = hA.filter(a => (a.ido     || '') === mF);
+  if (mvF && !dF) {
+    const csapat = state.muszakVezetokMap[mvF] || [];
+    hA = hA.filter(a => csapat.includes(a.nev) || a.nev === mvF);
+  }
   return hA;
 }
 
 function _filterBadges() {
+  const mvF = E('idoszakosMuszakVezetoSzuro')?.value;
   return [
     E('idoszakosReszlegSzuro')?.value,
     E('idoszakosDolgozoSzuro')?.value,
     E('idoszakosAnyagSzuro')?.value,
     E('idoszakosMuszakSzuro')?.value,
+    mvF ? `${mvF} csapata` : '',
   ].filter(Boolean).map(v => `<span class="r-shift">· ${esc(v)}</span>`).join('');
 }
 

@@ -13,6 +13,13 @@ function _applyListsSnapshot(data) {
   state.anyagCsoportMap = data.anyagCsoportMap || {};
   state.reszlegAnyagMap = data.reszlegAnyagMap || {};
   state.nevMetadata     = data.nevMetadata     || {};
+  // muszakVezetokMap levezetése a nevMetadata-ból
+  const mvMap = {};
+  Object.entries(state.nevMetadata).forEach(([nev, meta]) => {
+    const mv = meta?.muszakVezeto;
+    if (mv) { if (!mvMap[mv]) mvMap[mv] = []; mvMap[mv].push(nev); }
+  });
+  state.muszakVezetokMap = mvMap;
 }
 
 export async function loadLists() {
@@ -91,8 +98,10 @@ export function refreshListUI() {
   renderCsoportMapUI();
   renderReszlegAnyagMapUI();
   renderNevMetaUI();
+  renderMuszakVezetokMapUI();
   updDolgSzuro();
   updReszlegSzuro();
+  updMuszakVezetoSzuro();
   updIdoszakosFilters();
 }
 
@@ -303,6 +312,63 @@ export async function saveNevMeta() {
   });
   await saveLists();
   msg('Hozzárendelés mentve.');
+}
+
+/* ── Műszakvezető → dolgozó hozzárendelés ── */
+function renderMuszakVezetokMapUI() {
+  const section = E('muszakVezetoMapSection'); if (!section) return;
+  const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
+  const activeNev = srt(state.nevek.filter(n => !state.nevMetadata[n]?.archivalt));
+  if (activeNev.length < 2) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const vezetoOpts = `<option value="">—</option>` +
+    activeNev.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  E('muszakVezetoGrid').innerHTML = activeNev.map(n => `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(n)}">${esc(n)}</span>
+      <select class="pc-input mvmeta-sel" data-nev="${esc(n)}" style="width:160px;padding:3px 5px;">
+        ${vezetoOpts}
+      </select>
+    </div>`).join('');
+  const selEls = E('muszakVezetoGrid').querySelectorAll('.mvmeta-sel');
+  activeNev.forEach((n, i) => {
+    const mv = state.nevMetadata[n]?.muszakVezeto;
+    if (selEls[i] && mv && mv !== n) selEls[i].value = mv;
+  });
+}
+
+export async function saveMuszakVezetokMap() {
+  document.querySelectorAll('.mvmeta-sel').forEach(sel => {
+    const n = sel.dataset.nev; if (!n) return;
+    if (!state.nevMetadata[n]) state.nevMetadata[n] = {};
+    if (sel.value && sel.value !== n) state.nevMetadata[n].muszakVezeto = sel.value;
+    else delete state.nevMetadata[n].muszakVezeto;
+  });
+  // muszakVezetokMap újraszámítása
+  const mvMap = {};
+  Object.entries(state.nevMetadata).forEach(([nev, meta]) => {
+    const mv = meta?.muszakVezeto;
+    if (mv) { if (!mvMap[mv]) mvMap[mv] = []; mvMap[mv].push(nev); }
+  });
+  state.muszakVezetokMap = mvMap;
+  await saveLists();
+  renderMuszakVezetokMapUI();
+  msg('Műszakvezető hozzárendelés mentve.');
+}
+
+export function getMuszakVezetok() {
+  return Object.keys(state.muszakVezetokMap).sort((a, b) => a.localeCompare(b, 'hu'));
+}
+
+export function updMuszakVezetoSzuro() {
+  const mvList = getMuszakVezetok();
+  ['napiMuszakVezetoSzuro', 'idoszakosMuszakVezetoSzuro'].forEach(id => {
+    const el = E(id); if (!el) return;
+    const prev = el.value;
+    el.innerHTML = '<option value="">— Mindenki —</option>' +
+      mvList.map(mv => `<option value="${esc(mv)}">${esc(mv)}</option>`).join('');
+    if (prev) el.value = prev;
+  });
 }
 
 export async function archivNev() {

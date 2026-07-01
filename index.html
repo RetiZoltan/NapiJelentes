@@ -333,6 +333,10 @@
             <label class="lbl">Dolgozó</label>
             <select id="dolgSzuro"><option value="">— Mindenki —</option></select>
           </div>
+          <div class="field" style="min-width:160px;" id="napiMVSzuroWrap" style="display:none;">
+            <label class="lbl">Műszakvezető csapata</label>
+            <select id="napiMuszakVezetoSzuro"><option value="">— Mindenki —</option></select>
+          </div>
           <div class="field" style="min-width:120px;">
             <label class="lbl">Műszak</label>
             <select id="napiMuszakSzuro">
@@ -408,6 +412,10 @@
           <div class="field" style="min-width:150px;">
             <label class="lbl">Dolgozó</label>
             <select id="idoszakosDolgozoSzuro"><option value="">— Mindenki —</option></select>
+          </div>
+          <div class="field" style="min-width:160px;" id="idoszakosMVSzuroWrap" style="display:none;">
+            <label class="lbl">Műszakvezető csapata</label>
+            <select id="idoszakosMuszakVezetoSzuro"><option value="">— Mindenki —</option></select>
           </div>
           <div class="field" style="min-width:150px;">
             <label class="lbl">Anyagtípus</label>
@@ -523,6 +531,7 @@
         <button class="vbtn" id="eBtnOsszehasonlit">Összehasonlítás</button>
         <button class="vbtn" id="eBtnMuszak">Műszak</button>
         <button class="vbtn" id="eBtnReszleg">Részleg</button>
+        <button class="vbtn" id="eBtnMuszakVezeto">Műszakvezető</button>
       </div>
 
       <!-- 1. fül: Egyéni elemzés -->
@@ -583,6 +592,20 @@
       <!-- 7. fül: Részleg összesítő -->
       <div id="eTabReszleg" style="display:none;">
         <div id="reszlegElemzesDiv"><div class="empty-st"><div class="empty-ic">🏭</div><div class="empty-title">Kattints ide a részleg elemzéshez</div></div></div>
+      </div>
+
+      <!-- 8. fül: Műszakvezető összehasonlítás -->
+      <div id="eTabMuszakVezeto" style="display:none;">
+        <div class="card" style="margin-bottom:10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field"><label class="lbl">Műszakvezető</label><select id="mvElemzSel" style="min-width:160px;"></select></div>
+            <div class="field" style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="mvElemzBtn">Mutat</button>
+            </div>
+          </div>
+        </div>
+        <div id="muszakVezetoDiv"><div class="empty-st"><div class="empty-ic">👷</div>Válassz műszakvezetőt és kattints a Mutat gombra</div></div>
       </div>
     </div>
 
@@ -1192,6 +1215,16 @@
                 <p class="lhint">Névválasztáskor a részleg mező automatikusan kitöltődik (ha nincs rögzítve).</p>
                 <div id="nevMetaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
                 <button class="btn btn-primary btn-sm" id="nevMetaSaveBtn">Mentés</button>
+              </div>
+            </details>
+          </div>
+          <div id="muszakVezetoMapSection" style="margin-top:12px;display:none;">
+            <details class="map-details">
+              <summary class="map-summary">Dolgozó → Műszakvezető</summary>
+              <div class="map-body">
+                <p class="lhint">Rendeld hozzá a dolgozókat a megfelelő műszakvezetőhöz. A műszakvezető saját neve ne legyen önmagának beosztottja.</p>
+                <div id="muszakVezetoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
+                <button class="btn btn-primary btn-sm" id="muszakVezetoSaveBtn">Mentés</button>
               </div>
             </details>
           </div>
