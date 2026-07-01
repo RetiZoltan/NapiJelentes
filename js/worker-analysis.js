@@ -634,9 +634,7 @@ async function muszakVezetoElemzes() {
     h += `<div class="card" style="margin-bottom:12px;"><div class="card-title"><span class="card-title-icon">📉</span>Csapat napi trend</div>${svg}</div>`;
   }
 
-  h += `<div style="margin-top:6px;"><button class="btn btn-ghost btn-sm mv-print-btn">🖨️ Nyomtat / PDF</button></div>`;
   E('muszakVezetoDiv').innerHTML = h;
-  E('muszakVezetoDiv').querySelector('.mv-print-btn')?.addEventListener('click', () => nyomtatDiv('muszakVezetoDiv'));
 }
 
 function populateMuszakVezetoSel() {
