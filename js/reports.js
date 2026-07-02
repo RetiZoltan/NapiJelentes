@@ -809,7 +809,7 @@ async function _exportPdf(el, filename) {
     await Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
       img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
     ));
-    const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg });
+    const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg, foreignObjectRendering: true });
     document.body.removeChild(wrap);
 
     const iw = canvas.width, ih = canvas.height;
@@ -1001,7 +1001,7 @@ function kepMentDiv(divId, suffix) {
     img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
   ));
   imgReady
-    .then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }))
+    .then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true, foreignObjectRendering: true }))
     .then(canvas => {
       sheets.forEach(s => { s.disabled = false; });
       document.body.removeChild(wrap);
