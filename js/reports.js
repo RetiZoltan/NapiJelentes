@@ -793,6 +793,9 @@ async function _exportPdf(el, filename) {
     const usableH = pdfH - MARGIN * 2;
     const scale   = wrap.scrollHeight > 4000 ? 1.5 : 2;
 
+    await Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
+      img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+    ));
     const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg });
     document.body.removeChild(wrap);
 
@@ -933,12 +936,22 @@ function _buildWrap(el) {
   const resolveVars = s => s.replace(/var\((--[\w-]+)\)/g, (_, v) => VAR_MAP[v] || '#888');
 
   const clone = el.cloneNode(true);
+  // Inline style var() cseréje
   clone.querySelectorAll('*').forEach(node => {
     if (node.style?.cssText) node.style.cssText = resolveVars(node.style.cssText);
-    ['fill','stroke','stop-color','color','background','background-color'].forEach(attr => {
-      const v = node.getAttribute(attr);
-      if (v && v.includes('var(')) node.setAttribute(attr, resolveVars(v));
-    });
+  });
+  // SVG elemeket data: URL képpé alakítjuk — html2canvas nem tud SVG CSS változókat feloldani
+  clone.querySelectorAll('svg').forEach(svg => {
+    try {
+      let markup = new XMLSerializer().serializeToString(svg);
+      markup = resolveVars(markup);
+      const vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+      const svgW = vb[2] || 600;
+      const img = document.createElement('img');
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
+      img.style.cssText = `display:block;width:100%;max-width:${svgW}px;height:auto;`;
+      svg.replaceWith(img);
+    } catch (e) { /* eredeti SVG marad ha hiba van */ }
   });
   clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
   clone.querySelectorAll('.dlink, .dtoggle').forEach(x => {
@@ -966,7 +979,10 @@ function _buildWrap(el) {
 function kepMentDiv(divId, suffix) {
   const { wrap, bg } = _buildWrap(E(divId));
   document.body.appendChild(wrap);
-  html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
+  const imgReady = Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
+    img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+  ));
+  imgReady.then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true })).then(canvas => {
     document.body.removeChild(wrap);
     const a = document.createElement('a');
     a.download = `jelentes_${suffix}.jpg`;
