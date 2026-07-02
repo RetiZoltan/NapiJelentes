@@ -131,9 +131,9 @@ function _riportRekordok(hA) {
   const bestMat    = top(byMat);
   if (!bestDay) return '';
 
-  const card = (icon, label, value, sub, color = 'var(--accent)') =>
+  const card = (icon, label, value, sub, color = 'var(--accent)', bg = 'var(--agl)') =>
     `<div class="r-rekord-card">
-      <div class="r-rekord-icon" style="background:color-mix(in srgb,${color} 12%,var(--surf2));color:${color}">${icon}</div>
+      <div class="r-rekord-icon" style="background:${bg};color:${color}">${icon}</div>
       <div class="r-rekord-body">
         <div class="r-rekord-label">${label}</div>
         <div class="r-rekord-value">${value}</div>
@@ -144,9 +144,9 @@ function _riportRekordok(hA) {
   return `<div class="r-section">
     <div class="r-sec-title">🏆 Időszak rekordjai</div>
     <div class="r-rekord-grid">
-      ${bestDay    ? card('📅', 'Legjobb nap',      esc(fmtS(bestDay[0])),    `${(bestDay[1]/1000).toFixed(2)} t`, 'var(--amber)') : ''}
-      ${bestWorker ? card('👤', 'Legjobb dolgozó',   esc(bestWorker[0]),       `${(bestWorker[1]/1000).toFixed(2)} t az időszakban`, 'var(--accent)') : ''}
-      ${bestMat    ? card('📦', 'Vezető anyag',       esc(bestMat[0]),          `${(bestMat[1]/1000).toFixed(2)} t az időszakban`, 'var(--green)') : ''}
+      ${bestDay    ? card('📅', 'Legjobb nap',      esc(fmtS(bestDay[0])),    `${(bestDay[1]/1000).toFixed(2)} t`, 'var(--amber)', 'var(--amberl)') : ''}
+      ${bestWorker ? card('👤', 'Legjobb dolgozó',   esc(bestWorker[0]),       `${(bestWorker[1]/1000).toFixed(2)} t az időszakban`, 'var(--accent)', 'var(--agl)') : ''}
+      ${bestMat    ? card('📦', 'Vezető anyag',       esc(bestMat[0]),          `${(bestMat[1]/1000).toFixed(2)} t az időszakban`, 'var(--green)', 'var(--greenl)') : ''}
     </div>
   </div>`;
 }
