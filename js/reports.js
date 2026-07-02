@@ -776,14 +776,22 @@ export async function idoszakosPdfMent() {
   await _exportPdf(el, `idoszakos_riport_${tod()}.pdf`);
 }
 
-function _disableSheets() {
-  const sheets = [];
-  try {
-    Array.from(document.styleSheets).forEach(s => {
-      try { if (s.href) { s.disabled = true; sheets.push(s); } } catch(e) {}
-    });
-  } catch(e) {}
-  return sheets;
+// HTML <link> stíluslapok ideiglenes eltávolítása a DOM-ból.
+// html2canvas document.cloneNode(true)-t hív, ezért a .disabled trükk nem elég —
+// a linkeket teljesen ki kell venni, hogy a klónban se legyenek benne.
+function _removeLinks() {
+  const links = Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'));
+  links.forEach(l => l.remove());
+  return links;
+}
+function _restoreLinks(links) { links.forEach(l => document.head.appendChild(l)); }
+
+function _exportOverlay() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#EFF2F7;display:flex;align-items:center;justify-content:center;font-size:15px;color:#475569;font-family:sans-serif;';
+  ov.textContent = 'Generálás…';
+  document.body.appendChild(ov);
+  return ov;
 }
 
 async function _exportPdf(el, filename) {
@@ -793,9 +801,8 @@ async function _exportPdf(el, filename) {
   const { wrap, bg } = _buildWrap(el);
   document.body.appendChild(wrap);
 
-  // Külső stíluslapok ideiglenes tiltása — html2canvas a color-mix() értékeket
-  // már a CSS parszolásnál elveti, ezért a _buildWrap saját <style> blokkja lesz aktív
-  const sheets = _disableSheets();
+  const ov    = _exportOverlay();
+  const links = _removeLinks();
   try {
     const MARGIN  = 10;
     const { jsPDF } = window.jspdf;
@@ -809,7 +816,7 @@ async function _exportPdf(el, filename) {
     await Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
       img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
     ));
-    const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg, foreignObjectRendering: true });
+    const canvas = await html2canvas(wrap, { scale, useCORS: true, allowTaint: true, backgroundColor: bg });
     document.body.removeChild(wrap);
 
     const iw = canvas.width, ih = canvas.height;
@@ -838,7 +845,8 @@ async function _exportPdf(el, filename) {
     console.error('PDF export hiba:', err);
     msg('PDF hiba: ' + err.message, 'error');
   } finally {
-    sheets.forEach(s => { s.disabled = false; });
+    _restoreLinks(links);
+    document.body.removeChild(ov);
   }
 }
 
@@ -996,14 +1004,15 @@ function _buildWrap(el) {
 function kepMentDiv(divId, suffix) {
   const { wrap, bg } = _buildWrap(E(divId));
   document.body.appendChild(wrap);
-  const sheets = _disableSheets();
+  const ov    = _exportOverlay();
+  const links = _removeLinks();
   const imgReady = Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
     img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
   ));
   imgReady
-    .then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true, foreignObjectRendering: true }))
+    .then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }))
     .then(canvas => {
-      sheets.forEach(s => { s.disabled = false; });
+      _restoreLinks(links); document.body.removeChild(ov);
       document.body.removeChild(wrap);
       const a = document.createElement('a');
       a.download = `jelentes_${suffix}.jpg`;
@@ -1012,7 +1021,7 @@ function kepMentDiv(divId, suffix) {
       msg('Kép mentve!');
     })
     .catch(err => {
-      sheets.forEach(s => { s.disabled = false; });
+      _restoreLinks(links); document.body.removeChild(ov);
       if (document.body.contains(wrap)) document.body.removeChild(wrap);
       console.error('Kép export hiba:', err);
       msg('Mentési hiba: ' + (err?.message || err), 'error');
