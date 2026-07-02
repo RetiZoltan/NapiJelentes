@@ -822,6 +822,7 @@ async function _exportPdf(el, filename) {
     msg('PDF mentve!');
   } catch (err) {
     if (document.body.contains(wrap)) document.body.removeChild(wrap);
+    console.error('PDF export hiba:', err);
     msg('PDF hiba: ' + err.message, 'error');
   }
 }
@@ -989,7 +990,7 @@ function kepMentDiv(divId, suffix) {
     a.href = canvas.toDataURL('image/jpeg', .93);
     a.click();
     msg('Kép mentve!');
-  }).catch(() => { if (document.body.contains(wrap)) document.body.removeChild(wrap); msg('Mentési hiba.', 'error'); });
+  }).catch(err => { console.error('Kép export hiba:', err); if (document.body.contains(wrap)) document.body.removeChild(wrap); msg('Mentési hiba: ' + (err?.message || err), 'error'); });
 }
 
 /* ── Napi riport belső segédfüggvények ── */
