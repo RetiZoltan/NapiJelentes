@@ -776,6 +776,16 @@ export async function idoszakosPdfMent() {
   await _exportPdf(el, `idoszakos_riport_${tod()}.pdf`);
 }
 
+function _disableSheets() {
+  const sheets = [];
+  try {
+    Array.from(document.styleSheets).forEach(s => {
+      try { if (s.href) { s.disabled = true; sheets.push(s); } } catch(e) {}
+    });
+  } catch(e) {}
+  return sheets;
+}
+
 async function _exportPdf(el, filename) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
   msg('PDF generálás…', 'info', 7000);
@@ -783,6 +793,9 @@ async function _exportPdf(el, filename) {
   const { wrap, bg } = _buildWrap(el);
   document.body.appendChild(wrap);
 
+  // Külső stíluslapok ideiglenes tiltása — html2canvas a color-mix() értékeket
+  // már a CSS parszolásnál elveti, ezért a _buildWrap saját <style> blokkja lesz aktív
+  const sheets = _disableSheets();
   try {
     const MARGIN  = 10;
     const { jsPDF } = window.jspdf;
@@ -824,6 +837,8 @@ async function _exportPdf(el, filename) {
     if (document.body.contains(wrap)) document.body.removeChild(wrap);
     console.error('PDF export hiba:', err);
     msg('PDF hiba: ' + err.message, 'error');
+  } finally {
+    sheets.forEach(s => { s.disabled = false; });
   }
 }
 
@@ -972,8 +987,7 @@ function _buildWrap(el) {
   const vars = `#rExport{--bg:${LM.bg};--surf:${LM.surf};--surf2:${LM.surf2};--surf3:${LM.surf3};--border:${LM.b};--border2:${LM.b2};--text:${LM.t1};--text2:${LM.t2};--text3:${LM.t3};--accent:${LM.acc};--agl:${LM.agl};--green:${LM.green};--greenl:${LM.greenl};--amber:${LM.amber};--amberl:${LM.amberl};--red:${LM.red};--redl:${LM.redl};--r:8px;--rsm:5px;--rlg:12px;}#rExport *{animation:none!important;transition:none!important;opacity:1!important;transform:none!important;}`;
   const css = `.r-head{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:500;color:${LM.t1};margin-bottom:16px;padding-bottom:11px;border-bottom:2px solid ${LM.b2};display:flex;align-items:baseline;flex-wrap:wrap;}.r-shift{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${LM.t2};margin-left:10px;}.reszleg-block{margin-bottom:12px;}.reszleg-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.acc};padding:6px 0 5px;border-bottom:1px solid ${LM.b2};margin-bottom:7px;display:flex;align-items:center;gap:6px;}.reszleg-dot{width:7px;height:7px;border-radius:50%;background:${LM.acc};flex-shrink:0;}.muszak-block{margin-bottom:18px;}.muszak-hd{font-size:13px;font-weight:700;color:${LM.t1};background:${LM.surf2};border:1px solid ${LM.b};border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}.muszak-dot{width:8px;height:8px;border-radius:50%;background:${LM.acc};flex-shrink:0;}.worker-block{background:${LM.surf};border:1px solid ${LM.b};border-radius:7px;overflow:hidden;margin-bottom:10px;}.worker-hd{background:${LM.surf2};border-bottom:1px solid ${LM.b};padding:8px 14px;display:flex;align-items:center;gap:8px;}.worker-dot{width:7px;height:7px;border-radius:50%;background:${LM.acc};}.worker-nm{font-size:14px;font-weight:600;color:${LM.t1};}table.rt{width:100%;border-collapse:collapse;font-size:13px;}.rt th{text-align:left;color:${LM.t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 14px;border-bottom:1px solid ${LM.b};background:${LM.surf2};}.rt td{padding:9px 14px;border-bottom:1px solid ${LM.b};color:${LM.t2};vertical-align:top;}.rt tfoot td{padding:8px 14px;border-top:1px solid ${LM.b2};font-weight:600;font-size:12.5px;color:${LM.t1};background:${LM.surf3};}.v-teli{color:${LM.red};font-weight:600;}.v-kezdett{color:${LM.amber};font-weight:600;}.v-green{color:${LM.green};font-weight:600;}.v-bold{color:${LM.t1};font-weight:600;}.del-btn,.edit-btn,.napi-ossz{display:none!important;}.wnote{padding:8px 14px;border-top:1px solid ${LM.b};background:${LM.surf2};font-size:13px;color:${LM.t2};white-space:pre-wrap;}.day-note{margin-top:11px;padding:13px 15px;background:${LM.amberl};border:1px solid rgba(0,0,0,.1);border-radius:7px;font-size:13px;color:${LM.t2};white-space:pre-wrap;}.day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.amber};margin-bottom:5px;}.nossz{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}.nossz-item{flex:1;min-width:100px;text-align:center;padding:10px 12px;background:${LM.surf};border:1px solid ${LM.b};border-radius:8px;}.nossz-val{font-size:18px;font-weight:700;color:${LM.t1};line-height:1.2;}.nossz-lbl{font-size:10px;color:${LM.t3};text-transform:uppercase;letter-spacing:.6px;margin-top:3px;}.sec-hd{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.t3};border-bottom:1px dashed ${LM.b2};padding-bottom:7px;margin-bottom:14px;}.sec-hd span{color:${LM.acc};margin-right:5px;}.card{background:${LM.surf};border:1px solid ${LM.b};border-radius:11px;padding:18px 20px;margin-bottom:12px;}.card-title{font-size:14px;font-weight:700;color:${LM.acc};border-bottom:1px solid ${LM.b};padding-bottom:10px;margin-bottom:16px;}.stbl{width:100%;border-collapse:collapse;font-size:13px;}.stbl th{text-align:left;color:${LM.t3};font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:7px 13px;border-bottom:1px solid ${LM.b};background:${LM.surf2};}.stbl td{padding:9px 13px;border-bottom:1px solid ${LM.b};color:${LM.t2};}.stbl .tot td{font-weight:700;color:${LM.t1};border-top:2px solid ${LM.b2};background:${LM.surf3};font-size:12.5px;}`;
   const rcss = `.r-section{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid ${LM.b};}.r-section:last-child{border-bottom:none;}.r-sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:${LM.t3};margin-bottom:12px;}.r-rekord-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}.r-rekord-card{display:flex;align-items:center;gap:12px;background:${LM.surf2};border:1px solid ${LM.b};border-radius:8px;padding:14px 16px;}.r-rekord-icon{width:42px;height:42px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}.r-rekord-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${LM.t3};margin-bottom:3px;}.r-rekord-value{font-size:15px;font-weight:700;color:${LM.t1};line-height:1.2;margin-bottom:2px;}.r-rekord-sub{font-size:12px;color:${LM.t3};}`;
-  // components.css-ból color-mix() tartalmú szabályok felülírása magasabb specificitással
-  const hfix = `#rExport .card{border-top:2px solid ${LM.b2}!important;}`;
+  const hfix = `#rExport .card{border-top:2px solid ${LM.b2}!important;}.rs-group-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${LM.acc};margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid ${LM.b};}`;
   style.textContent = vars + css + rcss + hfix;
   inner.appendChild(style); inner.appendChild(clone); wrap.appendChild(inner);
   return { wrap, bg: LM.bg };
@@ -982,17 +996,27 @@ function _buildWrap(el) {
 function kepMentDiv(divId, suffix) {
   const { wrap, bg } = _buildWrap(E(divId));
   document.body.appendChild(wrap);
+  const sheets = _disableSheets();
   const imgReady = Promise.all(Array.from(wrap.querySelectorAll('img')).map(img =>
     img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
   ));
-  imgReady.then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true })).then(canvas => {
-    document.body.removeChild(wrap);
-    const a = document.createElement('a');
-    a.download = `jelentes_${suffix}.jpg`;
-    a.href = canvas.toDataURL('image/jpeg', .93);
-    a.click();
-    msg('Kép mentve!');
-  }).catch(err => { console.error('Kép export hiba:', err); if (document.body.contains(wrap)) document.body.removeChild(wrap); msg('Mentési hiba: ' + (err?.message || err), 'error'); });
+  imgReady
+    .then(() => html2canvas(wrap, { backgroundColor: bg, scale: 2, useCORS: true, allowTaint: true }))
+    .then(canvas => {
+      sheets.forEach(s => { s.disabled = false; });
+      document.body.removeChild(wrap);
+      const a = document.createElement('a');
+      a.download = `jelentes_${suffix}.jpg`;
+      a.href = canvas.toDataURL('image/jpeg', .93);
+      a.click();
+      msg('Kép mentve!');
+    })
+    .catch(err => {
+      sheets.forEach(s => { s.disabled = false; });
+      if (document.body.contains(wrap)) document.body.removeChild(wrap);
+      console.error('Kép export hiba:', err);
+      msg('Mentési hiba: ' + (err?.message || err), 'error');
+    });
 }
 
 /* ── Napi riport belső segédfüggvények ── */
