@@ -20,8 +20,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 .dtoggle{color:var(--text);font-weight:600;background:none;border:none;font-family:'Source Sans 3',sans-serif;font-size:13px;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-style:dotted;}
 .dbox{display:none!important;}
 
-.wnote{padding:8px 14px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--accent) 5%,var(--surf2));font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}
-.day-note{margin-top:11px;padding:13px 15px;background:var(--amberl);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);border-radius:var(--r);font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}
+.wnote{padding:8px 14px;border-top:1px solid var(--border);background:var(--surf2);font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}
+.day-note{margin-top:11px;padding:13px 15px;background:var(--amberl);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text2);white-space:pre-wrap;position:relative;}
 .day-note-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--amber);margin-bottom:5px;}
 
 .del-btn{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 5px;border-radius:3px;transition:color var(--tr),background var(--tr);}
