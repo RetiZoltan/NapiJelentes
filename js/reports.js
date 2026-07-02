@@ -919,7 +919,27 @@ function _buildWrap(el) {
     amber:'#E65100', amberl:'#FFF3E0',
     red:'#C62828', redl:'#FFEBEE'
   };
+  // SVG attribútumokban és inline style-ban lévő var() hivatkozások cseréje
+  // html2canvas nem tud CSS változókat feloldani SVG kontextusban
+  const VAR_MAP = {
+    '--bg': LM.bg, '--surf': LM.surf, '--surf2': LM.surf2, '--surf3': LM.surf3,
+    '--border': LM.b, '--border2': LM.b2,
+    '--text': LM.t1, '--text2': LM.t2, '--text3': LM.t3,
+    '--accent': LM.acc, '--agl': LM.agl,
+    '--green': LM.green, '--greenl': LM.greenl,
+    '--amber': LM.amber, '--amberl': LM.amberl,
+    '--red': LM.red, '--redl': LM.redl,
+  };
+  const resolveVars = s => s.replace(/var\((--[\w-]+)\)/g, (_, v) => VAR_MAP[v] || '#888');
+
   const clone = el.cloneNode(true);
+  clone.querySelectorAll('*').forEach(node => {
+    if (node.style?.cssText) node.style.cssText = resolveVars(node.style.cssText);
+    ['fill','stroke','stop-color','color','background','background-color'].forEach(attr => {
+      const v = node.getAttribute(attr);
+      if (v && v.includes('var(')) node.setAttribute(attr, resolveVars(v));
+    });
+  });
   clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
   clone.querySelectorAll('.dlink, .dtoggle').forEach(x => {
     const sp = document.createElement('span');
