@@ -21,7 +21,7 @@ import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
          napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
-import { analitikaInitWidgets, analitikaShowPanel, analitikaPanelClick } from './analitika.js';
+import { analitikaInitWidgets, analitikaShowPanel, analitikaPanelClick, analitikaPanelChange } from './analitika.js';
 import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
@@ -763,6 +763,7 @@ E('megj').addEventListener('focus', e => e.target.select());
     if (w?.dataset.wid) analitikaShowPanel(w.dataset.wid);
   });
   E('analitikaPanel').addEventListener('click', analitikaPanelClick);
+  E('analitikaPanel').addEventListener('change', analitikaPanelChange);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {

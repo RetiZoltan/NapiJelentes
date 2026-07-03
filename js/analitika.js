@@ -39,6 +39,20 @@ function _csapatKeyFn(e) {
 let _panelKind   = null;
 let _lastSeries  = null;
 let _lastHeader  = null;
+let _lastEntries = null;
+
+/* ── Közös beállítások (Top N, rendezés, "Egyéb" sor, mértékegység) —
+   localStorage-ban perzisztálva, minden összehasonlító csempére vonatkozik. */
+const _SET_KEY = 'nj_ana_settings';
+function _getSettings() {
+  try { return { topN: '', sortBy: 'kg', unit: 't', showOther: false, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
+  catch { return { topN: '', sortBy: 'kg', unit: 't', showOther: false }; }
+}
+function _saveSettings(patch) {
+  try { localStorage.setItem(_SET_KEY, JSON.stringify({ ..._getSettings(), ...patch })); } catch {}
+}
+function _fmtUnitPlain(kg, unit) { return unit === 'kg' ? `${Math.round(kg)} kg` : `${(kg / 1000).toFixed(2)} t`; }
+function _fmtUnitHtml(kg, unit)  { return unit === 'kg' ? fmtKg(kg) : (kg > 0 ? `${(kg / 1000).toFixed(2)} t` : '—'); }
 
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
@@ -85,16 +99,28 @@ function _fitLabel(text, maxW, font = _BAR_FONT) {
   return lbl + '…';
 }
 
+/* ── Rendezett összesítés — az "Egyéb" (ha van) mindig a lista végére kerül,
+   a többi elem a beállított sorrend (mennyiség vagy név) szerint rendeződik. */
+function _orderedTotals(series, sortBy) {
+  const rows = series.map((s, i) => ({
+    label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0),
+    color: s.label === 'Egyéb' ? 'var(--text3)' : PALETTE[i % PALETTE.length],
+    isOther: s.label === 'Egyéb',
+  }));
+  const main  = rows.filter(r => !r.isOther);
+  const other = rows.filter(r => r.isOther);
+  main.sort(sortBy === 'nev' ? (a, b) => a.label.localeCompare(b.label, 'hu') : (a, b) => b.kg - a.kg);
+  return [...main, ...other];
+}
+
 /* ── Rangsoroló oszlopdiagram (reports.js _riportBarChart mintájára, egyedi színekkel) ──
    A bal oldali címke-sáv szélessége a leghosszabb névhez igazodik (mért szövegszélesség
    alapján, nem karakterszám-becsléssel), így a hosszú nevek nem vágódnak le feleslegesen. */
-function _multiBarChart(series) {
-  const totals = series.map((s, i) => ({
-    label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0), color: PALETTE[i % PALETTE.length],
-  })).sort((a, b) => b.kg - a.kg);
+function _multiBarChart(series, opts = {}) {
+  const totals = _orderedTotals(series, opts.sortBy);
   if (!totals.length) return '';
 
-  const maxKg = totals[0].kg || 1;
+  const maxKg = Math.max(...totals.map(t => t.kg), 1);
   const BAR_H = 28, GAP = 8, PR = 64, PT = 8;
   const W = 600;
   const MIN_PL = 70, MAX_PL = 260;
@@ -109,22 +135,21 @@ function _multiBarChart(series) {
     return `
       <text x="${PL - 8}" y="${y + BAR_H * 0.65}" font-size="11.5" text-anchor="end" fill="var(--text2)">${esc(lbl)}</text>
       <rect x="${PL}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${t.color}" opacity=".85"/>
-      <text x="${PL + barW + 6}" y="${y + BAR_H * 0.65}" font-size="11" fill="var(--text2)" style="font-weight:600">${(t.kg / 1000).toFixed(2)} t</text>`;
+      <text x="${PL + barW + 6}" y="${y + BAR_H * 0.65}" font-size="11" fill="var(--text2)" style="font-weight:600">${_fmtUnitPlain(t.kg, opts.unit)}</text>`;
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${bars}</svg>`;
 }
 
-function _rankTable(series) {
-  const totals = series.map(s => ({ label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0) }))
-    .sort((a, b) => b.kg - a.kg);
+function _rankTable(series, opts = {}) {
+  const totals = _orderedTotals(series, opts.sortBy);
   if (!totals.length) return '';
   const total = totals.reduce((s, t) => s + t.kg, 0);
   let h = `<table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
   totals.forEach((t, i) => {
     const pct  = total > 0 ? (t.kg / total * 100).toFixed(1) : 0;
     const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
-    h += `<tr><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;">${esc(t.label)}</td><td class="v-bold">${fmtKg(t.kg)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:var(--accent);border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td></tr>`;
+    h += `<tr><td style="color:var(--text3);width:28px;">${t.isOther ? '' : i + 1 + '.'}</td><td style="font-weight:600;${t.isOther ? 'color:var(--text3);font-style:italic;' : ''}">${esc(t.label)}</td><td class="v-bold">${_fmtUnitHtml(t.kg, opts.unit)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:${t.isOther ? 'var(--text3)' : 'var(--accent)'};border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td></tr>`;
   });
   return h + `</tbody></table>`;
 }
@@ -243,6 +268,37 @@ function _fillMultiSel(sel, list, noSort) {
   sel.innerHTML = list.map(item => `<option value="${esc(item)}"${prev.includes(item) ? ' selected' : ''}>${esc(item)}</option>`).join('');
 }
 
+/* ── Közös beállítás-blokk (Top N, rendezés, mértékegység, "Egyéb" sor) ── */
+function _settingsBlockHtml() {
+  const s = _getSettings();
+  const opt = (val, cur, label) => `<option value="${val}"${cur === val ? ' selected' : ''}>${label}</option>`;
+  return `<div id="anaSettingsBlock" style="display:none;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;background:var(--surf2);">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;">
+      <div class="field">
+        <label class="lbl">Megjelenítendő elemek</label>
+        <select id="anaSetTopN">
+          ${opt('', s.topN, 'Alapértelmezett')}${opt('3', s.topN, 'Top 3')}${opt('5', s.topN, 'Top 5')}${opt('10', s.topN, 'Top 10')}${opt('all', s.topN, 'Mind')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Rendezés</label>
+        <select id="anaSetSort">
+          ${opt('kg', s.sortBy, 'Mennyiség szerint')}${opt('nev', s.sortBy, 'Név szerint (ABC)')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Mértékegység</label>
+        <select id="anaSetUnit">
+          ${opt('t', s.unit, 'Tonna')}${opt('kg', s.unit, 'Kilogramm')}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ── Csempék (Jelentések → Analitika fül belépéskor) ── */
 export function analitikaInitWidgets() {
   const cont = E('analitikaWidgets'); if (!cont) return;
@@ -281,7 +337,9 @@ export async function analitikaShowPanel(kind) {
       <div class="lbox-t">${esc(meta.title)}</div>
       <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
       <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
-    </div>`}
+    </div>
+    <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
+    ${_settingsBlockHtml()}`}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
@@ -320,6 +378,7 @@ async function _renderPanelResult() {
   _setBtns(true);
 
   const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
+  _lastEntries = entries;
   if (!entries.length) {
     out.innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a kiválasztott időszakra</div>`;
     _lastSeries = null; _setBtns(true); return;
@@ -337,22 +396,43 @@ async function _renderPanelResult() {
     return;
   }
 
-  const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
-  const keys = sel.length ? sel.slice(0, meta.max) : _topKeys(entries, meta.keyFn, meta.max);
-  _lastSeries = _perDaySeries(entries, meta.keyFn, keys);
   _lastHeader = { title: meta.title, from, to };
-  _renderResultBody();
+  _computeCompareResult();
   _setBtns(false);
+}
+
+/* Csak a már lekérdezett _lastEntries-ből számol újra — nincs hálózati hívás,
+   így a beállítások (Top N, rendezés, "Egyéb" sor) váltása azonnali. */
+function _computeCompareResult() {
+  const meta = _wdMeta(_panelKind); if (!meta || meta.kind === 'datum' || !_lastEntries) return;
+  const settings = _getSettings();
+  const topN = settings.topN === 'all' ? Infinity : Number(settings.topN || meta.max);
+
+  const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
+  const keys = sel.length ? sel.slice(0, topN) : _topKeys(_lastEntries, meta.keyFn, topN);
+  _lastSeries = _perDaySeries(_lastEntries, meta.keyFn, keys);
+
+  if (settings.showOther) {
+    const otherSeries = _perDaySeries(_lastEntries, e => {
+      const k = meta.keyFn(e);
+      return (k && !keys.includes(k)) ? 'Egyéb' : null;
+    }, ['Egyéb']);
+    if (otherSeries[0].perDay.length) _lastSeries = [..._lastSeries, otherSeries[0]];
+  }
+
+  _renderResultBody();
 }
 
 function _renderResultBody() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastSeries) return;
-  const series = _lastSeries;
-  const chart  = series.length ? _multiBarChart(series) : '';
+  const series   = _lastSeries;
+  const settings = _getSettings();
+  const opts     = { unit: settings.unit, sortBy: settings.sortBy };
+  const chart    = series.length ? _multiBarChart(series, opts) : '';
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>` + (
     series.length
-      ? chart + _rankTable(series)
+      ? chart + _rankTable(series, opts)
       : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
   );
 }
@@ -367,7 +447,21 @@ export function analitikaPanelClick(e) {
     E('anaDrTol').value = addD(tod(), -(days - 1));
     return;
   }
+  if (e.target.closest('#anaSettingsToggle')) {
+    const block = E('anaSettingsBlock');
+    if (block) block.style.display = block.style.display === 'none' ? '' : 'none';
+    return;
+  }
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
+}
+
+/* ── Beállítás-mezők (select/checkbox) change eseménye — mentés + azonnali
+   újraszámolás a már lekérdezett adatokból, hálózati hívás nélkül. ── */
+export function analitikaPanelChange(e) {
+  if (e.target.id === 'anaSetTopN')  { _saveSettings({ topN: e.target.value });   _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetSort')  { _saveSettings({ sortBy: e.target.value }); _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetUnit')  { _saveSettings({ unit: e.target.value });   _renderResultBody();      return; }
+  if (e.target.id === 'anaSetOther') { _saveSettings({ showOther: e.target.checked }); _computeCompareResult(); return; }
 }
