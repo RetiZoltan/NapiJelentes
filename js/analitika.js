@@ -16,9 +16,24 @@ const HU_DAYS = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szomba
 
 const WIDGETS = [
   { id: 'anyagok', icon: '📦', title: 'Anyagtípusok összehasonlítása', unit: 'anyagtípus', max: 5,
-    keyFn: e => (e.anyag || '').trim(), listSrc: () => state.anyagok },
+    keyFn: e => {
+      const anyag = (e.anyag || '').trim();
+      return _getSettings().anyagCsoport ? (state.anyagCsoportMap[anyag] || 'Egyéb csoport') : anyag;
+    },
+    listSrc: () => _getSettings().anyagCsoport ? state.anyagCsoportok : state.anyagok,
+    filterFn: (e, s) => !s.reszlegSzuro || (e.reszleg || '').trim() === s.reszlegSzuro },
   { id: 'dolgozok', icon: '👤', title: 'Dolgozók összehasonlítása', unit: 'dolgozó', max: 6,
-    keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
+    keyFn: e => e.nev,
+    listSrc: () => state.nevek.filter(n => _getSettings().archivalt || !state.nevMetadata[n]?.archivalt),
+    filterFn: (e, s) => {
+      if (!s.archivalt && state.nevMetadata[e.nev]?.archivalt) return false;
+      if (s.reszlegSzuro && (e.reszleg || '').trim() !== s.reszlegSzuro) return false;
+      if (s.csapatSzuro) {
+        const csapat = state.muszakVezetokMap[s.csapatSzuro] || [];
+        if (e.nev !== s.csapatSzuro && !csapat.includes(e.nev)) return false;
+      }
+      return true;
+    } },
   { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
     keyFn: e => (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt', listSrc: () => ['Délelőtt', 'Délután'] },
   { id: 'csapatok', icon: '👥', title: 'Csapatok összehasonlítása', unit: 'csapat', max: 8,
@@ -41,12 +56,18 @@ let _lastSeries  = null;
 let _lastHeader  = null;
 let _lastEntries = null;
 
-/* ── Közös beállítások (Top N, rendezés, "Egyéb" sor, mértékegység) —
-   localStorage-ban perzisztálva, minden összehasonlító csempére vonatkozik. */
+/* ── Beállítások (közösek + csempe-specifikusak) —
+   localStorage-ban perzisztálva. */
 const _SET_KEY = 'nj_ana_settings';
+const _SET_DEFAULTS = {
+  topN: '', sortBy: 'kg', unit: 't', showOther: false,   // közös (mind a 4 összehasonlító csempénél)
+  reszlegSzuro: '', csapatSzuro: '',                     // anyagok + dolgozók
+  anyagCsoport: false,                                   // csak anyagok
+  archivalt: false,                                      // csak dolgozók
+};
 function _getSettings() {
-  try { return { topN: '', sortBy: 'kg', unit: 't', showOther: false, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
-  catch { return { topN: '', sortBy: 'kg', unit: 't', showOther: false }; }
+  try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
+  catch { return { ..._SET_DEFAULTS }; }
 }
 function _saveSettings(patch) {
   try { localStorage.setItem(_SET_KEY, JSON.stringify({ ..._getSettings(), ...patch })); } catch {}
@@ -268,12 +289,44 @@ function _fillMultiSel(sel, list, noSort) {
   sel.innerHTML = list.map(item => `<option value="${esc(item)}"${prev.includes(item) ? ' selected' : ''}>${esc(item)}</option>`).join('');
 }
 
-/* ── Közös beállítás-blokk (Top N, rendezés, mértékegység, "Egyéb" sor) ── */
-function _settingsBlockHtml() {
+/* ── Beállítás-blokk: közös mezők + csempénkénti extra mezők ── */
+function _settingsBlockHtml(meta) {
   const s = _getSettings();
   const opt = (val, cur, label) => `<option value="${val}"${cur === val ? ' selected' : ''}>${label}</option>`;
+  const reszlegOpts = ['<option value="">— Mind —</option>', ...[...state.reszlegek].sort((a, b) => a.localeCompare(b, 'hu'))
+    .map(r => `<option value="${esc(r)}"${s.reszlegSzuro === r ? ' selected' : ''}>${esc(r)}</option>`)].join('');
+  const csapatVezetok = Object.keys(state.muszakVezetokMap).sort((a, b) => a.localeCompare(b, 'hu'));
+  const csapatOpts = ['<option value="">— Mind —</option>', ...csapatVezetok
+    .map(v => `<option value="${esc(v)}"${s.csapatSzuro === v ? ' selected' : ''}>${esc(v)} csapata</option>`)].join('');
+
+  let extra = '';
+  if (meta.id === 'anyagok') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Részleg szerint</label>
+        <select id="anaSetReszleg">${reszlegOpts}</select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAnyagCsoport"${s.anyagCsoport ? ' checked' : ''}> Csoportosítás anyagcsoport szerint</label>
+      </div>`;
+  } else if (meta.id === 'dolgozok') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Részleg szerint</label>
+        <select id="anaSetReszleg">${reszlegOpts}</select>
+      </div>
+      ${csapatVezetok.length ? `
+      <div class="field">
+        <label class="lbl">Csapat szerint</label>
+        <select id="anaSetCsapat">${csapatOpts}</select>
+      </div>` : ''}
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetArchivalt"${s.archivalt ? ' checked' : ''}> Archivált dolgozók is</label>
+      </div>`;
+  }
+
   return `<div id="anaSettingsBlock" style="display:none;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;background:var(--surf2);">
-    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:${extra ? '12px' : '0'};">
       <div class="field">
         <label class="lbl">Megjelenítendő elemek</label>
         <select id="anaSetTopN">
@@ -296,6 +349,7 @@ function _settingsBlockHtml() {
         <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
       </div>
     </div>
+    ${extra ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;border-top:1px solid var(--border);padding-top:12px;">${extra}</div>` : ''}
   </div>`;
 }
 
@@ -339,7 +393,7 @@ export async function analitikaShowPanel(kind) {
       <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
     </div>
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
-    ${_settingsBlockHtml()}`}
+    ${_settingsBlockHtml(meta)}`}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
@@ -402,18 +456,19 @@ async function _renderPanelResult() {
 }
 
 /* Csak a már lekérdezett _lastEntries-ből számol újra — nincs hálózati hívás,
-   így a beállítások (Top N, rendezés, "Egyéb" sor) váltása azonnali. */
+   így a beállítások (Top N, rendezés, "Egyéb" sor, csempe-specifikus szűrők) váltása azonnali. */
 function _computeCompareResult() {
   const meta = _wdMeta(_panelKind); if (!meta || meta.kind === 'datum' || !_lastEntries) return;
   const settings = _getSettings();
   const topN = settings.topN === 'all' ? Infinity : Number(settings.topN || meta.max);
+  const entries = meta.filterFn ? _lastEntries.filter(e => meta.filterFn(e, settings)) : _lastEntries;
 
   const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
-  const keys = sel.length ? sel.slice(0, topN) : _topKeys(_lastEntries, meta.keyFn, topN);
-  _lastSeries = _perDaySeries(_lastEntries, meta.keyFn, keys);
+  const keys = sel.length ? sel.slice(0, topN) : _topKeys(entries, meta.keyFn, topN);
+  _lastSeries = _perDaySeries(entries, meta.keyFn, keys);
 
   if (settings.showOther) {
-    const otherSeries = _perDaySeries(_lastEntries, e => {
+    const otherSeries = _perDaySeries(entries, e => {
       const k = meta.keyFn(e);
       return (k && !keys.includes(k)) ? 'Egyéb' : null;
     }, ['Egyéb']);
@@ -421,6 +476,15 @@ function _computeCompareResult() {
   }
 
   _renderResultBody();
+}
+
+/* A multi-select opciólistáját is újra kell építeni, ha egy beállítás megváltoztatja
+   magát a kulcsteret (anyagcsoport-nézet, archiváltak be/kikapcsolása) — a puszta
+   újraszámolás nem elég, mert a jelölőnégyzet-opciók is mások lesznek. */
+function _rebuildSelectAndRecompute() {
+  const meta = _wdMeta(_panelKind); if (!meta) return;
+  _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  _computeCompareResult();
 }
 
 function _renderResultBody() {
@@ -460,8 +524,12 @@ export function analitikaPanelClick(e) {
 /* ── Beállítás-mezők (select/checkbox) change eseménye — mentés + azonnali
    újraszámolás a már lekérdezett adatokból, hálózati hívás nélkül. ── */
 export function analitikaPanelChange(e) {
-  if (e.target.id === 'anaSetTopN')  { _saveSettings({ topN: e.target.value });   _computeCompareResult(); return; }
-  if (e.target.id === 'anaSetSort')  { _saveSettings({ sortBy: e.target.value }); _computeCompareResult(); return; }
-  if (e.target.id === 'anaSetUnit')  { _saveSettings({ unit: e.target.value });   _renderResultBody();      return; }
-  if (e.target.id === 'anaSetOther') { _saveSettings({ showOther: e.target.checked }); _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetTopN')        { _saveSettings({ topN: e.target.value });        _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetSort')        { _saveSettings({ sortBy: e.target.value });       _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetUnit')        { _saveSettings({ unit: e.target.value });         _renderResultBody();      return; }
+  if (e.target.id === 'anaSetOther')       { _saveSettings({ showOther: e.target.checked });  _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetReszleg')     { _saveSettings({ reszlegSzuro: e.target.value }); _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetCsapat')      { _saveSettings({ csapatSzuro: e.target.value });  _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetAnyagCsoport'){ _saveSettings({ anyagCsoport: e.target.checked }); _rebuildSelectAndRecompute(); return; }
+  if (e.target.id === 'anaSetArchivalt')   { _saveSettings({ archivalt: e.target.checked });    _rebuildSelectAndRecompute(); return; }
 }
