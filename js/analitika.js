@@ -21,8 +21,20 @@ const WIDGETS = [
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
   { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
     keyFn: e => (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt', listSrc: () => ['Délelőtt', 'Délután'] },
+  { id: 'csapatok', icon: '👥', title: 'Csapatok összehasonlítása', unit: 'csapat', max: 8,
+    visible: () => Object.keys(state.muszakVezetokMap).length > 0,
+    keyFn: _csapatKeyFn, listSrc: () => Object.keys(state.muszakVezetokMap).map(v => `${v} csapata`) },
   { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
 ];
+
+/* A dolgozó nevéből visszakeresi, melyik műszakvezető csapatához tartozik
+   (a vezető saját bejegyzései is a saját csapatához számítanak). */
+function _csapatKeyFn(e) {
+  for (const [vezeto, csapat] of Object.entries(state.muszakVezetokMap)) {
+    if (e.nev === vezeto || (csapat || []).includes(e.nev)) return `${vezeto} csapata`;
+  }
+  return null;
+}
 
 let _panelKind   = null;
 let _lastSeries  = null;
@@ -235,7 +247,7 @@ function _fillMultiSel(sel, list, noSort) {
 export function analitikaInitWidgets() {
   const cont = E('analitikaWidgets'); if (!cont) return;
   _closePanel();
-  cont.innerHTML = WIDGETS.map(_tile).join('');
+  cont.innerHTML = WIDGETS.filter(w => !w.visible || w.visible()).map(_tile).join('');
 }
 
 /* ── Részletes panel (kattintásra jelenik meg a kártyák alatt, saját dátum/kiválasztás) ── */
