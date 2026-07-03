@@ -449,11 +449,6 @@ export async function analitikaShowPanel(kind) {
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">
       <div class="field" style="min-width:130px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
       <div class="field" style="min-width:130px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
-      <div style="display:flex;gap:5px;">
-        <button class="btn btn-ghost btn-sm" data-anadr-preset="7">7 nap</button>
-        <button class="btn btn-ghost btn-sm" data-anadr-preset="30">30 nap</button>
-        <button class="btn btn-ghost btn-sm" data-anadr-preset="90">90 nap</button>
-      </div>
     </div>
     ${meta.kind === 'datum' ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
@@ -596,13 +591,6 @@ function _renderResultBody() {
 /* ── Panel belsejének eseménydelegálása (a tartalom többször újraépül) ── */
 export function analitikaPanelClick(e) {
   if (e.target.closest('#anaPanelCloseBtn')) { _closePanel(); return; }
-  const presetBtn = e.target.closest('[data-anadr-preset]');
-  if (presetBtn) {
-    const days = Number(presetBtn.dataset.anadrPreset);
-    E('anaDrIg').value  = tod();
-    E('anaDrTol').value = addD(tod(), -(days - 1));
-    return;
-  }
   if (e.target.closest('#anaSettingsToggle')) {
     const block = E('anaSettingsBlock');
     if (block) block.style.display = block.style.display === 'none' ? '' : 'none';
