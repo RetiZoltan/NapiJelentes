@@ -1,5 +1,5 @@
 import { fetchEntries, fillSel } from './db.js';
-import { state } from './state.js';
+import { state, isMuszakVezeto } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 
@@ -66,8 +66,10 @@ const _SET_DEFAULTS = {
   anyagCsoport: false,                                   // csak anyagok
   archivalt: false,                                      // csak dolgozók
   muszakMode: 'osszeg',                                  // csak műszakok: 'osszeg' | 'atlag'
+  sajatCsapat: false,                                    // csak csapatok (műszakvezetőknek)
   hetiBontas: false,                                     // csak dátum szerinti elemzés
   napSorrend: 'kronologikus',                            // csak dátum szerinti elemzés: 'kronologikus' | 'rangsor'
+  defaultRangeDays: 30,                                  // globális: alapértelmezett időszak megnyitáskor
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -362,6 +364,11 @@ function _settingsBlockHtml(meta) {
           ${opt('osszeg', s.muszakMode, 'Összesen')}${opt('atlag', s.muszakMode, 'Napi átlag (aktív napokra)')}
         </select>
       </div>`;
+  } else if (meta.id === 'csapatok' && isMuszakVezeto()) {
+    extra = `
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetSajatCsapat"${s.sajatCsapat ? ' checked' : ''}> Csak a saját csapatom (${esc(state.userData?.displayName || '')})</label>
+      </div>`;
   } else if (meta.kind === 'datum') {
     extra = `
       <div class="field">
@@ -398,7 +405,17 @@ function _settingsBlockHtml(meta) {
       <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
     </div>`;
 
+  const rangeRow = `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+    <div class="field">
+      <label class="lbl">Alapértelmezett időszak megnyitáskor</label>
+      <select id="anaSetDefaultRange">
+        ${opt('7', String(s.defaultRangeDays), '7 nap')}${opt('30', String(s.defaultRangeDays), '30 nap')}${opt('90', String(s.defaultRangeDays), '90 nap')}
+      </select>
+    </div>
+  </div>`;
+
   return `<div id="anaSettingsBlock" style="display:none;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;background:var(--surf2);">
+    ${rangeRow}
     ${common ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:${extra ? '12px' : '0'};">${common}</div>` : ''}
     ${extra ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;${common ? 'border-top:1px solid var(--border);padding-top:12px;' : ''}">${extra}</div>` : ''}
   </div>`;
@@ -421,7 +438,8 @@ export async function analitikaShowPanel(kind) {
     w.classList.toggle('active', w.dataset.wid === kind);
   });
 
-  const defTo = tod(), defFrom = addD(defTo, -29);
+  const rangeDays = Number(_getSettings().defaultRangeDays) || 30;
+  const defTo = tod(), defFrom = addD(defTo, -(rangeDays - 1));
   panel.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <span style="font-size:20px;">${meta.icon}</span>
@@ -532,8 +550,13 @@ function _computeCompareResult() {
   const topN = settings.topN === 'all' ? Infinity : Number(settings.topN || meta.max);
   const entries = meta.filterFn ? _lastEntries.filter(e => meta.filterFn(e, settings)) : _lastEntries;
 
-  const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
-  const keys = sel.length ? sel.slice(0, topN) : _topKeys(entries, meta.keyFn, topN);
+  let keys;
+  if (meta.id === 'csapatok' && settings.sajatCsapat && isMuszakVezeto()) {
+    keys = [`${state.userData?.displayName || ''} csapata`];
+  } else {
+    const sel = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
+    keys = sel.length ? sel.slice(0, topN) : _topKeys(entries, meta.keyFn, topN);
+  }
   _lastSeries = _perDaySeries(entries, meta.keyFn, keys);
 
   if (settings.showOther) {
@@ -604,4 +627,6 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetMuszakMode')  { _saveSettings({ muszakMode: e.target.value });     _renderResultBody();          return; }
   if (e.target.id === 'anaSetNapSorrend')  { _saveSettings({ napSorrend: e.target.value });     _computeDatumResult();        return; }
   if (e.target.id === 'anaSetHetiBontas')  { _saveSettings({ hetiBontas: e.target.checked });   _computeDatumResult();        return; }
+  if (e.target.id === 'anaSetSajatCsapat') { _saveSettings({ sajatCsapat: e.target.checked });  _computeCompareResult();      return; }
+  if (e.target.id === 'anaSetDefaultRange'){ _saveSettings({ defaultRangeDays: Number(e.target.value) }); return; }
 }
