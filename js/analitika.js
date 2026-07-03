@@ -27,10 +27,6 @@ let _panelKind   = null;
 let _lastSeries  = null;
 let _lastHeader  = null;
 
-const _CT_KEY = 'nj_ana_charttype';
-function _getChartType() { return localStorage.getItem(_CT_KEY) || 'oszlop'; }
-function _setChartType(t) { try { localStorage.setItem(_CT_KEY, t); } catch {} }
-
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
 
@@ -61,53 +57,24 @@ function _perDaySeries(entries, keyFn, keys) {
   }));
 }
 
-/* ── N-sorozatos vonaldiagram (worker-analysis.js _svgDualLineChart általánosítása) ── */
-function _multiLineChart(series) {
-  const all = [...new Set(series.flatMap(s => s.perDay.map(d => d.datum)))].sort();
-  if (all.length < 2) return '';
-
-  const W = 600, H = 190, PL = 46, PR = 14, PT = 16, PB = 26;
-  const cW = W - PL - PR, cH = H - PT - PB, n = all.length;
-  const xP = i => PL + (i / Math.max(n - 1, 1)) * cW;
-  const maps = series.map(s => Object.fromEntries(s.perDay.map(d => [d.datum, d.kg])));
-  const maxV = Math.max(1, ...maps.flatMap(m => Object.values(m)));
-  const yP = v => PT + cH - (v / maxV) * cH;
-
-  const grid = [0, .25, .5, .75, 1].map(p => {
-    const y = PT + cH - p * cH;
-    return `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="var(--border)" stroke-width="0.6"/>
-    <text x="${PL - 5}" y="${y + 3.5}" font-size="9.5" text-anchor="end" fill="var(--text3)">${((p * maxV) / 1000).toFixed(1)}t</text>`;
-  }).join('');
-
-  const lines = series.map((s, i) => {
-    const col = PALETTE[i % PALETTE.length];
-    const map = maps[i];
-    let path = '', started = false;
-    all.forEach((d, idx) => {
-      if (map[d] !== undefined) { path += `${started ? 'L' : 'M'} ${xP(idx)} ${yP(map[d])} `; started = true; }
-      else started = false;
-    });
-    return path ? `<path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
-  }).join('');
-
-  const step = Math.max(1, Math.ceil(n / 7));
-  const xLabels = all.filter((_, i) => i % step === 0 || i === n - 1).map(d => {
-    const i = all.indexOf(d);
-    return `<text x="${xP(i)}" y="${H - 6}" font-size="9" text-anchor="middle" fill="var(--text3)">${d.slice(5)}</text>`;
-  }).join('');
-
-  const legend = series.map((s, i) => {
-    const col = PALETTE[i % PALETTE.length];
-    const y   = PT + i * 13;
-    const lbl = s.label.length > 18 ? s.label.slice(0, 17) + '…' : s.label;
-    return `<rect x="${W - PR - 96}" y="${y}" width="8" height="8" rx="1.5" fill="${col}"/>
-      <text x="${W - PR - 84}" y="${y + 7}" font-size="9" fill="var(--text2)">${esc(lbl)}</text>`;
-  }).join('');
-
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${grid}${lines}${xLabels}${legend}</svg>`;
+/* ── Szövegszélesség mérés (canvas), hogy a hosszú nevek ne vágódjanak le feleslegesen ── */
+let _measureCtx = null;
+const _BAR_FONT = '11.5px "Source Sans 3", sans-serif';
+function _textWidth(text, font = _BAR_FONT) {
+  if (!_measureCtx) _measureCtx = document.createElement('canvas').getContext('2d');
+  _measureCtx.font = font;
+  return _measureCtx.measureText(text).width;
+}
+function _fitLabel(text, maxW, font = _BAR_FONT) {
+  if (_textWidth(text, font) <= maxW) return text;
+  let lbl = text;
+  while (lbl.length > 1 && _textWidth(lbl + '…', font) > maxW) lbl = lbl.slice(0, -1);
+  return lbl + '…';
 }
 
-/* ── Rangsoroló oszlopdiagram (reports.js _riportBarChart mintájára, egyedi színekkel) ── */
+/* ── Rangsoroló oszlopdiagram (reports.js _riportBarChart mintájára, egyedi színekkel) ──
+   A bal oldali címke-sáv szélessége a leghosszabb névhez igazodik (mért szövegszélesség
+   alapján, nem karakterszám-becsléssel), így a hosszú nevek nem vágódnak le feleslegesen. */
 function _multiBarChart(series) {
   const totals = series.map((s, i) => ({
     label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0), color: PALETTE[i % PALETTE.length],
@@ -115,14 +82,17 @@ function _multiBarChart(series) {
   if (!totals.length) return '';
 
   const maxKg = totals[0].kg || 1;
-  const BAR_H = 28, GAP = 8, PL = 130, PR = 60, PT = 8;
+  const BAR_H = 28, GAP = 8, PR = 64, PT = 8;
   const W = 600;
+  const MIN_PL = 70, MAX_PL = 260;
+  const longestLabelW = Math.max(...totals.map(t => _textWidth(t.label)));
+  const PL = Math.min(MAX_PL, Math.max(MIN_PL, Math.ceil(longestLabelW) + 18));
   const H = PT + totals.length * (BAR_H + GAP) + 4;
 
   const bars = totals.map((t, i) => {
     const y    = PT + i * (BAR_H + GAP);
     const barW = Math.max(2, Math.round((t.kg / maxKg) * (W - PL - PR)));
-    const lbl  = t.label.length > 16 ? t.label.slice(0, 15) + '…' : t.label;
+    const lbl  = _fitLabel(t.label, PL - 12);
     return `
       <text x="${PL - 8}" y="${y + BAR_H * 0.65}" font-size="11.5" text-anchor="end" fill="var(--text2)">${esc(lbl)}</text>
       <rect x="${PL}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${t.color}" opacity=".85"/>
@@ -130,11 +100,6 @@ function _multiBarChart(series) {
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${bars}</svg>`;
-}
-
-function _ctButtons(current) {
-  const opt = (val, label) => `<button class="btn ${current === val ? 'btn-primary' : 'btn-ghost'} btn-sm ana-ct-btn" data-anact="${val}">${label}</button>`;
-  return `<div style="display:flex;gap:5px;margin-bottom:12px;">${opt('vonal', '📈 Vonal')}${opt('oszlop', '📊 Oszlop')}</div>`;
 }
 
 function _rankTable(series) {
@@ -262,12 +227,11 @@ async function _renderPanelResult() {
 function _renderResultBody() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastSeries) return;
   const series = _lastSeries;
-  const ct     = _getChartType();
-  const chart  = series.length ? (ct === 'oszlop' ? _multiBarChart(series) : _multiLineChart(series)) : '';
+  const chart  = series.length ? _multiBarChart(series) : '';
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>` + (
     series.length
-      ? _ctButtons(ct) + (chart || '<p style="color:var(--text3);font-size:13px;">Nincs elég adat a vonaldiagramhoz (legalább 2 nap szükséges) — váltson oszlopdiagramra.</p>') + _rankTable(series)
+      ? chart + _rankTable(series)
       : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
   );
 }
@@ -282,8 +246,6 @@ export function analitikaPanelClick(e) {
     E('anaDrTol').value = addD(tod(), -(days - 1));
     return;
   }
-  const ctBtn = e.target.closest('.ana-ct-btn');
-  if (ctBtn) { _setChartType(ctBtn.dataset.anact); _renderResultBody(); return; }
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
