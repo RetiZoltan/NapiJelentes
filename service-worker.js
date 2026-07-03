@@ -1,11 +1,11 @@
-const CACHE    = 'plexiq-v107';
+const CACHE    = 'plexiq-v108';
 const PRECACHE = [
   '/', '/index.html',
   '/css/tokens.css', '/css/components.css', '/css/report.css',
   '/js/main.js', '/js/firebase.js', '/js/state.js', '/js/utils.js',
   '/js/db.js', '/js/data-entry.js', '/js/reports.js', '/js/admin.js',
   '/js/employees.js', '/js/tasks.js', '/js/calendar.js',
-  '/js/worker-analysis.js', '/js/premium.js', '/js/dashboard.js', '/js/auditlog.js', '/js/help.js', '/js/stock.js', '/js/machines.js', '/js/offlineQueue.js', '/js/wip-bags.js',
+  '/js/worker-analysis.js', '/js/premium.js', '/js/dashboard.js', '/js/auditlog.js', '/js/help.js', '/js/stock.js', '/js/machines.js', '/js/offlineQueue.js', '/js/wip-bags.js', '/js/analitika.js',
   '/manifest.json'
 ];
 

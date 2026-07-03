@@ -314,6 +314,7 @@
       <div class="subtabs" id="jelentesekSubtabs">
         <button class="stab-btn active" data-jstab="napi">📋 Napi</button>
         <button class="stab-btn" data-jstab="idoszakos">📊 Időszakos</button>
+        <button class="stab-btn" data-jstab="analitika">📈 Analitika</button>
       </div>
 
       <!-- Napi al-fül -->
@@ -486,6 +487,56 @@
         <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtat</button>
       </div>
       </div><!-- /jstab-idoszakos -->
+
+      <!-- Analitika al-fül -->
+      <div id="jstab-analitika" class="jstab-panel">
+      <button class="filter-toggle" id="analitikaFilterToggle">🎚 Időszak &amp; összehasonlítás</button>
+      <div class="card js-filter-card" id="analitikaFilterCard">
+        <p class="sec-hd" style="margin-top:0;"><span>1.</span> Időszak kiválasztása</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:18px;">
+          <div class="field">
+            <label class="lbl">Tól</label>
+            <input type="date" id="analitikaTolInput">
+          </div>
+          <div class="field">
+            <label class="lbl">Ig</label>
+            <input type="date" id="analitikaIgInput">
+          </div>
+          <div class="field" style="margin-bottom:13px;">
+            <label class="lbl" style="visibility:hidden;">–</label>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" data-analitika-preset="7">7 nap</button>
+              <button class="btn btn-ghost btn-sm" data-analitika-preset="30">30 nap</button>
+              <button class="btn btn-ghost btn-sm" data-analitika-preset="90">90 nap</button>
+            </div>
+          </div>
+        </div>
+        <p class="sec-hd"><span>2.</span> Mit hasonlítsunk össze?</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div class="lbox" style="flex:1;min-width:180px;">
+            <div class="lbox-t">Részlegek</div>
+            <p class="lhint">Ctrl+klik = több · üresen hagyva = top 5</p>
+            <select id="analitikaReszlegSzuro" multiple size="5" style="width:100%;"></select>
+          </div>
+          <div class="lbox" style="flex:1;min-width:180px;">
+            <div class="lbox-t">Anyagtípusok</div>
+            <p class="lhint">Ctrl+klik = több · üresen hagyva = top 5</p>
+            <select id="analitikaAnyagSzuro" multiple size="5" style="width:100%;"></select>
+          </div>
+          <div class="lbox" style="flex:1;min-width:180px;">
+            <div class="lbox-t">Dolgozók</div>
+            <p class="lhint">Ctrl+klik = több (max 6) · üresen hagyva = top 6</p>
+            <select id="analitikaDolgozoSzuro" multiple size="5" style="width:100%;"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="analitikaBtn">Mutat</button>
+      </div>
+      <div id="analitikaRiportDiv"><div class="empty-st"><div class="empty-ic">📈</div>Válassz időszakot és kattints a <strong>Mutat</strong> gombra</div></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
+        <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
+      </div>
+      </div><!-- /jstab-analitika -->
     </div>
 
     <!-- ══ NAPTÁR ══ -->

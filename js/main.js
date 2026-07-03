@@ -17,10 +17,11 @@ import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
 import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
-         napiKepMent, idoszakosKepMent,
-         napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
+         napiKepMent, idoszakosKepMent, analitikaKepMent,
+         napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent, analitikaPdfMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
+import { analitikaMutat, analitikaPreset } from './analitika.js';
 import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
@@ -755,6 +756,14 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('idoszakosXlsxBtn').addEventListener('click', idoszakosXlsxMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
 
+  // Analitika (jelentések al-fül)
+  E('analitikaBtn').addEventListener('click', analitikaMutat);
+  E('analitikaKepMentBtn').addEventListener('click', analitikaKepMent);
+  E('analitikaPdfBtn').addEventListener('click', analitikaPdfMent);
+  document.querySelectorAll('[data-analitika-preset]').forEach(btn => {
+    btn.addEventListener('click', () => analitikaPreset(Number(btn.dataset.analitikaPreset)));
+  });
+
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
     const worker = E('idoszakosDolgozoSzuro').value;
@@ -921,12 +930,14 @@ E('megj').addEventListener('focus', e => e.target.select());
   }
   E('napiFilterToggle').addEventListener('click',     () => _openBS('napiFilterCard',     'Szűrők & dátum'));
   E('idoszakosFilterToggle').addEventListener('click',() => _openBS('idoszakosFilterCard','Időszak & beállítások'));
+  E('analitikaFilterToggle').addEventListener('click',() => _openBS('analitikaFilterCard','Időszak & összehasonlítás'));
   E('bsOverlay').addEventListener('click', _closeBS);
   E('bsApplyBtn').addEventListener('click', () => {
     const active = document.querySelector('.jstab-panel.active');
     const id = active?.id;
     if (id === 'jstab-napi') _applyBS('napiFilterCard');
     else if (id === 'jstab-idoszakos') _applyBS('idoszakosFilterCard');
+    else if (id === 'jstab-analitika') _applyBS('analitikaFilterCard');
     else _closeBS();
   });
 

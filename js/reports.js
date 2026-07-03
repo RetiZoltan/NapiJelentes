@@ -776,6 +776,14 @@ export async function idoszakosPdfMent() {
   await _exportPdf(el, `idoszakos_riport_${tod()}.pdf`);
 }
 
+export function analitikaKepMent() { kepMentDiv('analitikaRiportDiv', tod()); }
+
+export async function analitikaPdfMent() {
+  const el = E('analitikaRiportDiv');
+  if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
+  await _exportPdf(el, `analitika_${tod()}.pdf`);
+}
+
 // HTML <link> stíluslapok ideiglenes eltávolítása a DOM-ból.
 // html2canvas document.cloneNode(true)-t hív, ezért a .disabled trükk nem elég —
 // a linkeket teljesen ki kell venni, hogy a klónban se legyenek benne.

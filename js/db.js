@@ -103,6 +103,7 @@ export function refreshListUI() {
   updReszlegSzuro();
   updMuszakVezetoSzuro();
   updIdoszakosFilters();
+  updAnalitikaSzurok();
 }
 
 export async function getWorkerMaterials(workerName) {
@@ -123,6 +124,13 @@ export function updIdoszakosFilters() {
     if (prev) dEl.value = prev;
   }
   fillSelGrouped(E('idoszakosAnyagSzuro'), state.anyagok, '— Mind —');
+}
+
+export function updAnalitikaSzurok() {
+  const activeNev = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
+  fillSel(E('analitikaReszlegSzuro'), state.reszlegek);
+  fillSel(E('analitikaAnyagSzuro'),   state.anyagok);
+  fillSel(E('analitikaDolgozoSzuro'), activeNev);
 }
 
 export function fillSel(sel, list, emptyLabel = '') {
