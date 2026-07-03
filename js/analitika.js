@@ -23,7 +23,13 @@ const WIDGETS = [
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
 ];
 
-let _panelKind = null;
+let _panelKind   = null;
+let _lastSeries  = null;
+let _lastHeader  = null;
+
+const _CT_KEY = 'nj_ana_charttype';
+function _getChartType() { return localStorage.getItem(_CT_KEY) || 'oszlop'; }
+function _setChartType(t) { try { localStorage.setItem(_CT_KEY, t); } catch {} }
 
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
@@ -99,6 +105,36 @@ function _multiLineChart(series) {
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${grid}${lines}${xLabels}${legend}</svg>`;
+}
+
+/* ── Rangsoroló oszlopdiagram (reports.js _riportBarChart mintájára, egyedi színekkel) ── */
+function _multiBarChart(series) {
+  const totals = series.map((s, i) => ({
+    label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0), color: PALETTE[i % PALETTE.length],
+  })).sort((a, b) => b.kg - a.kg);
+  if (!totals.length) return '';
+
+  const maxKg = totals[0].kg || 1;
+  const BAR_H = 28, GAP = 8, PL = 130, PR = 60, PT = 8;
+  const W = 600;
+  const H = PT + totals.length * (BAR_H + GAP) + 4;
+
+  const bars = totals.map((t, i) => {
+    const y    = PT + i * (BAR_H + GAP);
+    const barW = Math.max(2, Math.round((t.kg / maxKg) * (W - PL - PR)));
+    const lbl  = t.label.length > 16 ? t.label.slice(0, 15) + '…' : t.label;
+    return `
+      <text x="${PL - 8}" y="${y + BAR_H * 0.65}" font-size="11.5" text-anchor="end" fill="var(--text2)">${esc(lbl)}</text>
+      <rect x="${PL}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${t.color}" opacity=".85"/>
+      <text x="${PL + barW + 6}" y="${y + BAR_H * 0.65}" font-size="11" fill="var(--text2)" style="font-weight:600">${(t.kg / 1000).toFixed(2)} t</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${bars}</svg>`;
+}
+
+function _ctButtons(current) {
+  const opt = (val, label) => `<button class="btn ${current === val ? 'btn-primary' : 'btn-ghost'} btn-sm ana-ct-btn" data-anact="${val}">${label}</button>`;
+  return `<div style="display:flex;gap:5px;margin-bottom:12px;">${opt('vonal', '📈 Vonal')}${opt('oszlop', '📊 Oszlop')}</div>`;
 }
 
 function _rankTable(series) {
@@ -203,7 +239,7 @@ async function _renderPanelResult() {
 
   if (!from || !to || from > to) {
     out.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Érvénytelen időszak</div></div>`;
-    _setBtns(true); return;
+    _lastSeries = null; _setBtns(true); return;
   }
 
   out.innerHTML = skelHtml('report');
@@ -212,20 +248,28 @@ async function _renderPanelResult() {
   const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
   if (!entries.length) {
     out.innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a kiválasztott időszakra</div>`;
-    return;
+    _lastSeries = null; return;
   }
 
   const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
   const keys = sel.length ? sel.slice(0, meta.max) : _topKeys(entries, meta.keyFn, meta.max);
-  const series = _perDaySeries(entries, meta.keyFn, keys);
-  const chart  = series.length ? _multiLineChart(series) : '';
+  _lastSeries = _perDaySeries(entries, meta.keyFn, keys);
+  _lastHeader = { title: meta.title, from, to };
+  _renderResultBody();
+  _setBtns(false);
+}
 
-  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(meta.title)} · ${esc(from)} – ${esc(to)}</div>` + (
+function _renderResultBody() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastSeries) return;
+  const series = _lastSeries;
+  const ct     = _getChartType();
+  const chart  = series.length ? (ct === 'oszlop' ? _multiBarChart(series) : _multiLineChart(series)) : '';
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>` + (
     series.length
-      ? (chart || '<p style="color:var(--text3);font-size:13px;">Nincs elég adat trendvonalhoz (legalább 2 nap szükséges).</p>') + _rankTable(series)
+      ? _ctButtons(ct) + (chart || '<p style="color:var(--text3);font-size:13px;">Nincs elég adat a vonaldiagramhoz (legalább 2 nap szükséges) — váltson oszlopdiagramra.</p>') + _rankTable(series)
       : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
   );
-  _setBtns(false);
 }
 
 /* ── Panel belsejének eseménydelegálása (a tartalom többször újraépül) ── */
@@ -238,6 +282,8 @@ export function analitikaPanelClick(e) {
     E('anaDrTol').value = addD(tod(), -(days - 1));
     return;
   }
+  const ctBtn = e.target.closest('.ana-ct-btn');
+  if (ctBtn) { _setChartType(ctBtn.dataset.anact); _renderResultBody(); return; }
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }

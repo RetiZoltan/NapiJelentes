@@ -992,7 +992,7 @@ function _buildWrap(el) {
       svg.replaceWith(img);
     } catch (e) { /* eredeti SVG marad ha hiba van */ }
   });
-  clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn').forEach(x => x.remove());
+  clone.querySelectorAll('.napi-ossz, .del-btn, .edit-btn, .ana-ct-btn').forEach(x => x.remove());
   clone.querySelectorAll('.dlink, .dtoggle').forEach(x => {
     const sp = document.createElement('span');
     sp.textContent = x.textContent;
