@@ -5,8 +5,8 @@ import { _card, _sparkline } from './dashboard.js';
 import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
-   A főoldal widget/drawer mintáját követi: kártyák előnézettel,
-   kattintásra oldalsó panelben (drawer) nyílik a részletes összehasonlítás.
+   A főoldal widget kártyáinak mintáját követi: előnézeti kártyák,
+   kattintásra a kártyák alatt nyílik meg a nagyobb, részletes panel.
    Csak termelési adatokra (entries) épül. Nem használ color-mix()-et
    sehol (html2canvas 1.4.1 nem tudja parse-olni), és minden SVG-nek
    explicit viewBox-a van, hogy a reports.js _buildWrap export-konverziója
@@ -23,7 +23,7 @@ const WIDGETS = [
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
 ];
 
-let _drawerKind = null;
+let _panelKind = null;
 
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
@@ -122,6 +122,7 @@ function _clickableCard(wid, ...args) {
 /* ── Előnézeti kártyák (Jelentések → Analitika fül belépéskor) ── */
 export async function analitikaInitWidgets() {
   const cont = E('analitikaWidgets'); if (!cont) return;
+  _closePanel();
   cont.innerHTML = WIDGETS.map(w => _clickableCard(w.id, w.icon, w.title, '<span style="color:var(--text3);font-size:16px;">…</span>')).join('');
 
   const to = tod(), from = addD(to, -29);
@@ -140,18 +141,23 @@ export async function analitikaInitWidgets() {
   });
 }
 
-/* ── Részletes drawer (kattintásra nyílik, saját dátum/kiválasztás) ── */
-export async function analitikaOpenDrawer(kind) {
+/* ── Részletes panel (kattintásra jelenik meg a kártyák alatt, saját dátum/kiválasztás) ── */
+export async function analitikaShowPanel(kind) {
   const meta = _wdMeta(kind); if (!meta) return;
-  _drawerKind = kind;
-  const drawer = E('analitikaDrawer'), body = E('analitikaDrawerBody');
-  if (!drawer || !body) return;
+  _panelKind = kind;
+  const panel = E('analitikaPanel'); if (!panel) return;
 
-  E('analitikaDrawerIcon').textContent  = meta.icon;
-  E('analitikaDrawerTitle').textContent = meta.title;
+  document.querySelectorAll('#analitikaWidgets .dash-widget-clickable').forEach(w => {
+    w.classList.toggle('active', w.dataset.wid === kind);
+  });
 
   const defTo = tod(), defFrom = addD(defTo, -29);
-  body.innerHTML = `
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="font-size:20px;">${meta.icon}</span>
+      <div class="card-title" style="margin:0;flex:1;border:none;padding:0;">${esc(meta.title)}</div>
+      <button class="btn btn-ghost btn-sq" id="anaPanelCloseBtn" title="Bezárás">✕</button>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">
       <div class="field" style="min-width:130px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
       <div class="field" style="min-width:130px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
@@ -174,25 +180,24 @@ export async function analitikaOpenDrawer(kind) {
     </div>`;
   fillSel(E('anaDrSel'), meta.listSrc());
 
-  drawer.classList.add('open');
-  E('analitikaDrawerOverlay')?.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  panel.style.display = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  await _renderDrawerResult();
+  await _renderPanelResult();
 }
 
-export function analitikaCloseDrawer() {
-  E('analitikaDrawer')?.classList.remove('open');
-  E('analitikaDrawerOverlay')?.classList.remove('open');
-  document.body.style.overflow = '';
+function _closePanel() {
+  E('analitikaPanel').style.display = 'none';
+  document.querySelectorAll('#analitikaWidgets .dash-widget-clickable').forEach(w => w.classList.remove('active'));
+  _panelKind = null;
 }
 
 function _setBtns(disabled) {
   ['analitikaKepMentBtn', 'analitikaPdfBtn'].forEach(id => { const el = E(id); if (el) el.disabled = disabled; });
 }
 
-async function _renderDrawerResult() {
-  const meta = _wdMeta(_drawerKind); if (!meta) return;
+async function _renderPanelResult() {
+  const meta = _wdMeta(_panelKind); if (!meta) return;
   const from = E('anaDrTol')?.value, to = E('anaDrIg')?.value;
   const out  = E('analitikaRiportDiv'); if (!out) return;
 
@@ -223,8 +228,9 @@ async function _renderDrawerResult() {
   _setBtns(false);
 }
 
-/* ── Drawer belsejének eseménydelegálása (a tartalom többször újraépül) ── */
-export function analitikaDrawerClick(e) {
+/* ── Panel belsejének eseménydelegálása (a tartalom többször újraépül) ── */
+export function analitikaPanelClick(e) {
+  if (e.target.closest('#anaPanelCloseBtn')) { _closePanel(); return; }
   const presetBtn = e.target.closest('[data-anadr-preset]');
   if (presetBtn) {
     const days = Number(presetBtn.dataset.anadrPreset);
@@ -232,7 +238,7 @@ export function analitikaDrawerClick(e) {
     E('anaDrTol').value = addD(tod(), -(days - 1));
     return;
   }
-  if (e.target.closest('#anaDrRefreshBtn'))      { _renderDrawerResult(); return; }
+  if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
 }

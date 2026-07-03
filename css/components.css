@@ -858,6 +858,7 @@ html:not([data-layout]) .card {
 .dash-widget-large { grid-column:span 2; }
 .dash-widget-clickable { cursor:pointer; transition:box-shadow var(--tr),border-color var(--tr); }
 .dash-widget-clickable:hover { box-shadow:var(--sh2); border-color:var(--border2); }
+.dash-widget-clickable.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
 @media(max-width:540px) { .dash-widget-large { grid-column:span 1; } }
 /* Widget pozíció nyíl gombok */
 .dash-w-move { display:flex; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; flex-shrink:0; }

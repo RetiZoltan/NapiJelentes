@@ -21,7 +21,7 @@ import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
          napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
-import { analitikaInitWidgets, analitikaOpenDrawer, analitikaCloseDrawer, analitikaDrawerClick } from './analitika.js';
+import { analitikaInitWidgets, analitikaShowPanel, analitikaPanelClick } from './analitika.js';
 import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
@@ -757,14 +757,12 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('idoszakosXlsxBtn').addEventListener('click', idoszakosXlsxMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
 
-  // Analitika (jelentések al-fül) — widget kártyák + drawer
+  // Analitika (jelentések al-fül) — widget kártyák + kártyák alatti panel
   E('analitikaWidgets').addEventListener('click', e => {
     const w = e.target.closest('.dash-widget-clickable');
-    if (w?.dataset.wid) analitikaOpenDrawer(w.dataset.wid);
+    if (w?.dataset.wid) analitikaShowPanel(w.dataset.wid);
   });
-  E('analitikaDrawerClose').addEventListener('click', analitikaCloseDrawer);
-  E('analitikaDrawerOverlay').addEventListener('click', analitikaCloseDrawer);
-  E('analitikaDrawerBody').addEventListener('click', analitikaDrawerClick);
+  E('analitikaPanel').addEventListener('click', analitikaPanelClick);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
