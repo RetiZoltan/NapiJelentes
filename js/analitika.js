@@ -12,6 +12,7 @@ import { analitikaKepMent, analitikaPdfMent } from './reports.js';
    helyesen tudja méretezni. */
 
 const PALETTE = ['#1565C0', '#2E7D32', '#E65100', '#8E24AA', '#C62828', '#00838F'];
+const HU_DAYS = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
 
 const WIDGETS = [
   { id: 'anyagok', icon: '📦', title: 'Anyagtípusok összehasonlítása', unit: 'anyagtípus', max: 5,
@@ -20,6 +21,9 @@ const WIDGETS = [
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
   { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
     keyFn: e => (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt', listSrc: () => ['Délelőtt', 'Délután'] },
+  { id: 'hetnapjai', icon: '📅', title: 'Hét napjai szerinti bontás', unit: 'nap', max: 7, noSort: true,
+    keyFn: e => { const dow = new Date(e.datum + 'T12:00:00').getDay() || 7; return HU_DAYS[dow - 1]; },
+    listSrc: () => HU_DAYS },
 ];
 
 let _panelKind   = null;
@@ -122,6 +126,15 @@ function _tile(w) {
   </div>`;
 }
 
+/* fillSel (db.js) mindig ábécérendbe rendez — a hét napjainál a kronológiai
+   sorrend (Hétfő…Vasárnap) számít, azt nem szabad összekeverni. */
+function _fillMultiSel(sel, list, noSort) {
+  if (!sel) return;
+  if (!noSort) { fillSel(sel, list); return; }
+  const prev = Array.from(sel.selectedOptions).map(o => o.value);
+  sel.innerHTML = list.map(item => `<option value="${esc(item)}"${prev.includes(item) ? ' selected' : ''}>${esc(item)}</option>`).join('');
+}
+
 /* ── Csempék (Jelentések → Analitika fül belépéskor) ── */
 export function analitikaInitWidgets() {
   const cont = E('analitikaWidgets'); if (!cont) return;
@@ -166,7 +179,7 @@ export async function analitikaShowPanel(kind) {
       <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
       <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
     </div>`;
-  fillSel(E('anaDrSel'), meta.listSrc());
+  _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
 
   panel.style.display = '';
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
