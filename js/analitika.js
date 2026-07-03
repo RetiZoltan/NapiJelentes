@@ -55,6 +55,7 @@ let _panelKind   = null;
 let _lastSeries  = null;
 let _lastHeader  = null;
 let _lastEntries = null;
+let _lastByDay   = null;
 
 /* ── Beállítások (közösek + csempe-specifikusak) —
    localStorage-ban perzisztálva. */
@@ -65,6 +66,8 @@ const _SET_DEFAULTS = {
   anyagCsoport: false,                                   // csak anyagok
   archivalt: false,                                      // csak dolgozók
   muszakMode: 'osszeg',                                  // csak műszakok: 'osszeg' | 'atlag'
+  hetiBontas: false,                                     // csak dátum szerinti elemzés
+  napSorrend: 'kronologikus',                            // csak dátum szerinti elemzés: 'kronologikus' | 'rangsor'
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -252,18 +255,42 @@ function _weekdayAverages(byDay, from, to) {
   return HU_DAYS.map((name, i) => ({ name, avg: counts[i] ? sums[i] / counts[i] : 0 }));
 }
 
-function _weekdayRows(avgs) {
+function _weekdayRows(avgs, labelWidth = 82) {
   const maxAvg = Math.max(...avgs.map(a => a.avg), 1);
   return avgs.map(a => {
     const pct = Math.round((a.avg / maxAvg) * 100);
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
-      <span style="font-size:12.5px;color:var(--text2);width:82px;flex-shrink:0;">${esc(a.name)}</span>
+      <span style="font-size:12.5px;color:var(--text2);width:${labelWidth}px;flex-shrink:0;">${esc(a.name)}</span>
       <div style="height:7px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;opacity:.7;"></div>
       </div>
       <span style="font-size:12px;font-weight:600;width:60px;text-align:right;">${a.avg > 0 ? (a.avg / 1000).toFixed(2) + ' t' : '—'}</span>
     </div>`;
   }).join('');
+}
+
+/* ── Heti bontás — hétfőtől induló 7-napos blokkok összesített termelése ── */
+function _weeklyBuckets(byDay, from, to) {
+  const fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const startD = new Date(from + 'T12:00:00');
+  const dow0   = startD.getDay() || 7;
+  startD.setDate(startD.getDate() - dow0 + 1);
+  const endD = new Date(to + 'T12:00:00');
+
+  const weeks = [];
+  const cur = new Date(startD);
+  while (cur <= endD) {
+    const weekStart = new Date(cur);
+    let kg = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cur); d.setDate(d.getDate() + i);
+      kg += byDay[fmtLocal(d)] || 0;
+    }
+    const weekEnd = new Date(cur); weekEnd.setDate(weekEnd.getDate() + 6);
+    weeks.push({ name: `${fmtS(fmtLocal(weekStart))} – ${fmtS(fmtLocal(weekEnd))}`, avg: kg });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
 }
 
 function _bestWorstDay(byDay) {
@@ -335,33 +362,45 @@ function _settingsBlockHtml(meta) {
           ${opt('osszeg', s.muszakMode, 'Összesen')}${opt('atlag', s.muszakMode, 'Napi átlag (aktív napokra)')}
         </select>
       </div>`;
-  }
-
-  return `<div id="anaSettingsBlock" style="display:none;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;background:var(--surf2);">
-    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:${extra ? '12px' : '0'};">
+  } else if (meta.kind === 'datum') {
+    extra = `
       <div class="field">
-        <label class="lbl">Megjelenítendő elemek</label>
-        <select id="anaSetTopN">
-          ${opt('', s.topN, 'Alapértelmezett')}${opt('3', s.topN, 'Top 3')}${opt('5', s.topN, 'Top 5')}${opt('10', s.topN, 'Top 10')}${opt('all', s.topN, 'Mind')}
-        </select>
-      </div>
-      <div class="field">
-        <label class="lbl">Rendezés</label>
-        <select id="anaSetSort">
-          ${opt('kg', s.sortBy, 'Mennyiség szerint')}${opt('nev', s.sortBy, 'Név szerint (ABC)')}
-        </select>
-      </div>
-      <div class="field">
-        <label class="lbl">Mértékegység</label>
-        <select id="anaSetUnit">
-          ${opt('t', s.unit, 'Tonna')}${opt('kg', s.unit, 'Kilogramm')}
+        <label class="lbl">Hét napjai sorrend</label>
+        <select id="anaSetNapSorrend">
+          ${opt('kronologikus', s.napSorrend, 'Kronologikus (Hétfő→Vasárnap)')}${opt('rangsor', s.napSorrend, 'Rangsor szerint')}
         </select>
       </div>
       <div class="field" style="margin-bottom:9px;">
-        <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
-      </div>
+        <label class="rs-lbl"><input type="checkbox" id="anaSetHetiBontas"${s.hetiBontas ? ' checked' : ''}> Heti bontás nézet</label>
+      </div>`;
+  }
+
+  const common = meta.kind === 'datum' ? '' : `
+    <div class="field">
+      <label class="lbl">Megjelenítendő elemek</label>
+      <select id="anaSetTopN">
+        ${opt('', s.topN, 'Alapértelmezett')}${opt('3', s.topN, 'Top 3')}${opt('5', s.topN, 'Top 5')}${opt('10', s.topN, 'Top 10')}${opt('all', s.topN, 'Mind')}
+      </select>
     </div>
-    ${extra ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;border-top:1px solid var(--border);padding-top:12px;">${extra}</div>` : ''}
+    <div class="field">
+      <label class="lbl">Rendezés</label>
+      <select id="anaSetSort">
+        ${opt('kg', s.sortBy, 'Mennyiség szerint')}${opt('nev', s.sortBy, 'Név szerint (ABC)')}
+      </select>
+    </div>
+    <div class="field">
+      <label class="lbl">Mértékegység</label>
+      <select id="anaSetUnit">
+        ${opt('t', s.unit, 'Tonna')}${opt('kg', s.unit, 'Kilogramm')}
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:9px;">
+      <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
+    </div>`;
+
+  return `<div id="anaSettingsBlock" style="display:none;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;background:var(--surf2);">
+    ${common ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:${extra ? '12px' : '0'};">${common}</div>` : ''}
+    ${extra ? `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;${common ? 'border-top:1px solid var(--border);padding-top:12px;' : ''}">${extra}</div>` : ''}
   </div>`;
 }
 
@@ -403,9 +442,9 @@ export async function analitikaShowPanel(kind) {
       <div class="lbox-t">${esc(meta.title)}</div>
       <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
       <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
-    </div>
+    </div>`}
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
-    ${_settingsBlockHtml(meta)}`}
+    ${_settingsBlockHtml(meta)}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
@@ -451,13 +490,10 @@ async function _renderPanelResult() {
   }
 
   if (meta.kind === 'datum') {
-    const byDay = {};
-    entries.forEach(e => { byDay[e.datum] = (byDay[e.datum] || 0) + _kg(e); });
+    _lastByDay = {};
+    entries.forEach(e => { _lastByDay[e.datum] = (_lastByDay[e.datum] || 0) + _kg(e); });
     _lastHeader = { title: meta.title, from, to };
-    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(meta.title)} · ${esc(from)} – ${esc(to)}</div>
-      <div class="r-section"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(byDay, from, to)}</div>
-      <div class="r-section"><div class="r-sec-title">📊 Átlag napi termelés, hét napja szerint</div>${_weekdayRows(_weekdayAverages(byDay, from, to))}</div>
-      ${_bestWorstDay(byDay)}`;
+    _computeDatumResult();
     _setBtns(false);
     return;
   }
@@ -465,6 +501,27 @@ async function _renderPanelResult() {
   _lastHeader = { title: meta.title, from, to };
   _computeCompareResult();
   _setBtns(false);
+}
+
+/* Csak a már lekérdezett _lastByDay-ból épít újra — a heti bontás és a hét
+   napjai sorrend váltása nem igényel új lekérdezést. */
+function _computeDatumResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastByDay || !_lastHeader) return;
+  const settings = _getSettings();
+  const { from, to } = _lastHeader;
+
+  let weekdayAvgs = _weekdayAverages(_lastByDay, from, to);
+  if (settings.napSorrend === 'rangsor') weekdayAvgs = [...weekdayAvgs].sort((a, b) => b.avg - a.avg);
+
+  const hetiSzekcio = settings.hetiBontas
+    ? `<div class="r-section"><div class="r-sec-title">📆 Heti bontás</div>${_weekdayRows(_weeklyBuckets(_lastByDay, from, to), 150)}</div>`
+    : '';
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(from)} – ${esc(to)}</div>
+    <div class="r-section"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(_lastByDay, from, to)}</div>
+    ${hetiSzekcio}
+    <div class="r-section"><div class="r-sec-title">📊 Átlag napi termelés, hét napja szerint</div>${_weekdayRows(weekdayAvgs)}</div>
+    ${_bestWorstDay(_lastByDay)}`;
 }
 
 /* Csak a már lekérdezett _lastEntries-ből számol újra — nincs hálózati hívás,
@@ -545,4 +602,6 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetAnyagCsoport'){ _saveSettings({ anyagCsoport: e.target.checked }); _rebuildSelectAndRecompute(); return; }
   if (e.target.id === 'anaSetArchivalt')   { _saveSettings({ archivalt: e.target.checked });    _rebuildSelectAndRecompute(); return; }
   if (e.target.id === 'anaSetMuszakMode')  { _saveSettings({ muszakMode: e.target.value });     _renderResultBody();          return; }
+  if (e.target.id === 'anaSetNapSorrend')  { _saveSettings({ napSorrend: e.target.value });     _computeDatumResult();        return; }
+  if (e.target.id === 'anaSetHetiBontas')  { _saveSettings({ hetiBontas: e.target.checked });   _computeDatumResult();        return; }
 }
