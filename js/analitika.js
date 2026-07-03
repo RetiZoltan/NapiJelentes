@@ -1,7 +1,12 @@
-import { fetchEntries } from './db.js';
-import { E, esc, msg, fmtKg, skelHtml } from './utils.js';
+import { fetchEntries, fillSel } from './db.js';
+import { state } from './state.js';
+import { E, esc, fmtKg, skelHtml, tod, addD } from './utils.js';
+import { _card, _sparkline } from './dashboard.js';
+import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
+   A főoldal widget/drawer mintáját követi: kártyák előnézettel,
+   kattintásra oldalsó panelben (drawer) nyílik a részletes összehasonlítás.
    Csak termelési adatokra (entries) épül. Nem használ color-mix()-et
    sehol (html2canvas 1.4.1 nem tudja parse-olni), és minden SVG-nek
    explicit viewBox-a van, hogy a reports.js _buildWrap export-konverziója
@@ -9,23 +14,30 @@ import { E, esc, msg, fmtKg, skelHtml } from './utils.js';
 
 const PALETTE = ['#1565C0', '#2E7D32', '#E65100', '#8E24AA', '#C62828', '#00838F'];
 
+const WIDGETS = [
+  { id: 'reszlegek', icon: '🏭', title: 'Részlegek összehasonlítása', unit: 'részleg', max: 5,
+    keyFn: e => (e.reszleg || '').trim() || 'Ismeretlen részleg', listSrc: () => state.reszlegek },
+  { id: 'anyagok', icon: '📦', title: 'Anyagtípusok összehasonlítása', unit: 'anyagtípus', max: 5,
+    keyFn: e => (e.anyag || '').trim(), listSrc: () => state.anyagok },
+  { id: 'dolgozok', icon: '👤', title: 'Dolgozók összehasonlítása', unit: 'dolgozó', max: 6,
+    keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
+];
+
+let _drawerKind = null;
+
+function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
 
-function _selected(id) {
-  const el = E(id);
-  if (!el) return [];
-  return Array.from(el.selectedOptions).map(o => o.value).filter(Boolean);
-}
-
-function _topKeys(entries, keyFn, n) {
-  const totals = {};
+function _totals(entries, keyFn) {
+  const t = {};
   entries.forEach(e => {
     const k = keyFn(e); if (!k) return;
     const kg = _kg(e); if (kg <= 0) return;
-    totals[k] = (totals[k] || 0) + kg;
+    t[k] = (t[k] || 0) + kg;
   });
-  return Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
+  return Object.entries(t).sort((a, b) => b[1] - a[1]);
 }
+function _topKeys(entries, keyFn, n) { return _totals(entries, keyFn).slice(0, n).map(([k]) => k); }
 
 function _perDaySeries(entries, keyFn, keys) {
   const byKeyDay = {};
@@ -103,60 +115,124 @@ function _rankTable(series) {
   return h + `</tbody></table>`;
 }
 
-function _section(title, icon, series) {
-  if (!series.length) return '';
-  const chart = _multiLineChart(series);
-  return `<div class="r-section">
-    <div class="r-sec-title">${icon} ${esc(title)}</div>
-    ${chart || '<p style="color:var(--text3);font-size:13px;">Nincs elég adat trendvonalhoz (legalább 2 nap szükséges).</p>'}
-    ${_rankTable(series)}
-  </div>`;
+function _clickableCard(wid, ...args) {
+  return _card(...args).replace('class="dash-widget', `data-wid="${wid}" class="dash-widget-clickable dash-widget`);
+}
+
+/* ── Előnézeti kártyák (Jelentések → Analitika fül belépéskor) ── */
+export async function analitikaInitWidgets() {
+  const cont = E('analitikaWidgets'); if (!cont) return;
+  cont.innerHTML = WIDGETS.map(w => _clickableCard(w.id, w.icon, w.title, '<span style="color:var(--text3);font-size:16px;">…</span>')).join('');
+
+  const to = tod(), from = addD(to, -29);
+  const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
+
+  WIDGETS.forEach(w => {
+    const host = cont.querySelector(`[data-wid="${w.id}"]`); if (!host) return;
+    const totals = _totals(entries, w.keyFn);
+    const top = totals[0];
+    const dayTotals = {};
+    entries.forEach(e => { dayTotals[e.datum] = (dayTotals[e.datum] || 0) + _kg(e); });
+    const spark = Array.from({ length: 14 }, (_, i) => { const d = addD(to, -(13 - i)); return { datum: d, kg: dayTotals[d] || 0 }; });
+    const val = top ? esc(top[0]) : '<span style="color:var(--text3);font-size:16px;">—</span>';
+    const sub = top ? `${(top[1] / 1000).toFixed(2)} t · ${totals.length} ${w.unit} · utóbbi 30 nap` : 'Nincs adat az utóbbi 30 napban';
+    host.outerHTML = _clickableCard(w.id, w.icon, w.title, val, sub, top ? _sparkline(spark, 40) : '');
+  });
+}
+
+/* ── Részletes drawer (kattintásra nyílik, saját dátum/kiválasztás) ── */
+export async function analitikaOpenDrawer(kind) {
+  const meta = _wdMeta(kind); if (!meta) return;
+  _drawerKind = kind;
+  const drawer = E('analitikaDrawer'), body = E('analitikaDrawerBody');
+  if (!drawer || !body) return;
+
+  E('analitikaDrawerIcon').textContent  = meta.icon;
+  E('analitikaDrawerTitle').textContent = meta.title;
+
+  const defTo = tod(), defFrom = addD(defTo, -29);
+  body.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">
+      <div class="field" style="min-width:130px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
+      <div class="field" style="min-width:130px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
+      <div style="display:flex;gap:5px;">
+        <button class="btn btn-ghost btn-sm" data-anadr-preset="7">7 nap</button>
+        <button class="btn btn-ghost btn-sm" data-anadr-preset="30">30 nap</button>
+        <button class="btn btn-ghost btn-sm" data-anadr-preset="90">90 nap</button>
+      </div>
+    </div>
+    <div class="lbox" style="margin-bottom:12px;">
+      <div class="lbox-t">${esc(meta.title)}</div>
+      <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
+      <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
+    </div>
+    <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
+    <div id="analitikaRiportDiv"></div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
+      <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
+    </div>`;
+  fillSel(E('anaDrSel'), meta.listSrc());
+
+  drawer.classList.add('open');
+  E('analitikaDrawerOverlay')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  await _renderDrawerResult();
+}
+
+export function analitikaCloseDrawer() {
+  E('analitikaDrawer')?.classList.remove('open');
+  E('analitikaDrawerOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 function _setBtns(disabled) {
   ['analitikaKepMentBtn', 'analitikaPdfBtn'].forEach(id => { const el = E(id); if (el) el.disabled = disabled; });
 }
 
-export async function analitikaMutat() {
-  const from = E('analitikaTolInput').value;
-  const to   = E('analitikaIgInput').value;
-  if (!from || !to) { msg('Válassz időszakot!', 'error'); return; }
-  if (from > to) { msg('A "Tól" dátum nem lehet később mint az "Ig"!', 'error'); return; }
+async function _renderDrawerResult() {
+  const meta = _wdMeta(_drawerKind); if (!meta) return;
+  const from = E('anaDrTol')?.value, to = E('anaDrIg')?.value;
+  const out  = E('analitikaRiportDiv'); if (!out) return;
 
-  E('analitikaRiportDiv').innerHTML = skelHtml('report');
+  if (!from || !to || from > to) {
+    out.innerHTML = `<div class="empty-st"><div class="empty-ic">⚠️</div><div class="empty-title">Érvénytelen időszak</div></div>`;
+    _setBtns(true); return;
+  }
+
+  out.innerHTML = skelHtml('report');
   _setBtns(true);
 
-  const entries = await fetchEntries({ datumFrom: from, datumTo: to });
+  const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
   if (!entries.length) {
-    E('analitikaRiportDiv').innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a kiválasztott időszakra</div>`;
+    out.innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a kiválasztott időszakra</div>`;
     return;
   }
 
-  const reszlegSel = _selected('analitikaReszlegSzuro');
-  const anyagSel   = _selected('analitikaAnyagSzuro');
-  const dolgSel    = _selected('analitikaDolgozoSzuro');
+  const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
+  const keys = sel.length ? sel.slice(0, meta.max) : _topKeys(entries, meta.keyFn, meta.max);
+  const series = _perDaySeries(entries, meta.keyFn, keys);
+  const chart  = series.length ? _multiLineChart(series) : '';
 
-  const reszlegKeyFn = e => (e.reszleg || '').trim() || 'Ismeretlen részleg';
-  const anyagKeyFn   = e => (e.anyag   || '').trim();
-  const dolgKeyFn    = e => e.nev;
-
-  const reszlegKeys = reszlegSel.length ? reszlegSel : _topKeys(entries, reszlegKeyFn, 5);
-  const anyagKeys   = anyagSel.length   ? anyagSel   : _topKeys(entries, anyagKeyFn, 5);
-  const dolgKeys    = dolgSel.length    ? dolgSel.slice(0, 6) : _topKeys(entries, dolgKeyFn, 6);
-
-  const html = `<div class="r-head">Analitika · ${esc(from)} – ${esc(to)}</div>`
-    + _section('Részlegek összehasonlítása', '🏭', _perDaySeries(entries, reszlegKeyFn, reszlegKeys))
-    + _section('Anyagtípusok összehasonlítása', '📦', _perDaySeries(entries, anyagKeyFn, anyagKeys))
-    + _section('Dolgozók összehasonlítása', '👤', _perDaySeries(entries, dolgKeyFn, dolgKeys));
-
-  E('analitikaRiportDiv').innerHTML = html || `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`;
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(meta.title)} · ${esc(from)} – ${esc(to)}</div>` + (
+    series.length
+      ? (chart || '<p style="color:var(--text3);font-size:13px;">Nincs elég adat trendvonalhoz (legalább 2 nap szükséges).</p>') + _rankTable(series)
+      : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
+  );
   _setBtns(false);
 }
 
-export function analitikaPreset(days) {
-  const to = new Date();
-  const from = new Date(); from.setDate(from.getDate() - (days - 1));
-  const fmt = d => d.toISOString().slice(0, 10);
-  E('analitikaTolInput').value = fmt(from);
-  E('analitikaIgInput').value  = fmt(to);
+/* ── Drawer belsejének eseménydelegálása (a tartalom többször újraépül) ── */
+export function analitikaDrawerClick(e) {
+  const presetBtn = e.target.closest('[data-anadr-preset]');
+  if (presetBtn) {
+    const days = Number(presetBtn.dataset.anadrPreset);
+    E('anaDrIg').value  = tod();
+    E('anaDrTol').value = addD(tod(), -(days - 1));
+    return;
+  }
+  if (e.target.closest('#anaDrRefreshBtn'))      { _renderDrawerResult(); return; }
+  if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
+  if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
 }

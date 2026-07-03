@@ -1406,7 +1406,7 @@ function _hChip(icon, n, label, badge = 0) {
     ${icon} <strong style="color:var(--text);">${n}</strong> ${label}${badge > 0 ? ` <span style="color:var(--red);font-weight:700;">· ${badge} lejárt</span>` : ''}</span>`;
 }
 
-function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null, wColor = '') {
+export function _card(icon, title, value, sub = '', extra = '', large = false, anomaly = null, wColor = '') {
   const anomCls   = anomaly ? ` dash-widget-${anomaly}` : '';
   const colorStyle = wColor ? `border-left:3px solid ${wColor};` : '';
   const anomBadge = anomaly === 'warn'
@@ -1428,7 +1428,7 @@ function _card(icon, title, value, sub = '', extra = '', large = false, anomaly 
 }
 
 /* ── Mini sparkline (grafikonos widgetekhez) ── */
-function _sparkline(perDay, h = 48) {
+export function _sparkline(perDay, h = 48) {
   if (!perDay || perDay.length < 2) return '';
   const vals = perDay.map(d => d.kg);
   const maxV = Math.max(...vals, 1);

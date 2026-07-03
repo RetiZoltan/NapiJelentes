@@ -17,11 +17,11 @@ import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
 import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
-         napiKepMent, idoszakosKepMent, analitikaKepMent,
-         napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent, analitikaPdfMent,
+         napiKepMent, idoszakosKepMent,
+         napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
          napiNyomtat, idoszakosNyomtat,
          riportKlikk, napTorol, cleanupNapiListener, rerenderNapi } from './reports.js';
-import { analitikaMutat, analitikaPreset } from './analitika.js';
+import { analitikaInitWidgets, analitikaOpenDrawer, analitikaCloseDrawer, analitikaDrawerClick } from './analitika.js';
 import { loadTasks, saveTask, handleTaskClick,
          initTasksUI, openTaskDrawer, closeTaskDrawer } from './tasks.js';
 import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
@@ -365,6 +365,7 @@ function switchJelentesekSubtab(name) {
   document.querySelectorAll('.jstab-panel').forEach(p => p.classList.remove('active'));
   E('jstab-' + name).classList.add('active');
   if (name !== 'napi') cleanupNapiListener();
+  if (name === 'analitika') analitikaInitWidgets();
 }
 
 function switchDolgozokSubtab(name) {
@@ -756,13 +757,14 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('idoszakosXlsxBtn').addEventListener('click', idoszakosXlsxMent);
   E('idoszakosNyomtatBtn').addEventListener('click', idoszakosNyomtat);
 
-  // Analitika (jelentések al-fül)
-  E('analitikaBtn').addEventListener('click', analitikaMutat);
-  E('analitikaKepMentBtn').addEventListener('click', analitikaKepMent);
-  E('analitikaPdfBtn').addEventListener('click', analitikaPdfMent);
-  document.querySelectorAll('[data-analitika-preset]').forEach(btn => {
-    btn.addEventListener('click', () => analitikaPreset(Number(btn.dataset.analitikaPreset)));
+  // Analitika (jelentések al-fül) — widget kártyák + drawer
+  E('analitikaWidgets').addEventListener('click', e => {
+    const w = e.target.closest('.dash-widget-clickable');
+    if (w?.dataset.wid) analitikaOpenDrawer(w.dataset.wid);
   });
+  E('analitikaDrawerClose').addEventListener('click', analitikaCloseDrawer);
+  E('analitikaDrawerOverlay').addEventListener('click', analitikaCloseDrawer);
+  E('analitikaDrawerBody').addEventListener('click', analitikaDrawerClick);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
@@ -930,14 +932,12 @@ E('megj').addEventListener('focus', e => e.target.select());
   }
   E('napiFilterToggle').addEventListener('click',     () => _openBS('napiFilterCard',     'Szűrők & dátum'));
   E('idoszakosFilterToggle').addEventListener('click',() => _openBS('idoszakosFilterCard','Időszak & beállítások'));
-  E('analitikaFilterToggle').addEventListener('click',() => _openBS('analitikaFilterCard','Időszak & összehasonlítás'));
   E('bsOverlay').addEventListener('click', _closeBS);
   E('bsApplyBtn').addEventListener('click', () => {
     const active = document.querySelector('.jstab-panel.active');
     const id = active?.id;
     if (id === 'jstab-napi') _applyBS('napiFilterCard');
     else if (id === 'jstab-idoszakos') _applyBS('idoszakosFilterCard');
-    else if (id === 'jstab-analitika') _applyBS('analitikaFilterCard');
     else _closeBS();
   });
 
