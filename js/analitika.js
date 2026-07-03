@@ -2,6 +2,7 @@ import { fetchEntries, fillSel } from './db.js';
 import { state, isMuszakVezeto } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent } from './reports.js';
+import { _sparkline } from './dashboard.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
    Kattintható, egyszerű csempék; kattintásra a csempék alatt nyílik meg
@@ -56,12 +57,20 @@ let _lastSeries  = null;
 let _lastHeader  = null;
 let _lastEntries = null;
 let _lastByDay   = null;
+let _expandedLabel = null;      // melyik táblázatsor napi trendje van kinyitva
+
+/* Előző időszak összevetéséhez: a nyers (szűretlen) bejegyzéseket dátumtartomány
+   szerint gyorsítótárazzuk, hogy a beállítások (Top N, szűrők stb.) váltása
+   ne indítson újra hálózati lekérdezést — csak új tartományváltásnál. */
+let _lastPrevEntriesRaw = null;
+let _lastPrevRangeKey   = null;
+let _lastPrevMap        = null; // { map: {label: kg}, label: "előző időszak felirata" }
 
 /* ── Beállítások (közösek + csempe-specifikusak) —
    localStorage-ban perzisztálva. */
 const _SET_KEY = 'nj_ana_settings';
 const _SET_DEFAULTS = {
-  topN: '', sortBy: 'kg', unit: 't', showOther: false,   // közös (mind a 4 összehasonlító csempénél)
+  topN: '', sortBy: 'kg', unit: 't', showOther: false, compareEnabled: false, // közös
   reszlegSzuro: '', csapatSzuro: '',                     // anyagok + dolgozók
   anyagCsoport: false,                                   // csak anyagok
   archivalt: false,                                      // csak dolgozók
@@ -94,6 +103,26 @@ function _totals(entries, keyFn) {
   return Object.entries(t).sort((a, b) => b[1] - a[1]);
 }
 function _topKeys(entries, keyFn, n) { return _totals(entries, keyFn).slice(0, n).map(([k]) => k); }
+
+/* ── Előző időszak (reports.js _elozoIdoszak "egyéni" ágának mintájára) —
+   ugyanolyan hosszú, közvetlenül megelőző időszak. ── */
+function _prevPeriod(from, to) {
+  const [y1, m1, d1] = from.split('-').map(Number);
+  const [y2, m2, d2] = to.split('-').map(Number);
+  const napok = Math.round((new Date(y2, m2 - 1, d2) - new Date(y1, m1 - 1, d1)) / 86400000) + 1;
+  const pTo   = addD(from, -1);
+  const pFrom = addD(pTo, -(napok - 1));
+  return { from: pFrom, to: pTo, label: `${fmtS(pFrom)} – ${fmtS(pTo)}` };
+}
+
+/* reports.js _deltaHtml mintájára — ▲/▼ jelzés %-os változással. */
+function _deltaBadge(curr, prev) {
+  if (!prev) return curr > 0 ? `<span style="color:var(--green);font-weight:600;font-size:11.5px;">▲ új</span>` : `<span style="color:var(--text3);font-size:11.5px;">–</span>`;
+  const pct   = (curr - prev) / prev * 100;
+  const color = pct > 0.05 ? 'var(--green)' : (pct < -0.05 ? 'var(--red)' : 'var(--text3)');
+  const arrow = pct > 0.05 ? '▲' : (pct < -0.05 ? '▼' : '–');
+  return `<span style="color:${color};font-weight:600;font-size:11.5px;">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
 
 function _perDaySeries(entries, keyFn, keys) {
   const byKeyDay = {};
@@ -175,11 +204,25 @@ function _rankTable(series, opts = {}) {
   const totals = _orderedTotals(series, opts.sortBy, opts.avgMode);
   if (!totals.length) return '';
   const total = totals.reduce((s, t) => s + t.kg, 0);
-  let h = `<table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>${opts.avgMode ? 'Napi átlag' : 'Összesen'}</th><th>Arány</th></tr></thead><tbody>`;
+  const perDayByLabel = Object.fromEntries(series.map(s => [s.label, s.perDay]));
+  const showCompare = !!opts.prevMap;
+  const colspan = showCompare ? 5 : 4;
+
+  let h = `<table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>${opts.avgMode ? 'Napi átlag' : 'Összesen'}</th><th>Arány</th>${showCompare ? '<th>Változás</th>' : ''}</tr></thead><tbody>`;
   totals.forEach((t, i) => {
     const pct  = total > 0 ? (t.kg / total * 100).toFixed(1) : 0;
     const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
-    h += `<tr><td style="color:var(--text3);width:28px;">${t.isOther ? '' : i + 1 + '.'}</td><td style="font-weight:600;${t.isOther ? 'color:var(--text3);font-style:italic;' : ''}">${esc(t.label)}</td><td class="v-bold">${_fmtUnitHtml(t.kg, opts.unit)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:${t.isOther ? 'var(--text3)' : 'var(--accent)'};border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td></tr>`;
+    const compareCell = showCompare
+      ? `<td>${t.isOther ? '<span style="color:var(--text3);">–</span>' : _deltaBadge(t.kg, opts.prevMap.map[t.label])}</td>`
+      : '';
+    h += `<tr class="ana-row" data-label="${esc(t.label)}" style="cursor:pointer;" title="Kattints a napi trendhez"><td style="color:var(--text3);width:28px;">${t.isOther ? '' : i + 1 + '.'}</td><td style="font-weight:600;${t.isOther ? 'color:var(--text3);font-style:italic;' : ''}">${esc(t.label)}</td><td class="v-bold">${_fmtUnitHtml(t.kg, opts.unit)}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="height:6px;width:${barW}px;max-width:80px;background:${t.isOther ? 'var(--text3)' : 'var(--accent)'};border-radius:3px;opacity:.65;flex-shrink:0;"></div><span style="color:var(--text3);font-size:12px;">${pct}%</span></div></td>${compareCell}</tr>`;
+
+    if (_expandedLabel === t.label) {
+      const perDay = perDayByLabel[t.label] || [];
+      h += `<tr><td colspan="${colspan}" style="padding:10px 14px;background:var(--surf2);">
+        ${perDay.length >= 2 ? _sparkline(perDay, 50) : '<p style="color:var(--text3);font-size:12px;margin:0;">Nincs elég adat a napi trendhez (legalább 2 nap szükséges).</p>'}
+      </td></tr>`;
+    }
   });
   return h + `</tbody></table>`;
 }
@@ -403,6 +446,9 @@ function _settingsBlockHtml(meta) {
     </div>
     <div class="field" style="margin-bottom:9px;">
       <label class="rs-lbl"><input type="checkbox" id="anaSetOther"${s.showOther ? ' checked' : ''}> "Egyéb" összesítő sor</label>
+    </div>
+    <div class="field" style="margin-bottom:9px;">
+      <label class="rs-lbl"><input type="checkbox" id="anaSetCompare"${s.compareEnabled ? ' checked' : ''}> Összevetés az előző időszakkal</label>
     </div>`;
 
   const rangeRow = `<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
@@ -432,6 +478,8 @@ export function analitikaInitWidgets() {
 export async function analitikaShowPanel(kind) {
   const meta = _wdMeta(kind); if (!meta) return;
   _panelKind = kind;
+  _expandedLabel = null;
+  _lastPrevMap = null;
   const panel = E('analitikaPanel'); if (!panel) return;
 
   document.querySelectorAll('#analitikaWidgets .dash-widget-clickable').forEach(w => {
@@ -562,6 +610,29 @@ function _computeCompareResult() {
     if (otherSeries[0].perDay.length) _lastSeries = [..._lastSeries, otherSeries[0]];
   }
 
+  _lastPrevMap = null;
+  _renderResultBody();
+
+  if (settings.compareEnabled) _loadPrevComparison(meta, settings);
+}
+
+/* Az előző időszakot csak akkor kérdezi le újra a szervertől, ha maga a
+   dátumtartomány változott — a nyers bejegyzéseket tartomány szerint
+   gyorsítótárazza, minden más beállításváltás csak újraszűr/csoportosít. */
+async function _loadPrevComparison(meta, settings) {
+  const kindAtStart = _panelKind;
+  const { from, to } = _lastHeader;
+  const prevRange = _prevPeriod(from, to);
+  const rangeKey  = `${prevRange.from}_${prevRange.to}`;
+
+  if (_lastPrevRangeKey !== rangeKey) {
+    _lastPrevEntriesRaw = await fetchEntries({ datumFrom: prevRange.from, datumTo: prevRange.to }).catch(() => []);
+    _lastPrevRangeKey = rangeKey;
+  }
+  // A panel közben becsukódhatott, vagy másik csempére/időszakra váltottak — ne írjuk felül az újabb eredményt.
+  if (_panelKind !== kindAtStart || _lastHeader?.from !== from || _lastHeader?.to !== to) return;
+  const filtered = meta.filterFn ? _lastPrevEntriesRaw.filter(e => meta.filterFn(e, settings)) : _lastPrevEntriesRaw;
+  _lastPrevMap = { map: Object.fromEntries(_totals(filtered, meta.keyFn)), label: prevRange.label };
   _renderResultBody();
 }
 
@@ -578,10 +649,17 @@ function _renderResultBody() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastSeries) return;
   const series   = _lastSeries;
   const settings = _getSettings();
-  const opts     = { unit: settings.unit, sortBy: settings.sortBy, avgMode: _panelKind === 'muszakok' && settings.muszakMode === 'atlag' };
-  const chart    = series.length ? _multiBarChart(series, opts) : '';
+  const avgMode  = _panelKind === 'muszakok' && settings.muszakMode === 'atlag';
+  // avgMode-nál (napi átlag) az előző időszak nyers összeghez való hasonlítás nem
+  // lenne alma-alma összevetés, ezért ott nem mutatjuk a "Változás" oszlopot.
+  const opts = { unit: settings.unit, sortBy: settings.sortBy, avgMode, prevMap: avgMode ? null : _lastPrevMap };
+  const chart = series.length ? _multiBarChart(series, opts) : '';
 
-  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>` + (
+  const compareCaption = opts.prevMap
+    ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 10px;">Összevetve: <strong style="color:var(--text);">${esc(opts.prevMap.label)}</strong></p>`
+    : '';
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>${compareCaption}` + (
     series.length
       ? chart + _rankTable(series, opts)
       : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
@@ -599,6 +677,13 @@ export function analitikaPanelClick(e) {
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
+  const row = e.target.closest('tr.ana-row');
+  if (row) {
+    const label = row.dataset.label;
+    _expandedLabel = _expandedLabel === label ? null : label;
+    _renderResultBody();
+    return;
+  }
 }
 
 /* ── Beállítás-mezők (select/checkbox) change eseménye — mentés + azonnali
@@ -617,4 +702,5 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetHetiBontas')  { _saveSettings({ hetiBontas: e.target.checked });   _computeDatumResult();        return; }
   if (e.target.id === 'anaSetSajatCsapat') { _saveSettings({ sajatCsapat: e.target.checked });  _computeCompareResult();      return; }
   if (e.target.id === 'anaSetDefaultRange'){ _saveSettings({ defaultRangeDays: Number(e.target.value) }); return; }
+  if (e.target.id === 'anaSetCompare')     { _saveSettings({ compareEnabled: e.target.checked }); _computeCompareResult(); return; }
 }
