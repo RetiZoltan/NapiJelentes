@@ -64,6 +64,7 @@ const _SET_DEFAULTS = {
   reszlegSzuro: '', csapatSzuro: '',                     // anyagok + dolgozók
   anyagCsoport: false,                                   // csak anyagok
   archivalt: false,                                      // csak dolgozók
+  muszakMode: 'osszeg',                                  // csak műszakok: 'osszeg' | 'atlag'
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -122,12 +123,15 @@ function _fitLabel(text, maxW, font = _BAR_FONT) {
 
 /* ── Rendezett összesítés — az "Egyéb" (ha van) mindig a lista végére kerül,
    a többi elem a beállított sorrend (mennyiség vagy név) szerint rendeződik. */
-function _orderedTotals(series, sortBy) {
-  const rows = series.map((s, i) => ({
-    label: s.label, kg: s.perDay.reduce((a, d) => a + d.kg, 0),
-    color: s.label === 'Egyéb' ? 'var(--text3)' : PALETTE[i % PALETTE.length],
-    isOther: s.label === 'Egyéb',
-  }));
+function _orderedTotals(series, sortBy, avgMode) {
+  const rows = series.map((s, i) => {
+    const total = s.perDay.reduce((a, d) => a + d.kg, 0);
+    return {
+      label: s.label, kg: avgMode && s.perDay.length ? total / s.perDay.length : total,
+      color: s.label === 'Egyéb' ? 'var(--text3)' : PALETTE[i % PALETTE.length],
+      isOther: s.label === 'Egyéb',
+    };
+  });
   const main  = rows.filter(r => !r.isOther);
   const other = rows.filter(r => r.isOther);
   main.sort(sortBy === 'nev' ? (a, b) => a.label.localeCompare(b.label, 'hu') : (a, b) => b.kg - a.kg);
@@ -138,7 +142,7 @@ function _orderedTotals(series, sortBy) {
    A bal oldali címke-sáv szélessége a leghosszabb névhez igazodik (mért szövegszélesség
    alapján, nem karakterszám-becsléssel), így a hosszú nevek nem vágódnak le feleslegesen. */
 function _multiBarChart(series, opts = {}) {
-  const totals = _orderedTotals(series, opts.sortBy);
+  const totals = _orderedTotals(series, opts.sortBy, opts.avgMode);
   if (!totals.length) return '';
 
   const maxKg = Math.max(...totals.map(t => t.kg), 1);
@@ -163,10 +167,10 @@ function _multiBarChart(series, opts = {}) {
 }
 
 function _rankTable(series, opts = {}) {
-  const totals = _orderedTotals(series, opts.sortBy);
+  const totals = _orderedTotals(series, opts.sortBy, opts.avgMode);
   if (!totals.length) return '';
   const total = totals.reduce((s, t) => s + t.kg, 0);
-  let h = `<table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>Összesen</th><th>Arány</th></tr></thead><tbody>`;
+  let h = `<table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>${opts.avgMode ? 'Napi átlag' : 'Összesen'}</th><th>Arány</th></tr></thead><tbody>`;
   totals.forEach((t, i) => {
     const pct  = total > 0 ? (t.kg / total * 100).toFixed(1) : 0;
     const barW = Math.round(Math.min(parseFloat(pct), 100) * 0.8);
@@ -322,6 +326,14 @@ function _settingsBlockHtml(meta) {
       </div>` : ''}
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetArchivalt"${s.archivalt ? ' checked' : ''}> Archivált dolgozók is</label>
+      </div>`;
+  } else if (meta.id === 'muszakok') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Megjelenítés</label>
+        <select id="anaSetMuszakMode">
+          ${opt('osszeg', s.muszakMode, 'Összesen')}${opt('atlag', s.muszakMode, 'Napi átlag (aktív napokra)')}
+        </select>
       </div>`;
   }
 
@@ -491,7 +503,7 @@ function _renderResultBody() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastSeries) return;
   const series   = _lastSeries;
   const settings = _getSettings();
-  const opts     = { unit: settings.unit, sortBy: settings.sortBy };
+  const opts     = { unit: settings.unit, sortBy: settings.sortBy, avgMode: _panelKind === 'muszakok' && settings.muszakMode === 'atlag' };
   const chart    = series.length ? _multiBarChart(series, opts) : '';
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>` + (
@@ -532,4 +544,5 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetCsapat')      { _saveSettings({ csapatSzuro: e.target.value });  _computeCompareResult(); return; }
   if (e.target.id === 'anaSetAnyagCsoport'){ _saveSettings({ anyagCsoport: e.target.checked }); _rebuildSelectAndRecompute(); return; }
   if (e.target.id === 'anaSetArchivalt')   { _saveSettings({ archivalt: e.target.checked });    _rebuildSelectAndRecompute(); return; }
+  if (e.target.id === 'anaSetMuszakMode')  { _saveSettings({ muszakMode: e.target.value });     _renderResultBody();          return; }
 }
