@@ -447,8 +447,8 @@ export async function analitikaShowPanel(kind) {
       <button class="btn btn-ghost btn-sq" id="anaPanelCloseBtn" title="Bezárás">✕</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">
-      <div class="field" style="min-width:130px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
-      <div class="field" style="min-width:130px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
+      <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
+      <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
     </div>
     ${meta.kind === 'datum' ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
