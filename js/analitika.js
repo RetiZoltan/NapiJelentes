@@ -1,12 +1,11 @@
 import { fetchEntries, fillSel } from './db.js';
 import { state } from './state.js';
 import { E, esc, fmtKg, skelHtml, tod, addD } from './utils.js';
-import { _card, _sparkline } from './dashboard.js';
 import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
-   A főoldal widget kártyáinak mintáját követi: előnézeti kártyák,
-   kattintásra a kártyák alatt nyílik meg a nagyobb, részletes panel.
+   Kattintható, egyszerű csempék; kattintásra a csempék alatt nyílik meg
+   a nagyobb, részletes panel (dátum/kiválasztás + oszlopdiagram + táblázat).
    Csak termelési adatokra (entries) épül. Nem használ color-mix()-et
    sehol (html2canvas 1.4.1 nem tudja parse-olni), és minden SVG-nek
    explicit viewBox-a van, hogy a reports.js _buildWrap export-konverziója
@@ -15,12 +14,12 @@ import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 const PALETTE = ['#1565C0', '#2E7D32', '#E65100', '#8E24AA', '#C62828', '#00838F'];
 
 const WIDGETS = [
-  { id: 'reszlegek', icon: '🏭', title: 'Részlegek összehasonlítása', unit: 'részleg', max: 5,
-    keyFn: e => (e.reszleg || '').trim() || 'Ismeretlen részleg', listSrc: () => state.reszlegek },
   { id: 'anyagok', icon: '📦', title: 'Anyagtípusok összehasonlítása', unit: 'anyagtípus', max: 5,
     keyFn: e => (e.anyag || '').trim(), listSrc: () => state.anyagok },
   { id: 'dolgozok', icon: '👤', title: 'Dolgozók összehasonlítása', unit: 'dolgozó', max: 6,
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
+  { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
+    keyFn: e => (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt', listSrc: () => ['Délelőtt', 'Délután'] },
 ];
 
 let _panelKind   = null;
@@ -116,30 +115,18 @@ function _rankTable(series) {
   return h + `</tbody></table>`;
 }
 
-function _clickableCard(wid, ...args) {
-  return _card(...args).replace('class="dash-widget', `data-wid="${wid}" class="dash-widget-clickable dash-widget`);
+function _tile(w) {
+  return `<div class="ana-tile dash-widget-clickable" data-wid="${w.id}">
+    <span class="ana-tile-icon">${w.icon}</span>
+    <span class="ana-tile-title">${esc(w.title)}</span>
+  </div>`;
 }
 
-/* ── Előnézeti kártyák (Jelentések → Analitika fül belépéskor) ── */
-export async function analitikaInitWidgets() {
+/* ── Csempék (Jelentések → Analitika fül belépéskor) ── */
+export function analitikaInitWidgets() {
   const cont = E('analitikaWidgets'); if (!cont) return;
   _closePanel();
-  cont.innerHTML = WIDGETS.map(w => _clickableCard(w.id, w.icon, w.title, '<span style="color:var(--text3);font-size:16px;">…</span>')).join('');
-
-  const to = tod(), from = addD(to, -29);
-  const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
-
-  WIDGETS.forEach(w => {
-    const host = cont.querySelector(`[data-wid="${w.id}"]`); if (!host) return;
-    const totals = _totals(entries, w.keyFn);
-    const top = totals[0];
-    const dayTotals = {};
-    entries.forEach(e => { dayTotals[e.datum] = (dayTotals[e.datum] || 0) + _kg(e); });
-    const spark = Array.from({ length: 14 }, (_, i) => { const d = addD(to, -(13 - i)); return { datum: d, kg: dayTotals[d] || 0 }; });
-    const val = top ? esc(top[0]) : '<span style="color:var(--text3);font-size:16px;">—</span>';
-    const sub = top ? `${(top[1] / 1000).toFixed(2)} t · ${totals.length} ${w.unit} · utóbbi 30 nap` : 'Nincs adat az utóbbi 30 napban';
-    host.outerHTML = _clickableCard(w.id, w.icon, w.title, val, sub, top ? _sparkline(spark, 40) : '');
-  });
+  cont.innerHTML = WIDGETS.map(_tile).join('');
 }
 
 /* ── Részletes panel (kattintásra jelenik meg a kártyák alatt, saját dátum/kiválasztás) ── */

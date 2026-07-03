@@ -859,6 +859,12 @@ html:not([data-layout]) .card {
 .dash-widget-clickable { cursor:pointer; transition:box-shadow var(--tr),border-color var(--tr); }
 .dash-widget-clickable:hover { box-shadow:var(--sh2); border-color:var(--border2); }
 .dash-widget-clickable.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+
+/* ── Analitika csempék (Jelentések → Analitika) ── */
+.ana-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+.ana-tile { display:flex; align-items:center; gap:9px; background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:12px 14px; }
+.ana-tile-icon { font-size:18px; flex-shrink:0; }
+.ana-tile-title { font-size:13px; font-weight:600; color:var(--text); line-height:1.3; }
 @media(max-width:540px) { .dash-widget-large { grid-column:span 1; } }
 /* Widget pozíció nyíl gombok */
 .dash-w-move { display:flex; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; flex-shrink:0; }
