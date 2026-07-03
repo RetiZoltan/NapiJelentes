@@ -1,6 +1,6 @@
 import { fetchEntries, fillSel } from './db.js';
 import { state } from './state.js';
-import { E, esc, fmtKg, skelHtml, tod, addD } from './utils.js';
+import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent } from './reports.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
@@ -21,9 +21,7 @@ const WIDGETS = [
     keyFn: e => e.nev, listSrc: () => state.nevek.filter(n => !state.nevMetadata[n]?.archivalt) },
   { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
     keyFn: e => (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt', listSrc: () => ['Délelőtt', 'Délután'] },
-  { id: 'hetnapjai', icon: '📅', title: 'Hét napjai szerinti bontás', unit: 'nap', max: 7, noSort: true,
-    keyFn: e => { const dow = new Date(e.datum + 'T12:00:00').getDay() || 7; return HU_DAYS[dow - 1]; },
-    listSrc: () => HU_DAYS },
+  { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
 ];
 
 let _panelKind   = null;
@@ -119,6 +117,104 @@ function _rankTable(series) {
   return h + `</tbody></table>`;
 }
 
+/* ── Naptár hőtérkép (reports.js _riportKalendarNezet mintájára, a kiválasztott
+   időszakra igazítva, nem az adatból kikövetkeztetett min/max dátumra) ── */
+function _calendarHeatmap(byDay, from, to) {
+  const maxKg = Math.max(...Object.values(byDay), 1);
+  const fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const startD = new Date(from + 'T12:00:00');
+  const dow0   = startD.getDay() || 7;
+  startD.setDate(startD.getDate() - dow0 + 1); // Hétfőre igazítás
+  const endD   = new Date(to + 'T12:00:00');
+
+  const days = [];
+  const cur  = new Date(startD);
+  while (cur <= endD) { days.push(fmtLocal(cur)); cur.setDate(cur.getDate() + 1); }
+
+  const CELL = 13, GAP = 2, ML = 22, MT = 18;
+  const numWeeks = Math.ceil(days.length / 7);
+  const W = ML + numWeeks * (CELL + GAP);
+  const H = MT + 7 * (CELL + GAP) + 4;
+  const MONTHS = ['Jan', 'Feb', 'Már', 'Ápr', 'Máj', 'Jún', 'Júl', 'Aug', 'Sze', 'Okt', 'Nov', 'Dec'];
+  const DOWL   = ['H', 'K', 'Sz', 'Cs', 'P', 'Sz', 'V'];
+
+  let lastMonth = -1;
+  const monthLbls = [], cells = [];
+  days.forEach((datum, i) => {
+    const wk = Math.floor(i / 7), d = i % 7;
+    const x  = ML + wk * (CELL + GAP), y = MT + d * (CELL + GAP);
+    const mo = new Date(datum + 'T12:00:00').getMonth();
+    if (d === 0 && mo !== lastMonth) {
+      lastMonth = mo;
+      monthLbls.push(`<text x="${x}" y="${MT - 4}" font-size="8.5" fill="var(--text3)">${MONTHS[mo]}</text>`);
+    }
+    const inRange = datum >= from && datum <= to;
+    const kg    = byDay[datum] || 0;
+    const alpha = kg > 0 ? (0.2 + (kg / maxKg) * 0.8).toFixed(2) : (inRange ? '0.07' : '0.02');
+    const fill  = kg > 0 ? 'var(--accent)' : 'var(--border2)';
+    const tip   = `${datum}: ${kg > 0 ? (kg / 1000).toFixed(2) + ' t' : 'Nincs adat'}`;
+    cells.push(`<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}" opacity="${alpha}"><title>${esc(tip)}</title></rect>`);
+  });
+
+  const dayLbls = [0, 2, 4, 6].map(i =>
+    `<text x="${ML - 3}" y="${MT + i * (CELL + GAP) + CELL * 0.78}" font-size="8" text-anchor="end" fill="var(--text3)">${DOWL[i]}</text>`
+  ).join('');
+  const legend = [0.07, 0.3, 0.5, 0.7, 1].map(a =>
+    `<span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:var(--accent);opacity:${a};flex-shrink:0;"></span>`
+  ).join('');
+
+  return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W, 300)}px;height:${H}px;display:block;">
+      ${dayLbls}${monthLbls.join('')}${cells.join('')}
+    </svg>
+  </div>
+  <div style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;color:var(--text3);">
+    Kevés ${legend} Sok
+  </div>`;
+}
+
+/* ── Hét napjai szerinti átlag (nem összeg, hogy a tartományban esetlegesen
+   eggyel több hétfő/kedd stb. ne torzítsa a képet) ── */
+function _weekdayAverages(byDay, from, to) {
+  const counts = new Array(7).fill(0), sums = new Array(7).fill(0);
+  const cur = new Date(from + 'T12:00:00');
+  const end = new Date(to + 'T12:00:00');
+  while (cur <= end) {
+    const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+    const dow = cur.getDay() || 7;
+    counts[dow - 1]++;
+    sums[dow - 1] += byDay[iso] || 0;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return HU_DAYS.map((name, i) => ({ name, avg: counts[i] ? sums[i] / counts[i] : 0 }));
+}
+
+function _weekdayRows(avgs) {
+  const maxAvg = Math.max(...avgs.map(a => a.avg), 1);
+  return avgs.map(a => {
+    const pct = Math.round((a.avg / maxAvg) * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+      <span style="font-size:12.5px;color:var(--text2);width:82px;flex-shrink:0;">${esc(a.name)}</span>
+      <div style="height:7px;background:var(--surf2);border-radius:3px;flex:1;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;opacity:.7;"></div>
+      </div>
+      <span style="font-size:12px;font-weight:600;width:60px;text-align:right;">${a.avg > 0 ? (a.avg / 1000).toFixed(2) + ' t' : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+function _bestWorstDay(byDay) {
+  const list = Object.entries(byDay).filter(([, kg]) => kg > 0);
+  if (!list.length) return '';
+  const best  = list.reduce((a, b) => b[1] > a[1] ? b : a);
+  const worst = list.reduce((a, b) => b[1] < a[1] ? b : a);
+  return `<div class="nossz" style="margin-top:14px;">
+    <div class="nossz-item"><div class="nossz-val">${(best[1] / 1000).toFixed(2)} t</div><div class="nossz-lbl">Legjobb nap · ${esc(fmtS(best[0]))}</div></div>
+    <div class="nossz-item"><div class="nossz-val">${(worst[1] / 1000).toFixed(2)} t</div><div class="nossz-lbl">Leggyengébb nap · ${esc(fmtS(worst[0]))}</div></div>
+  </div>`;
+}
+
 function _tile(w) {
   return `<div class="ana-tile dash-widget-clickable" data-wid="${w.id}">
     <span class="ana-tile-icon">${w.icon}</span>
@@ -168,18 +264,19 @@ export async function analitikaShowPanel(kind) {
         <button class="btn btn-ghost btn-sm" data-anadr-preset="90">90 nap</button>
       </div>
     </div>
+    ${meta.kind === 'datum' ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
       <div class="lbox-t">${esc(meta.title)}</div>
       <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
       <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
-    </div>
+    </div>`}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
       <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
       <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
     </div>`;
-  _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  if (meta.kind !== 'datum') _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
 
   panel.style.display = '';
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -213,7 +310,19 @@ async function _renderPanelResult() {
   const entries = await fetchEntries({ datumFrom: from, datumTo: to }).catch(() => []);
   if (!entries.length) {
     out.innerHTML = `<div class="empty-st"><div class="empty-ic">📭</div>Nincs adat a kiválasztott időszakra</div>`;
-    _lastSeries = null; return;
+    _lastSeries = null; _setBtns(true); return;
+  }
+
+  if (meta.kind === 'datum') {
+    const byDay = {};
+    entries.forEach(e => { byDay[e.datum] = (byDay[e.datum] || 0) + _kg(e); });
+    _lastHeader = { title: meta.title, from, to };
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(meta.title)} · ${esc(from)} – ${esc(to)}</div>
+      <div class="r-section"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(byDay, from, to)}</div>
+      <div class="r-section"><div class="r-sec-title">📊 Átlag napi termelés, hét napja szerint</div>${_weekdayRows(_weekdayAverages(byDay, from, to))}</div>
+      ${_bestWorstDay(byDay)}`;
+    _setBtns(false);
+    return;
   }
 
   const sel  = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
