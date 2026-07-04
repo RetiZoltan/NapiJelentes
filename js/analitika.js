@@ -40,6 +40,7 @@ const WIDGETS = [
   { id: 'csapatok', icon: '👥', title: 'Csapatok összehasonlítása', unit: 'csapat', max: 8,
     visible: () => Object.keys(state.muszakVezetokMap).length > 0,
     keyFn: _csapatKeyFn, listSrc: () => Object.keys(state.muszakVezetokMap).map(v => `${v} csapata`) },
+  { id: 'anyagspec', icon: '🧩', title: 'Anyag-specializáció mátrix', kind: 'matrix' },
   { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
 ];
 
@@ -79,6 +80,7 @@ const _SET_DEFAULTS = {
   hetiBontas: false,                                     // csak dátum szerinti elemzés
   napSorrend: 'kronologikus',                            // csak dátum szerinti elemzés: 'kronologikus' | 'rangsor'
   defaultRangeDays: 30,                                  // globális: alapértelmezett időszak megnyitáskor
+  matrixDolgN: '8', matrixAnyagN: '6',                    // csak anyag-specializáció mátrix
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -91,6 +93,9 @@ function _fmtUnitPlain(kg, unit) { return unit === 'kg' ? `${Math.round(kg)} kg`
 function _fmtUnitHtml(kg, unit)  { return unit === 'kg' ? fmtKg(kg) : (kg > 0 ? `${(kg / 1000).toFixed(2)} t` : '—'); }
 
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
+/* 'datum' és 'matrix' saját, egyedi nézettel rendelkezik — nincs entitás-választó
+   és nem a közös Top N/rendezés/mértékegység beállítás-blokkot használja. */
+function _hasPicker(meta) { return meta.kind !== 'datum' && meta.kind !== 'matrix'; }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
 
 function _totals(entries, keyFn) {
@@ -423,9 +428,23 @@ function _settingsBlockHtml(meta) {
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetHetiBontas"${s.hetiBontas ? ' checked' : ''}> Heti bontás nézet</label>
       </div>`;
+  } else if (meta.kind === 'matrix') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Dolgozók száma (sorok)</label>
+        <select id="anaSetMatrixDolgN">
+          ${opt('5', s.matrixDolgN, 'Top 5')}${opt('8', s.matrixDolgN, 'Top 8')}${opt('12', s.matrixDolgN, 'Top 12')}${opt('all', s.matrixDolgN, 'Mind')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Anyagok száma (oszlopok)</label>
+        <select id="anaSetMatrixAnyagN">
+          ${opt('3', s.matrixAnyagN, 'Top 3')}${opt('6', s.matrixAnyagN, 'Top 6')}${opt('9', s.matrixAnyagN, 'Top 9')}${opt('all', s.matrixAnyagN, 'Mind')}
+        </select>
+      </div>`;
   }
 
-  const common = meta.kind === 'datum' ? '' : `
+  const common = !_hasPicker(meta) ? '' : `
     <div class="field">
       <label class="lbl">Megjelenítendő elemek</label>
       <select id="anaSetTopN">
@@ -498,7 +517,7 @@ export async function analitikaShowPanel(kind) {
       <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
       <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
     </div>
-    ${meta.kind === 'datum' ? '' : `
+    ${!_hasPicker(meta) ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
       <div class="lbox-t">${esc(meta.title)}</div>
       <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
@@ -512,7 +531,7 @@ export async function analitikaShowPanel(kind) {
       <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
       <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
     </div>`;
-  if (meta.kind !== 'datum') _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  if (_hasPicker(meta)) _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
 
   panel.style.display = '';
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -559,6 +578,13 @@ async function _renderPanelResult() {
     return;
   }
 
+  if (meta.kind === 'matrix') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeMatrixResult();
+    _setBtns(false);
+    return;
+  }
+
   _lastHeader = { title: meta.title, from, to };
   _computeCompareResult();
   _setBtns(false);
@@ -585,10 +611,78 @@ function _computeDatumResult() {
     ${_bestWorstDay(_lastByDay)}`;
 }
 
+/* ── Anyag-specializáció mátrix: soronként dolgozó, oszloponként anyag, a cella
+   az adott dolgozó adott anyagra eső arányát mutatja (nem a teljes termelést) —
+   így az látszik, ki mire "specializálódott", nem az, ki termel a legtöbbet. */
+function _computeMatrixResult() {
+  if (!_lastEntries || !_lastHeader) return;
+  const settings = _getSettings();
+  const dolgN   = settings.matrixDolgN === 'all'   ? Infinity : Number(settings.matrixDolgN || 8);
+  const anyagN  = settings.matrixAnyagN === 'all'  ? Infinity : Number(settings.matrixAnyagN || 6);
+
+  const entries = _lastEntries.filter(e => !state.nevMetadata[e.nev]?.archivalt);
+  const dolgTotals = _totals(entries, e => e.nev);
+  const dolgKeys   = dolgTotals.slice(0, dolgN).map(([k]) => k);
+  const relevant   = entries.filter(e => dolgKeys.includes(e.nev));
+  const anyagKeys  = _totals(relevant, e => (e.anyag || '').trim()).slice(0, anyagN).map(([k]) => k);
+
+  const matrix = {};
+  relevant.forEach(e => {
+    const anyag = (e.anyag || '').trim();
+    const kg = _kg(e); if (kg <= 0) return;
+    const col = anyagKeys.includes(anyag) ? anyag : 'Egyéb';
+    ((matrix[e.nev] ??= {})[col] = (matrix[e.nev]?.[col] || 0) + kg);
+  });
+
+  _renderMatrixResult(dolgKeys, anyagKeys, matrix, Object.fromEntries(dolgTotals));
+}
+
+function _renderMatrixResult(dolgKeys, anyagKeys, matrix, dolgTotalsMap) {
+  const out = E('analitikaRiportDiv'); if (!out) return;
+
+  if (!dolgKeys.length) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`;
+    return;
+  }
+
+  const cols = [...anyagKeys, 'Egyéb'];
+  const cell = (nev, col) => {
+    const rowTotal = dolgTotalsMap[nev] || 0;
+    const kg  = matrix[nev]?.[col] || 0;
+    const pct = rowTotal > 0 ? (kg / rowTotal * 100) : 0;
+    if (kg <= 0) return `<td style="text-align:center;color:var(--text3);">–</td>`;
+    return `<td style="position:relative;text-align:center;padding:0;">
+      <div style="position:absolute;inset:2px;background:var(--accent);opacity:${(0.12 + pct / 100 * 0.75).toFixed(2)};border-radius:3px;"></div>
+      <span style="position:relative;font-size:12px;font-weight:600;padding:8px 6px;display:block;">${pct.toFixed(0)}%</span>
+    </td>`;
+  };
+  const domins = nev => {
+    const row = matrix[nev] || {};
+    const top = Object.entries(row).sort((a, b) => b[1] - a[1])[0];
+    if (!top) return '<span style="color:var(--text3);">–</span>';
+    const pct = dolgTotalsMap[nev] > 0 ? (top[1] / dolgTotalsMap[nev] * 100).toFixed(0) : 0;
+    return `<strong>${esc(top[0])}</strong> <span style="color:var(--text3);font-size:11.5px;">${pct}%</span>`;
+  };
+
+  const headCells = cols.map(c => `<th style="text-align:center;">${esc(c)}</th>`).join('');
+  const rows = dolgKeys.map(nev => `<tr>
+      <td style="font-weight:600;white-space:nowrap;">${esc(nev)}</td>
+      ${cols.map(c => cell(nev, c)).join('')}
+      <td style="white-space:nowrap;">${domins(nev)}</td>
+    </tr>`).join('');
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    <p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">A százalék az adott dolgozó teljes termelésén belüli arányt mutatja, nem az abszolút mennyiséget.</p>
+    <div style="overflow-x:auto;">
+      <table class="stbl"><thead><tr><th>Dolgozó</th>${headCells}<th>Domináns anyag</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
 /* Csak a már lekérdezett _lastEntries-ből számol újra — nincs hálózati hívás,
    így a beállítások (Top N, rendezés, "Egyéb" sor, csempe-specifikus szűrők) váltása azonnali. */
 function _computeCompareResult() {
-  const meta = _wdMeta(_panelKind); if (!meta || meta.kind === 'datum' || !_lastEntries) return;
+  const meta = _wdMeta(_panelKind); if (!meta || !_hasPicker(meta) || !_lastEntries) return;
   const settings = _getSettings();
   const topN = settings.topN === 'all' ? Infinity : Number(settings.topN || meta.max);
   const entries = meta.filterFn ? _lastEntries.filter(e => meta.filterFn(e, settings)) : _lastEntries;
@@ -703,4 +797,6 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetSajatCsapat') { _saveSettings({ sajatCsapat: e.target.checked });  _computeCompareResult();      return; }
   if (e.target.id === 'anaSetDefaultRange'){ _saveSettings({ defaultRangeDays: Number(e.target.value) }); return; }
   if (e.target.id === 'anaSetCompare')     { _saveSettings({ compareEnabled: e.target.checked }); _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetMatrixDolgN') { _saveSettings({ matrixDolgN: e.target.value });   _computeMatrixResult(); return; }
+  if (e.target.id === 'anaSetMatrixAnyagN'){ _saveSettings({ matrixAnyagN: e.target.value });  _computeMatrixResult(); return; }
 }
