@@ -759,29 +759,38 @@ export async function napTorol() {
   } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
 }
 
+/* A megjelenített riport ".r-head" címéből képez fájlnevet (szanitizálva),
+   hogy a mentett fájl neve mindig azt tükrözze, amit a felhasználó ténylegesen
+   lát a képernyőn — nem kell külön időszak-leírást összeállítani hívásonként. */
+function _reportFilename(el, fallbackLabel) {
+  const raw  = el?.querySelector('.r-head')?.textContent || '';
+  const name = raw.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  return (name || `${fallbackLabel} ${tod()}`).slice(0, 120);
+}
+
 /* ── Mentés képként ── */
-export function napiKepMent()      { kepMentDiv('napiRiportDiv',      E('riportD').value || tod()); }
-export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', tod()); }
+export function napiKepMent()      { kepMentDiv('napiRiportDiv',      'Napi jelentés'); }
+export function idoszakosKepMent() { kepMentDiv('idoszakosRiportDiv', 'Időszakos jelentés'); }
 
 /* ── PDF export ── */
 export async function napiPdfMent() {
   const el = E('napiRiportDiv');
   if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
-  await _exportPdf(el, `napi_riport_${E('riportD').value || tod()}.pdf`);
+  await _exportPdf(el, 'Napi jelentés');
 }
 
 export async function idoszakosPdfMent() {
   const el = E('idoszakosRiportDiv');
   if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
-  await _exportPdf(el, `idoszakos_riport_${tod()}.pdf`);
+  await _exportPdf(el, 'Időszakos jelentés');
 }
 
-export function analitikaKepMent() { kepMentDiv('analitikaRiportDiv', tod()); }
+export function analitikaKepMent() { kepMentDiv('analitikaRiportDiv', 'Analitika'); }
 
 export async function analitikaPdfMent() {
   const el = E('analitikaRiportDiv');
   if (!el.children.length || el.querySelector('.empty-st')) { msg('Nincs riport a PDF-hez!', 'error'); return; }
-  await _exportPdf(el, `analitika_${tod()}.pdf`);
+  await _exportPdf(el, 'Analitika');
 }
 
 // HTML <link> stíluslapok ideiglenes eltávolítása a DOM-ból.
@@ -802,10 +811,11 @@ function _exportOverlay() {
   return ov;
 }
 
-async function _exportPdf(el, filename) {
+async function _exportPdf(el, fallbackLabel) {
   if (!window.jspdf) { msg('jsPDF nem töltődött be!', 'error'); return; }
   msg('PDF generálás…', 'info', 7000);
 
+  const filename = `${_reportFilename(el, fallbackLabel)}.pdf`;
   const { wrap, bg } = _buildWrap(el);
   document.body.appendChild(wrap);
 
@@ -891,7 +901,7 @@ export function idoszakosXlsxMent() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `riport_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.download = `${_reportFilename(raw, 'Időszakos jelentés')}.xlsx`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     msg('Excel mentve!');
@@ -1016,7 +1026,8 @@ function _buildWrap(el) {
   return { wrap, bg: LM.bg };
 }
 
-function kepMentDiv(divId, suffix) {
+function kepMentDiv(divId, fallbackLabel) {
+  const filename = `${_reportFilename(E(divId), fallbackLabel)}.jpg`;
   const { wrap, bg } = _buildWrap(E(divId));
   document.body.appendChild(wrap);
   const ov    = _exportOverlay();
@@ -1030,7 +1041,7 @@ function kepMentDiv(divId, suffix) {
       _restoreLinks(links); document.body.removeChild(ov);
       document.body.removeChild(wrap);
       const a = document.createElement('a');
-      a.download = `jelentes_${suffix}.jpg`;
+      a.download = filename;
       a.href = canvas.toDataURL('image/jpeg', .93);
       a.click();
       msg('Kép mentve!');
