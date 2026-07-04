@@ -326,7 +326,7 @@ function _renderFilteredAudit() {
 const _BACKUP_COLLECTIONS = [
   'entries', 'dailyNotes', 'users', 'roles', 'notices', 'auditLog',
   'employees', 'absences', 'overtimes', 'machines', 'machineEvents',
-  'stockLocations', 'stockMovements', 'megkezdettZsakok', 'premiumHistory',
+  'stockLocations', 'stockMovements', 'megkezdettZsakok', 'premiumHistory', 'tasks',
 ];
 const _BACKUP_CONFIG_DOCS = ['lists', 'premiumConfig']; // config/{docId}
 
