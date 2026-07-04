@@ -1,7 +1,7 @@
 import { fetchEntries, fillSel } from './db.js';
 import { state, isMuszakVezeto } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
-import { analitikaKepMent, analitikaPdfMent } from './reports.js';
+import { analitikaKepMent, analitikaPdfMent, nyomtatDiv } from './reports.js';
 import { _sparkline } from './dashboard.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
@@ -530,6 +530,7 @@ export async function analitikaShowPanel(kind) {
     <div class="btn-row" style="margin-top:12px;">
       <button class="btn btn-ghost" style="flex:1;" id="analitikaKepMentBtn" disabled>⬇ Kép</button>
       <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
+      <button class="btn btn-ghost" id="analitikaNyomtatBtn" disabled>🖨 Nyomtat</button>
     </div>`;
   if (_hasPicker(meta)) _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
 
@@ -546,7 +547,7 @@ function _closePanel() {
 }
 
 function _setBtns(disabled) {
-  ['analitikaKepMentBtn', 'analitikaPdfBtn'].forEach(id => { const el = E(id); if (el) el.disabled = disabled; });
+  ['analitikaKepMentBtn', 'analitikaPdfBtn', 'analitikaNyomtatBtn'].forEach(id => { const el = E(id); if (el) el.disabled = disabled; });
 }
 
 async function _renderPanelResult() {
@@ -771,6 +772,7 @@ export function analitikaPanelClick(e) {
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
   if (e.target.closest('#analitikaKepMentBtn'))  { analitikaKepMent(); return; }
   if (e.target.closest('#analitikaPdfBtn'))      { analitikaPdfMent(); return; }
+  if (e.target.closest('#analitikaNyomtatBtn'))  { nyomtatDiv('analitikaRiportDiv'); return; }
   const row = e.target.closest('tr.ana-row');
   if (row) {
     const label = row.dataset.label;

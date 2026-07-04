@@ -857,7 +857,7 @@ async function _exportPdf(el, fallbackLabel) {
       }
     }
     pdf.save(filename);
-    msg('PDF mentve!');
+    msg(`PDF mentve: ${filename}`);
   } catch (err) {
     if (document.body.contains(wrap)) document.body.removeChild(wrap);
     console.error('PDF export hiba:', err);
@@ -896,15 +896,16 @@ export function idoszakosXlsxMent() {
       window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.table_to_sheet(tbl), finalName);
     });
 
+    const filename = `${_reportFilename(raw, 'Időszakos jelentés')}.xlsx`;
     const out  = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `${_reportFilename(raw, 'Időszakos jelentés')}.xlsx`;
+    a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    msg('Excel mentve!');
+    msg(`Excel mentve: ${filename}`);
   } catch (err) {
     msg('Excel hiba: ' + err.message, 'error', 6000);
     console.error('XLSX export error:', err);
@@ -1044,7 +1045,7 @@ function kepMentDiv(divId, fallbackLabel) {
       a.download = filename;
       a.href = canvas.toDataURL('image/jpeg', .93);
       a.click();
-      msg('Kép mentve!');
+      msg(`Kép mentve: ${filename}`);
     })
     .catch(err => {
       _restoreLinks(links); document.body.removeChild(ov);
