@@ -1331,11 +1331,12 @@
             <button class="btn btn-primary" id="exportAllBtn">⬇ Excel exportálás (összes adat)</button>
           </div>
           <div class="card" style="margin-bottom:14px">
-            <div class="card-title"><span class="card-title-icon">💾</span>Bejegyzés backup</div>
+            <div class="card-title"><span class="card-title-icon">💾</span>Teljes adatbázis mentés/visszaállítás</div>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px">A rendszer teljes adatállományát menti JSON fájlba (bejegyzések, dolgozók, gépek, készlet, felhasználók, szerepkörök, prémium, audit napló — minden). A betöltés törli és lecseréli az érintett adatokat a mentett állapotra — ez nem visszavonható.</p>
             <div class="btn-row" style="margin-top:4px">
-              <button class="btn btn-ghost" id="mentFajlBtn">⬇ Mentés fájlba (JSON)</button>
+              <button class="btn btn-ghost" id="mentFajlBtn">⬇ Teljes mentés (JSON)</button>
               <input type="file" id="fajlInput" accept=".json" style="display:none">
-              <button class="btn btn-ghost" id="fajlKivBtn">⬆ Betöltés fájlból</button>
+              <button class="btn btn-ghost" id="fajlKivBtn">⬆ Visszaállítás fájlból</button>
             </div>
           </div>
           <div class="danger-box">

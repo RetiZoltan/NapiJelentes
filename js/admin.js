@@ -1,5 +1,5 @@
 import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-         collection, query, getDocs, orderBy, limit, serverTimestamp, writeBatch } from './firebase.js';
+         collection, query, getDocs, orderBy, limit, serverTimestamp, writeBatch, Timestamp } from './firebase.js';
 import { logAction, loadAuditLog, renderAuditLog, ACTION_LABELS } from './auditlog.js';
 import { state, isMainAdmin, hasPerm, canManageUsers } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
@@ -321,27 +321,83 @@ function _renderFilteredAudit() {
   }
 }
 
-/* ── Fájl export / import ── */
+/* ── Teljes körű adatbázis export / import ──
+   Minden kollekciót lefed, amit az app használ — nem csak a bejegyzéseket. */
+const _BACKUP_COLLECTIONS = [
+  'entries', 'dailyNotes', 'users', 'roles', 'notices', 'auditLog',
+  'employees', 'absences', 'overtimes', 'machines', 'machineEvents',
+  'stockLocations', 'stockMovements', 'megkezdettZsakok', 'premiumHistory',
+];
+const _BACKUP_CONFIG_DOCS = ['lists', 'premiumConfig']; // config/{docId}
+
+/* Firestore Timestamp mezőket (duck-typing: van .toDate() metódusa) egy
+   szerializálható jelölővé alakít, rekurzívan — tömbökre és beágyazott
+   objektumokra (pl. employees.kepzesek[]) is lefut, nem kell kollekciónként
+   felsorolni, melyik mező időbélyeg. */
+function _serializeValue(v) {
+  if (v && typeof v.toDate === 'function') return { __ts: v.toDate().toISOString() };
+  if (Array.isArray(v)) return v.map(_serializeValue);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, vv] of Object.entries(v)) out[k] = _serializeValue(vv);
+    return out;
+  }
+  return v;
+}
+function _deserializeValue(v) {
+  if (v && typeof v === 'object' && '__ts' in v) return Timestamp.fromDate(new Date(v.__ts));
+  if (Array.isArray(v)) return v.map(_deserializeValue);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, vv] of Object.entries(v)) out[k] = _deserializeValue(vv);
+    return out;
+  }
+  return v;
+}
+
+/* Firestore batch limit = 500 művelet — chunkolva commitolunk. */
+async function _commitChunked(ops, chunkSize = 450) {
+  for (let i = 0; i < ops.length; i += chunkSize) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + chunkSize).forEach(op => op(batch));
+    await batch.commit();
+  }
+}
+
+/* Egy kollekció teljes cseréje: töröl mindent, majd visszaírja a mentett
+   dokumentumokat az eredeti ID-jukkal és időbélyegeikkel. */
+async function _replaceCollection(name, items) {
+  const existing = await getDocs(collection(db, name));
+  await _commitChunked(existing.docs.map(d => b => b.delete(d.ref)));
+  await _commitChunked(items.map(item => b => {
+    const { id, ...rest } = item;
+    b.set(doc(db, name, id), _deserializeValue(rest));
+  }));
+}
+
 export async function mentFajl() {
   try {
-    const [eSnap, nSnap, mSnap] = await Promise.all([
-      getDocs(collection(db, 'entries')),
-      getDoc(doc(db, 'config', 'lists')),
-      getDocs(collection(db, 'dailyNotes'))
+    msg('Teljes mentés folyamatban… ez eltarthat egy ideig.', 'info', 20000);
+    const [collSnaps, configSnaps] = await Promise.all([
+      Promise.all(_BACKUP_COLLECTIONS.map(c => getDocs(collection(db, c)))),
+      Promise.all(_BACKUP_CONFIG_DOCS.map(c => getDoc(doc(db, 'config', c)))),
     ]);
-    const data = {
-      entries:    eSnap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate?.()?.toISOString() })),
-      lists:      nSnap.exists() ? nSnap.data() : {},
-      dailyNotes: Object.fromEntries(mSnap.docs.map(d => [d.id, d.data().szoveg])),
-      exportDate: new Date().toISOString()
-    };
+
+    const data = { schemaVersion: 2, exportDate: new Date().toISOString() };
+    _BACKUP_COLLECTIONS.forEach((name, i) => {
+      data[name] = collSnaps[i].docs.map(d => ({ id: d.id, ..._serializeValue(d.data()) }));
+    });
+    _BACKUP_CONFIG_DOCS.forEach((name, i) => {
+      if (configSnaps[i].exists()) data[`config_${name}`] = _serializeValue(configSnaps[i].data());
+    });
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.download = `napi_jelentes_${tod()}.json`;
+    a.download = `napi_jelentes_teljes_${tod()}.json`;
     a.href = URL.createObjectURL(blob);
     a.click();
     URL.revokeObjectURL(a.href);
-    msg('Fájl mentve!');
+    msg('Teljes adatbázis mentve!');
   } catch (e) { msg('Export hiba: ' + e.message, 'error'); }
 }
 
@@ -351,25 +407,26 @@ export async function betoltFajl(e) {
   r.onload = async ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!confirm('Betöltés felülírja az összes jelenlegi adatot! Folytatod?')) return;
-      msg('Betöltés folyamatban…', 'info', 10000);
-      const batch = writeBatch(db);
-      if (data.entries) {
-        data.entries.forEach(entry => {
-          const { id, ...rest } = entry;
-          batch.set(doc(collection(db, 'entries')), { ...rest, createdAt: serverTimestamp() });
-        });
-      }
-      await batch.commit();
-      if (data.lists) await setDoc(doc(db, 'config', 'lists'), data.lists);
-      if (data.dailyNotes) {
-        const nb = writeBatch(db);
-        Object.entries(data.dailyNotes).forEach(([d, s]) => nb.set(doc(db, 'dailyNotes', d), { szoveg: s, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() }));
-        await nb.commit();
-      }
-      msg('Adatok betöltve!');
-      await loadLists();
-    } catch { msg('Érvénytelen fájl!', 'error'); }
+      if (!data.exportDate) { msg('Érvénytelen fájl!', 'error'); return; }
+
+      const presentColls   = _BACKUP_COLLECTIONS.filter(c => Array.isArray(data[c]));
+      const presentConfigs = _BACKUP_CONFIG_DOCS.filter(c => data[`config_${c}`]);
+      if (!presentColls.length && !presentConfigs.length) { msg('A fájl nem tartalmaz visszaállítható adatot!', 'error'); return; }
+
+      const summary = presentColls.map(c => `${c}: ${data[c].length} db`).join('\n');
+      const datum = data.exportDate.slice(0, 10);
+      if (!confirm(`Ez a mentés (${datum}) az alábbi adatokat tartalmazza:\n\n${summary}\n\nA BETÖLTÉS TÖRLI a jelenlegi ilyen adatokat, és lecseréli a mentettre! Folytatod?`)) return;
+      if (!confirm('Biztosan? Ez a művelet NEM visszavonható!')) return;
+
+      msg('Visszaállítás folyamatban… Ne zárd be az oldalt.', 'info', 30000);
+
+      for (const name of presentColls) await _replaceCollection(name, data[name]);
+      for (const name of presentConfigs) await setDoc(doc(db, 'config', name), _deserializeValue(data[`config_${name}`]));
+
+      await logAction('admin.backup_restore', { exportDate: data.exportDate, collections: presentColls });
+      msg('Visszaállítás kész! Az oldal újratöltődik…');
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) { msg('Betöltési hiba: ' + err.message, 'error'); }
   };
   r.readAsText(f);
   e.target.value = '';

@@ -25,6 +25,7 @@ export const ACTION_LABELS = {
   'user.disable':        'Felhasználó letiltva',
   'user.enable':         'Felhasználó aktiválva',
   'dailyNote.delete':    'Napi megjegyzés törölve',
+  'admin.backup_restore': 'Teljes adatbázis visszaállítva mentésből',
 };
 
 const ACTION_ICONS = {
@@ -39,6 +40,7 @@ const ACTION_ICONS = {
   premium:  '💰',
   user:     '👤',
   dailyNote:'📝',
+  admin:    '💾',
 };
 
 export async function logAction(action, detail = {}) {
