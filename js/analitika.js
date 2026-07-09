@@ -41,6 +41,7 @@ const WIDGETS = [
     visible: () => Object.keys(state.muszakVezetokMap).length > 0,
     keyFn: _csapatKeyFn, listSrc: () => Object.keys(state.muszakVezetokMap).map(v => `${v} csapata`) },
   { id: 'anyagspec', icon: '🧩', title: 'Anyag-specializáció mátrix', kind: 'matrix' },
+  { id: 'anyagkereso', icon: '🔍', title: 'Anyag kereső', kind: 'search' },
   { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
 ];
 
@@ -59,6 +60,7 @@ let _lastHeader  = null;
 let _lastEntries = null;
 let _lastByDay   = null;
 let _expandedLabel = null;      // melyik táblázatsor napi trendje van kinyitva
+let _searchDebounceT = null;    // anyag kereső élő szűrésének debounce timere
 
 /* Előző időszak összevetéséhez: a nyers (szűretlen) bejegyzéseket dátumtartomány
    szerint gyorsítótárazzuk, hogy a beállítások (Top N, szűrők stb.) váltása
@@ -93,9 +95,10 @@ function _fmtUnitPlain(kg, unit) { return unit === 'kg' ? `${Math.round(kg)} kg`
 function _fmtUnitHtml(kg, unit)  { return unit === 'kg' ? fmtKg(kg) : (kg > 0 ? `${(kg / 1000).toFixed(2)} t` : '—'); }
 
 function _wdMeta(kind) { return WIDGETS.find(w => w.id === kind); }
-/* 'datum' és 'matrix' saját, egyedi nézettel rendelkezik — nincs entitás-választó
-   és nem a közös Top N/rendezés/mértékegység beállítás-blokkot használja. */
-function _hasPicker(meta) { return meta.kind !== 'datum' && meta.kind !== 'matrix'; }
+/* 'datum', 'matrix' és 'search' saját, egyedi nézettel rendelkezik — nincs
+   entitás-választó és nem a közös Top N/rendezés/mértékegység beállítás-blokkot
+   használja. */
+function _hasPicker(meta) { return !meta.kind; }
 function _kg(e) { return (e.sulyok || []).reduce((s, x) => s + x.suly, 0); }
 
 function _totals(entries, keyFn) {
@@ -523,8 +526,13 @@ export async function analitikaShowPanel(kind) {
       <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
       <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
     </div>`}
+    ${meta.kind === 'search' ? `
+    <div class="field" style="margin-bottom:14px;">
+      <label class="lbl">Anyag keresése</label>
+      <input type="text" id="anaSearchInput" placeholder="Kezdj el gépelni egy anyagnevet…" autocomplete="off">
+    </div>` : `
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
-    ${_settingsBlockHtml(meta)}
+    ${_settingsBlockHtml(meta)}`}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
@@ -583,6 +591,12 @@ async function _renderPanelResult() {
     _lastHeader = { title: meta.title, from, to };
     _computeMatrixResult();
     _setBtns(false);
+    return;
+  }
+
+  if (meta.kind === 'search') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeSearchResult();
     return;
   }
 
@@ -678,6 +692,54 @@ function _renderMatrixResult(dolgKeys, anyagKeys, matrix, dolgTotalsMap) {
     <div style="overflow-x:auto;">
       <table class="stbl"><thead><tr><th>Dolgozó</th>${headCells}<th>Domináns anyag</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
+}
+
+/* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
+   nyers bejegyzés-lista + összsúly — nem aggregál dolgozó/anyag szerint,
+   mint a többi csempe, hanem a konkrét egyedi bejegyzéseket listázza. */
+function _computeSearchResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastHeader) return;
+  const query = (E('anaSearchInput')?.value || '').trim();
+
+  if (!query) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">🔍</div>Kezdj el gépelni egy anyagnevet a kereséshez.</div>`;
+    _setBtns(true);
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const rows = (_lastEntries || [])
+    .filter(e => (e.anyag || '').toLowerCase().includes(q))
+    .map(e => ({ ...e, _kg: _kg(e) }))
+    .filter(r => r._kg > 0)
+    .sort((a, b) => b.datum.localeCompare(a.datum));
+
+  if (!rows.length) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · "${esc(query)}" · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>Nincs találat</div>`;
+    _setBtns(true);
+    return;
+  }
+
+  const total = rows.reduce((s, r) => s + r._kg, 0);
+  const tableRows = rows.map(r => `<tr>
+      <td style="white-space:nowrap;">${esc(fmtS(r.datum))}</td>
+      <td>${esc(r.nev)}</td>
+      <td>${esc(r.reszleg || '—')}</td>
+      <td>${esc(r.anyag)}</td>
+      <td class="v-bold">${fmtKg(r._kg)}</td>
+    </tr>`).join('');
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · "${esc(query)}" · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    <div class="nossz" style="margin-bottom:14px;">
+      <div class="nossz-item"><div class="nossz-val">${rows.length}</div><div class="nossz-lbl">Találat</div></div>
+      <div class="nossz-item"><div class="nossz-val">${(total / 1000).toFixed(2)} t</div><div class="nossz-lbl">Összsúly</div></div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="stbl"><thead><tr><th>Dátum</th><th>Dolgozó</th><th>Részleg</th><th>Anyag</th><th>Súly</th></tr></thead><tbody>${tableRows}</tbody></table>
+    </div>`;
+  _setBtns(false);
 }
 
 /* Csak a már lekérdezett _lastEntries-ből számol újra — nincs hálózati hívás,
@@ -801,4 +863,12 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetCompare')     { _saveSettings({ compareEnabled: e.target.checked }); _computeCompareResult(); return; }
   if (e.target.id === 'anaSetMatrixDolgN') { _saveSettings({ matrixDolgN: e.target.value });   _computeMatrixResult(); return; }
   if (e.target.id === 'anaSetMatrixAnyagN'){ _saveSettings({ matrixAnyagN: e.target.value });  _computeMatrixResult(); return; }
+}
+
+/* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,
+   ugyanaz a minta, mint a készlet keresőmezőinél (js/main.js). ── */
+export function analitikaPanelInput(e) {
+  if (e.target.id !== 'anaSearchInput') return;
+  clearTimeout(_searchDebounceT);
+  _searchDebounceT = setTimeout(_computeSearchResult, 280);
 }
