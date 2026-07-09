@@ -83,6 +83,8 @@ const _SET_DEFAULTS = {
   napSorrend: 'kronologikus',                            // csak dátum szerinti elemzés: 'kronologikus' | 'rangsor'
   defaultRangeDays: 30,                                  // globális: alapértelmezett időszak megnyitáskor
   matrixDolgN: '8', matrixAnyagN: '6',                    // csak anyag-specializáció mátrix
+  searchMode: 'reszletes', searchSortBy: 'datum', searchUnit: 't', // csak anyag kereső
+  searchShowDatum: true, searchShowDolgozo: true, searchShowReszleg: true,
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -445,6 +447,35 @@ function _settingsBlockHtml(meta) {
           ${opt('3', s.matrixAnyagN, 'Top 3')}${opt('6', s.matrixAnyagN, 'Top 6')}${opt('9', s.matrixAnyagN, 'Top 9')}${opt('all', s.matrixAnyagN, 'Mind')}
         </select>
       </div>`;
+  } else if (meta.kind === 'search') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Nézet</label>
+        <select id="anaSetSearchMode">
+          ${opt('reszletes', s.searchMode, 'Részletes lista')}${opt('osszesitve', s.searchMode, 'Anyagonként összesítve')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Rendezés</label>
+        <select id="anaSetSearchSort">
+          ${opt('datum', s.searchSortBy, 'Dátum szerint')}${opt('suly', s.searchSortBy, 'Súly szerint')}${opt('anyag', s.searchSortBy, 'Anyag szerint (ABC)')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Mértékegység</label>
+        <select id="anaSetSearchUnit">
+          ${opt('t', s.searchUnit, 'Tonna')}${opt('kg', s.searchUnit, 'Kilogramm')}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetSearchDatum"${s.searchShowDatum ? ' checked' : ''}> Dátum oszlop</label>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetSearchDolgozo"${s.searchShowDolgozo ? ' checked' : ''}> Dolgozó oszlop</label>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetSearchReszleg"${s.searchShowReszleg ? ' checked' : ''}> Részleg oszlop</label>
+      </div>`;
   }
 
   const common = !_hasPicker(meta) ? '' : `
@@ -530,9 +561,9 @@ export async function analitikaShowPanel(kind) {
     <div class="field" style="margin-bottom:14px;">
       <label class="lbl">Anyag keresése</label>
       <input type="text" id="anaSearchInput" placeholder="Kezdj el gépelni egy anyagnevet…" autocomplete="off">
-    </div>` : `
+    </div>` : ''}
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
-    ${_settingsBlockHtml(meta)}`}
+    ${_settingsBlockHtml(meta)}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
     <div id="analitikaRiportDiv"></div>
     <div class="btn-row" style="margin-top:12px;">
@@ -700,6 +731,7 @@ function _renderMatrixResult(dolgKeys, anyagKeys, matrix, dolgTotalsMap) {
 function _computeSearchResult() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastHeader) return;
   const query = (E('anaSearchInput')?.value || '').trim();
+  const settings = _getSettings();
 
   if (!query) {
     out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
@@ -712,8 +744,7 @@ function _computeSearchResult() {
   const rows = (_lastEntries || [])
     .filter(e => (e.anyag || '').toLowerCase().includes(q))
     .map(e => ({ ...e, _kg: _kg(e) }))
-    .filter(r => r._kg > 0)
-    .sort((a, b) => b.datum.localeCompare(a.datum));
+    .filter(r => r._kg > 0);
 
   if (!rows.length) {
     out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · "${esc(query)}" · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
@@ -723,22 +754,48 @@ function _computeSearchResult() {
   }
 
   const total = rows.reduce((s, r) => s + r._kg, 0);
-  const tableRows = rows.map(r => `<tr>
-      <td style="white-space:nowrap;">${esc(fmtS(r.datum))}</td>
-      <td>${esc(r.nev)}</td>
-      <td>${esc(r.reszleg || '—')}</td>
-      <td>${esc(r.anyag)}</td>
-      <td class="v-bold">${fmtKg(r._kg)}</td>
-    </tr>`).join('');
+  let bodyHtml;
+
+  if (settings.searchMode === 'osszesitve') {
+    const byAnyag = {};
+    rows.forEach(r => {
+      (byAnyag[r.anyag] ??= { anyag: r.anyag, kg: 0, count: 0 });
+      byAnyag[r.anyag].kg += r._kg;
+      byAnyag[r.anyag].count++;
+    });
+    const list = Object.values(byAnyag).sort(
+      settings.searchSortBy === 'anyag' ? (a, b) => a.anyag.localeCompare(b.anyag, 'hu') : (a, b) => b.kg - a.kg
+    );
+    bodyHtml = `<table class="stbl"><thead><tr><th>Anyag</th><th>Összsúly</th><th>Bejegyzések</th></tr></thead><tbody>
+      ${list.map(g => `<tr><td style="font-weight:600;">${esc(g.anyag)}</td><td class="v-bold">${_fmtUnitHtml(g.kg, settings.searchUnit)}</td><td>${g.count}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else {
+    rows.sort(
+      settings.searchSortBy === 'suly'  ? (a, b) => b._kg - a._kg :
+      settings.searchSortBy === 'anyag' ? (a, b) => a.anyag.localeCompare(b.anyag, 'hu') :
+      (a, b) => b.datum.localeCompare(a.datum)
+    );
+    const heads = [
+      settings.searchShowDatum   ? '<th>Dátum</th>'   : '',
+      settings.searchShowDolgozo ? '<th>Dolgozó</th>' : '',
+      settings.searchShowReszleg ? '<th>Részleg</th>' : '',
+      '<th>Anyag</th><th>Súly</th>',
+    ].join('');
+    const tableRows = rows.map(r => [
+      settings.searchShowDatum   ? `<td style="white-space:nowrap;">${esc(fmtS(r.datum))}</td>` : '',
+      settings.searchShowDolgozo ? `<td>${esc(r.nev)}</td>` : '',
+      settings.searchShowReszleg ? `<td>${esc(r.reszleg || '—')}</td>` : '',
+      `<td>${esc(r.anyag)}</td><td class="v-bold">${_fmtUnitHtml(r._kg, settings.searchUnit)}</td>`,
+    ].join('')).map(cells => `<tr>${cells}</tr>`).join('');
+    bodyHtml = `<table class="stbl"><thead><tr>${heads}</tr></thead><tbody>${tableRows}</tbody></table>`;
+  }
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · "${esc(query)}" · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
     <div class="nossz" style="margin-bottom:14px;">
       <div class="nossz-item"><div class="nossz-val">${rows.length}</div><div class="nossz-lbl">Találat</div></div>
-      <div class="nossz-item"><div class="nossz-val">${(total / 1000).toFixed(2)} t</div><div class="nossz-lbl">Összsúly</div></div>
+      <div class="nossz-item"><div class="nossz-val">${_fmtUnitPlain(total, settings.searchUnit)}</div><div class="nossz-lbl">Összsúly</div></div>
     </div>
-    <div style="overflow-x:auto;">
-      <table class="stbl"><thead><tr><th>Dátum</th><th>Dolgozó</th><th>Részleg</th><th>Anyag</th><th>Súly</th></tr></thead><tbody>${tableRows}</tbody></table>
-    </div>`;
+    <div style="overflow-x:auto;">${bodyHtml}</div>`;
   _setBtns(false);
 }
 
@@ -863,6 +920,12 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetCompare')     { _saveSettings({ compareEnabled: e.target.checked }); _computeCompareResult(); return; }
   if (e.target.id === 'anaSetMatrixDolgN') { _saveSettings({ matrixDolgN: e.target.value });   _computeMatrixResult(); return; }
   if (e.target.id === 'anaSetMatrixAnyagN'){ _saveSettings({ matrixAnyagN: e.target.value });  _computeMatrixResult(); return; }
+  if (e.target.id === 'anaSetSearchMode')    { _saveSettings({ searchMode: e.target.value });        _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetSearchSort')    { _saveSettings({ searchSortBy: e.target.value });       _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetSearchUnit')    { _saveSettings({ searchUnit: e.target.value });          _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetSearchDatum')   { _saveSettings({ searchShowDatum: e.target.checked });   _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetSearchDolgozo') { _saveSettings({ searchShowDolgozo: e.target.checked }); _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetSearchReszleg') { _saveSettings({ searchShowReszleg: e.target.checked }); _computeSearchResult(); return; }
 }
 
 /* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,
