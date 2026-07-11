@@ -150,6 +150,7 @@
     <button class="tab-btn active" data-tab="dashboard" id="tabBtnDashboard"><span class="tb-i">🏠</span><span class="tb-t">Áttekintés</span></button>
     <button class="tab-btn" data-tab="adatbevitel" id="tabBtnAdatbevitel"><span class="tb-i">✏️</span><span class="tb-t">Adatbevitel</span></button>
     <button class="tab-btn" data-tab="jelentesek" id="tabBtnJelentesek" style="display:none"><span class="tb-i">📋</span><span class="tb-t">Jelentések</span></button>
+    <button class="tab-btn" data-tab="celok" id="tabBtnCelok" style="display:none"><span class="tb-i">🎯</span><span class="tb-t">Célok</span></button>
     <button class="tab-btn" data-tab="naptar" id="tabBtnNaptar" style="display:none"><span class="tb-i">📅</span><span class="tb-t">Naptár</span></button>
     <button class="tab-btn" data-tab="elemzes" id="tabBtnElemzes" style="display:none"><span class="tb-i">📈</span><span class="tb-t">Elemzés</span></button>
     <button class="tab-btn" data-tab="feladatok" id="tabBtnFeladatok" style="display:none"><span class="tb-i">📌</span><span class="tb-t">Feladatok</span></button>
@@ -494,6 +495,21 @@
       <div id="analitikaWidgets" class="ana-grid"></div>
       <div id="analitikaPanel" class="card" style="display:none;margin-top:18px;"></div>
       </div><!-- /jstab-analitika -->
+    </div>
+
+    <!-- ══ CÉLOK ══ -->
+    <div id="tab-celok" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
+          <div class="field"><label class="lbl">Hónap</label><input type="month" id="celokHonapInput"></div>
+          <div class="field" id="celokMentWrap" style="margin-bottom:13px;display:none;"><button class="btn btn-primary btn-sm" id="celokMentBtn">💾 Mentés</button></div>
+        </div>
+        <div id="celokConfigDiv"></div>
+      </div>
+      <div class="card" style="margin-top:18px;">
+        <h3 style="margin:0 0 12px;font-size:15px;">Célok teljesítése</h3>
+        <div id="celokReviewDiv"><div class="empty-st"><div class="empty-ic">🎯</div>Betöltés…</div></div>
+      </div>
     </div>
 
     <!-- ══ NAPTÁR ══ -->
@@ -1171,6 +1187,8 @@
                 <div class="perm-group-hdr">💰 Pénzügyi</div>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pPremiumMegtekintes"><span class="perm-chk-lbl">Prémium megtekintés</span></span><span class="perm-chk-desc">Prémium számítások és eredmények</span></label>
                 <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pPremiumKezeles"><span class="perm-chk-lbl">Prémium kezelés</span></span><span class="perm-chk-desc">Prémium konfiguráció módosítása</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pCelokMegtekintes"><span class="perm-chk-lbl">Célok megtekintés</span></span><span class="perm-chk-desc">Havi célok és teljesítés áttekintése</span></label>
+                <label class="perm-chk"><span class="perm-chk-row"><input type="checkbox" id="pCelokKezeles"><span class="perm-chk-lbl">Célok kezelése</span></span><span class="perm-chk-desc">Havi anyagcélok beállítása</span></label>
               </div>
               <div class="perm-group">
                 <div class="perm-group-hdr">🔧 Adminisztráció</div>

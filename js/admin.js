@@ -74,6 +74,8 @@ const ALL_PERMS = [
   { htmlId:'pGepekKezeles',       key:'gepekKezeles',         group:'szervez' },
   { htmlId:'pPremiumMegtekintes', key:'premiumMegtekintes',   group:'penzugy' },
   { htmlId:'pPremiumKezeles',     key:'premiumKezeles',       group:'penzugy' },
+  { htmlId:'pCelokMegtekintes',   key:'celokMegtekintes',     group:'penzugy' },
+  { htmlId:'pCelokKezeles',       key:'celokKezeles',         group:'penzugy' },
   { htmlId:'pKozlemenyIras',      key:'kozlemenyIras',        group:'admin'   },
   { htmlId:'pFelhasznalok',       key:'felhasznalokKezelese', group:'admin'   },
 ];
@@ -83,7 +85,7 @@ const PERM_LABELS = {
   naptar:'Naptár', elemzes:'Elemzés', adatExport:'Adat export', muszakVezeto:'Műszakvezető',
   dolgozokMegtekintes:'Dolgozók megtekintés', dolgozokKezeles:'Dolgozók kezelése',
   feladatokKezeles:'Feladatok kezelése', keszletMegtekintes:'Készlet megtekintés', keszletKezeles:'Készlet kezelése', gepekMegtekintes:'Gépek megtekintés', gepekKezeles:'Gépek kezelése', premiumMegtekintes:'Prémium megtekintés',
-  premiumKezeles:'Prémium kezelés', kozlemenyIras:'Közlemény írás',
+  premiumKezeles:'Prémium kezelés', celokMegtekintes:'Célok megtekintés', celokKezeles:'Célok kezelése', kozlemenyIras:'Közlemény írás',
   felhasznalokKezelese:'Felhasználók kezelése',
 };
 
@@ -326,7 +328,7 @@ function _renderFilteredAudit() {
 const _BACKUP_COLLECTIONS = [
   'entries', 'dailyNotes', 'users', 'roles', 'notices', 'auditLog',
   'employees', 'absences', 'overtimes', 'machines', 'machineEvents',
-  'stockLocations', 'stockMovements', 'megkezdettZsakok', 'premiumHistory', 'tasks',
+  'stockLocations', 'stockMovements', 'megkezdettZsakok', 'premiumHistory', 'tasks', 'celok',
 ];
 const _BACKUP_CONFIG_DOCS = ['lists', 'premiumConfig']; // config/{docId}
 

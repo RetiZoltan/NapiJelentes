@@ -43,6 +43,7 @@ import { initKeszletTab, switchKeszletTab, loadKeszlet,
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
+import { initCelokTab, celokHonapChange, saveCelokConfig, celokReviewClick } from './celok.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
@@ -67,7 +68,7 @@ function updateIdoszakBadge() {
   const mo = ['jan.','feb.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'][m-1];
   badge.textContent = [m + '. ' + mo + ' ' + d + '.', ido, reszleg].filter(Boolean).join(' · ');
 }
-const TAB_ORDER = ['dashboard','adatbevitel','jelentesek','naptar','elemzes','feladatok','dolgozok','premium','admin'];
+const TAB_ORDER = ['dashboard','adatbevitel','jelentesek','celok','naptar','elemzes','feladatok','dolgozok','premium','admin'];
 
 /* ── Bootstrap / user setup ── */
 async function ensureUserDoc(fbUser) {
@@ -129,6 +130,7 @@ function buildAppUI() {
   E('tabBtnDashboard').style.display   = '';
   E('tabBtnAdatbevitel').style.display = (isMainAdmin() || hasPerm('adatbevitel'))                                      ? '' : 'none';
   E('tabBtnJelentesek').style.display  = (isMainAdmin() || hasPerm('sajatJelentes') || hasPerm('mindenJelentes') || hasPerm('muszakVezeto')) ? '' : 'none';
+  E('tabBtnCelok').style.display        = (isMainAdmin() || hasPerm('celokMegtekintes') || hasPerm('celokKezeles')) ? '' : 'none';
   E('tabBtnNaptar').style.display      = (isMainAdmin() || hasPerm('naptar'))                                           ? '' : 'none';
   E('tabBtnElemzes').style.display     = (isMainAdmin() || hasPerm('elemzes'))                                          ? '' : 'none';
   E('tabBtnFeladatok').style.display   = (isMainAdmin() || hasPerm('feladatokKezeles'))                                 ? '' : 'none';
@@ -263,6 +265,7 @@ function switchTab(name, btn) {
   if (name === 'feladatok')   { initTasksUI(); loadTasks(); }
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
+  if (name === 'celok')       initCelokTab();
   if (name === 'keszlet')     initKeszletTab();
   if (name === 'gepek')       loadMachines();
   if (name === 'adatbevitel') renderWipSection();
@@ -765,6 +768,11 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('analitikaPanel').addEventListener('click', analitikaPanelClick);
   E('analitikaPanel').addEventListener('change', analitikaPanelChange);
   E('analitikaPanel').addEventListener('input', analitikaPanelInput);
+
+  // Célok
+  E('celokHonapInput').addEventListener('change', celokHonapChange);
+  E('celokMentBtn').addEventListener('click', saveCelokConfig);
+  E('celokReviewDiv').addEventListener('click', celokReviewClick);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
