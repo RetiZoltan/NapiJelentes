@@ -91,11 +91,16 @@ export function celokSetToggle() {
 
 export function celokSetChange(e) {
   const id = e.target.id;
-  if (id === 'celSetView')     { _saveSettings({ viewMode: e.target.value });      renderCelokReview(E('celokAtlagHonapInput').value); return; }
-  if (id === 'celSetSort')     { _saveSettings({ sortBy: e.target.value });        renderCelokReview(E('celokAtlagHonapInput').value); return; }
-  if (id === 'celSetUnit')     { _saveSettings({ unit: e.target.value });          renderCelokReview(E('celokAtlagHonapInput').value); return; }
-  if (id === 'celSetForecast') { _saveSettings({ showForecast: e.target.checked }); renderCelokReview(E('celokAtlagHonapInput').value); return; }
-  if (id === 'celSetMedian')   { _saveSettings({ showMedian: e.target.checked });   renderCelokReview(E('celokAtlagHonapInput').value); return; }
+  const patch =
+    id === 'celSetView'     ? { viewMode: e.target.value }       :
+    id === 'celSetSort'     ? { sortBy: e.target.value }         :
+    id === 'celSetUnit'     ? { unit: e.target.value }           :
+    id === 'celSetForecast' ? { showForecast: e.target.checked } :
+    id === 'celSetMedian'   ? { showMedian: e.target.checked }   : null;
+  if (!patch) return;
+  _saveSettings(patch);
+  renderCelokReview(E('celokAtlagHonapInput').value);
+  renderCelokCapacity();
 }
 
 /* ═══ Config kártya (Beállítás al-fül) ═══ */
@@ -318,6 +323,100 @@ async function renderCelokReview(monthStr) {
   div.innerHTML = rows;
 }
 
+/* ═══ Műszak-kapacitás (teljes előzmény alapján, Átlagok / Medián al-fül) ═══ */
+
+let _capEntriesCache = null;
+
+async function _getAllEntriesCached(force = false) {
+  if (_capEntriesCache && !force) return _capEntriesCache;
+  _capEntriesCache = await fetchEntries({});
+  return _capEntriesCache;
+}
+
+// Műszak-példány = adott nap + délelőtt/délután — a csapat összes tagjának
+// adott anyagból termelt kg-ja összeadva egy műszak-összeget ad.
+function _computeCapacity(entries) {
+  const capData = {};
+  entries.forEach(e => {
+    const mat = (e.anyag || '').trim();
+    if (!mat) return;
+    const kg = kgOf(e);
+    if (kg <= 0) return;
+    const shiftKey = `${e.datum}||${e.ido || ''}`;
+    capData[mat] ??= { shifts: {}, workers: {} };
+    capData[mat].shifts[shiftKey] = (capData[mat].shifts[shiftKey] || 0) + kg;
+    const nev = e.nev || 'Ismeretlen';
+    capData[mat].workers[nev] ??= {};
+    capData[mat].workers[nev][shiftKey] = (capData[mat].workers[nev][shiftKey] || 0) + kg;
+  });
+  return capData;
+}
+
+async function renderCelokCapacity() {
+  const div = E('celokCapDiv');
+  if (!div) return;
+  div.innerHTML = '<div class="empty-st"><div class="empty-ic">⏳</div>Betöltés…</div>';
+
+  const entries  = await _getAllEntriesCached();
+  const settings = _getSettings();
+  const capData  = _computeCapacity(entries);
+  const mats     = Object.keys(capData).sort((a, b) => a.localeCompare(b, 'hu'));
+
+  if (!mats.length) {
+    div.innerHTML = '<div class="empty-st"><div class="empty-ic">🏭</div>Nincs elég termelési adat a kapacitás becsléséhez.</div>';
+    return;
+  }
+
+  const showCombined = settings.viewMode !== 'dolgozonkent';
+  const showWorkers  = settings.viewMode !== 'osszesitve';
+  const alwaysOpen   = settings.viewMode === 'dolgozonkent';
+
+  const rows = mats.map(mat => {
+    const data      = capData[mat];
+    const shiftVals = Object.values(data.shifts);
+
+    const combinedHtml = showCombined ? `
+          <span>Átlag/műszak: <b>${fmtUnit(average(shiftVals), settings.unit)}</b></span>
+          <span>Medián/műszak: <b>${fmtUnit(median(shiftVals), settings.unit)}</b></span>` : '';
+
+    let workerHtml = '';
+    if (showWorkers) {
+      const workerRows = Object.entries(data.workers)
+        .map(([nev, shifts]) => {
+          const vals = Object.values(shifts);
+          return { nev, avg: average(vals), med: median(vals), count: vals.length };
+        })
+        .sort((a, b) => b.avg - a.avg)
+        .map(w => `<div class="cel-worker-row"><span>${esc(w.nev)}</span><span>átlag ${fmtUnit(w.avg, settings.unit)}/műszak · medián ${fmtUnit(w.med, settings.unit)}/műszak (${w.count} műszak)</span></div>`)
+        .join('') || '<div class="cel-worker-row"><span style="color:var(--text3);">Nincs adat.</span></div>';
+      workerHtml = `<div class="cel-worker-detail">${workerRows}</div>`;
+    }
+
+    const clickable = showWorkers && !alwaysOpen;
+
+    return `<div class="cel-mat-row${alwaysOpen ? ' open' : ''}" data-mat="${esc(mat)}">
+      <div class="cel-mat-hdr"${clickable ? '' : ' style="cursor:default;"'}>
+        <div class="cel-mat-left">
+          ${clickable ? '<span class="cel-chev">▸</span>' : ''}
+          <span class="cel-mat-name">${esc(mat)}</span>
+        </div>
+        <div class="cel-mat-stats">
+          ${combinedHtml}
+          <span style="color:var(--text3);">${shiftVals.length} aktív műszak alapján</span>
+        </div>
+      </div>
+      ${workerHtml}
+    </div>`;
+  }).join('');
+
+  div.innerHTML = rows;
+}
+
+export async function celokCapRefresh() {
+  await _getAllEntriesCached(true);
+  await renderCelokCapacity();
+}
+
 /* ═══ Belépési pontok ═══ */
 
 export async function initCelokTab() {
@@ -329,6 +428,7 @@ export async function initCelokTab() {
   E('celokSetBlock').innerHTML = _settingsBlockHtml();
   await celokConfigHonapChange();
   await renderCelokReview(revInput.value);
+  await renderCelokCapacity();
 }
 
 export async function celokConfigHonapChange() {
@@ -354,5 +454,8 @@ export function switchCelokSubtab(name) {
   );
   document.querySelectorAll('#tab-celok .pstab-panel').forEach(p => p.classList.remove('active'));
   E('cstab-' + name)?.classList.add('active');
-  if (name === 'atlagok') renderCelokReview(E('celokAtlagHonapInput').value);
+  if (name === 'atlagok') {
+    renderCelokReview(E('celokAtlagHonapInput').value);
+    renderCelokCapacity();
+  }
 }

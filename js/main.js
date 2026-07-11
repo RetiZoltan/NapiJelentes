@@ -44,7 +44,7 @@ import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
 import { initCelokTab, celokConfigHonapChange, celokAtlagHonapChange, saveCelokConfig,
-         celokReviewClick, switchCelokSubtab, celokSetToggle, celokSetChange } from './celok.js';
+         celokReviewClick, switchCelokSubtab, celokSetToggle, celokSetChange, celokCapRefresh } from './celok.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
@@ -781,6 +781,8 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('celokSetToggleBtn').addEventListener('click', celokSetToggle);
   E('celokSetBlock').addEventListener('change', celokSetChange);
   E('celokReviewDiv').addEventListener('click', celokReviewClick);
+  E('celokCapDiv').addEventListener('click', celokReviewClick);
+  E('celokCapRefreshBtn').addEventListener('click', celokCapRefresh);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
