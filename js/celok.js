@@ -66,7 +66,7 @@ function _settingsBlockHtml() {
       <div class="field">
         <label class="lbl">Rendezés</label>
         <select id="celSetSort">
-          ${opt('nev', s.sortBy, 'Anyag neve (ABC)')}${opt('cel', s.sortBy, 'Cél nagysága')}${opt('teljesites', s.sortBy, 'Teljesítés %')}
+          ${opt('nev', s.sortBy, 'Anyag neve (ABC)')}${opt('cel', s.sortBy, 'Cél/műszak nagysága')}${opt('teljesites', s.sortBy, 'Teljesítés %')}
         </select>
       </div>
       <div class="field">
@@ -114,7 +114,7 @@ async function loadCelokConfig(monthStr) {
 
 function canEditCelok() { return isMainAdmin() || hasPerm('celokKezeles'); }
 
-function renderCelokConfig() {
+async function renderCelokConfig() {
   const div = E('celokConfigDiv');
   const wrap = E('celokMentWrap');
 
@@ -131,6 +131,7 @@ function renderCelokConfig() {
     return;
   }
 
+  const capData = _computeCapacity(await _getAllEntriesCached());
   const srt       = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   const csMap     = state.anyagCsoportMap || {};
   const csoportok = srt(state.anyagCsoportok || []);
@@ -138,14 +139,18 @@ function renderCelokConfig() {
   const matRow = mat => {
     const sid = matSafeId(mat);
     const val = celokConfig.materials[mat] ?? '';
+    const cap = capData[mat];
+    const capHint = cap
+      ? `Kapacitás: átlag ${fmtUnit(average(Object.values(cap.shifts)), 'kg')}, medián ${fmtUnit(median(Object.values(cap.shifts)), 'kg')} (${Object.keys(cap.shifts).length} műszak alapján)`
+      : 'Nincs eddigi termelési adat ehhez az anyaghoz.';
     return `<div class="pc-row cel-row">
-      <div class="pc-mat">${esc(mat)}</div>
+      <div class="pc-mat">${esc(mat)}<div style="font-weight:400;font-size:11px;color:var(--text3);margin-top:2px;">${capHint}</div></div>
       <div><input type="number" class="pc-input" id="celCel_${sid}" data-mat="${esc(mat)}" value="${val}" placeholder="—" min="0" step="1"></div>
     </div>`;
   };
 
   let html = `<div class="pc-table">
-    <div class="pc-row cel-row pc-head"><div>Anyag</div><div>Havi cél (kg)</div></div>`;
+    <div class="pc-row cel-row pc-head"><div>Anyag</div><div>Cél / műszak (kg)</div></div>`;
 
   if (!csoportok.length) {
     srt(allMats).forEach(mat => { html += matRow(mat); });
@@ -217,12 +222,16 @@ async function renderCelokReview(monthStr) {
   const total_days = daysInMonth(monthStr);
   const elapsed     = elapsedDays(monthStr);
 
+  // Cégszinten hány műszak (nap+délelőtt/délután) volt ténylegesen aktív
+  // ebben a hónapban eddig — bármely anyagból történt termelés esetén.
+  const allShiftKeys = new Set();
   const matData = {};
   entries.forEach(e => {
     const mat = (e.anyag || '').trim();
     if (!mat) return;
     const kg = kgOf(e);
     if (kg <= 0) return;
+    allShiftKeys.add(`${e.datum}||${e.ido || ''}`);
     matData[mat] ??= { total: 0, days: {}, workers: {} };
     matData[mat].total += kg;
     matData[mat].days[e.datum] = (matData[mat].days[e.datum] || 0) + kg;
@@ -230,6 +239,7 @@ async function renderCelokReview(monthStr) {
     matData[mat].workers[nev] ??= {};
     matData[mat].workers[nev][e.datum] = (matData[mat].workers[nev][e.datum] || 0) + kg;
   });
+  const shiftsElapsed = allShiftKeys.size;
 
   // A termelésből előforduló ÉS a beállított célú anyagok uniója —
   // így egy célhoz rendelt, de még nem gyártott anyag is megjelenik.
@@ -249,8 +259,10 @@ async function renderCelokReview(monthStr) {
   withStats.sort((a, b) => {
     if (settings.sortBy === 'cel')        return b.target - a.target;
     if (settings.sortBy === 'teljesites') {
-      const bv = b.target > 0 ? b.data.total / b.target : -1;
-      const av = a.target > 0 ? a.data.total / a.target : -1;
+      const bElvart = b.target > 0 && shiftsElapsed > 0 ? b.target * shiftsElapsed : 0;
+      const aElvart = a.target > 0 && shiftsElapsed > 0 ? a.target * shiftsElapsed : 0;
+      const bv = bElvart > 0 ? b.data.total / bElvart : -1;
+      const av = aElvart > 0 ? a.data.total / aElvart : -1;
       return bv - av;
     }
     return a.mat.localeCompare(b.mat, 'hu');
@@ -268,16 +280,18 @@ async function renderCelokReview(monthStr) {
       forecastHtml = `<span>Előrejelzés: <b>${fmtUnit(forecast, settings.unit)}</b></span>`;
     }
 
+    let elvartEddigHtml = '';
     if (target > 0) {
-      if (elapsed > 0) {
-        const haladas  = data.total / target;
-        const idoArany = elapsed / total_days;
-        const diff     = haladas - idoArany;
-        const cls      = diff >= -0.05 ? 'green' : diff >= -0.15 ? 'amber' : 'red';
-        const label    = diff >= -0.05 ? 'Jó ütemben' : diff >= -0.15 ? 'Kis lemaradás' : 'Lemaradás';
-        statusHtml = `<span class="cel-status ${cls}">${label}</span>`;
+      if (shiftsElapsed > 0) {
+        const elvartEddig = target * shiftsElapsed;
+        const haladas      = elvartEddig > 0 ? data.total / elvartEddig : 0;
+        const diff         = haladas - 1;
+        const cls          = diff >= -0.05 ? 'green' : diff >= -0.15 ? 'amber' : 'red';
+        const label        = diff >= -0.05 ? 'Jó ütemben' : diff >= -0.15 ? 'Kis lemaradás' : 'Lemaradás';
+        statusHtml     = `<span class="cel-status ${cls}">${label}</span>`;
+        elvartEddigHtml = `<span>Elvárt eddig: <b>${fmtUnit(elvartEddig, settings.unit)}</b></span>`;
       } else {
-        statusHtml = '<span class="cel-status amber">Jövőbeli hónap</span>';
+        statusHtml = '<span class="cel-status gray">Még nem volt műszak ebben a hónapban</span>';
       }
     } else {
       statusHtml = '<span class="cel-status gray">Nincs cél beállítva</span>';
@@ -309,8 +323,9 @@ async function renderCelokReview(monthStr) {
           <span class="cel-mat-name">${esc(mat)}</span>
         </div>
         <div class="cel-mat-stats">
-          ${target > 0 ? `<span>Cél: <b>${fmtUnit(target, settings.unit)}</b></span>` : ''}
+          ${target > 0 ? `<span>Cél/műszak: <b>${fmtUnit(target, settings.unit)}</b></span>` : ''}
           <span>Eddig: <b>${fmtUnit(data.total, settings.unit)}</b></span>
+          ${elvartEddigHtml}
           ${combinedHtml}
           ${forecastHtml}
           ${statusHtml}
@@ -435,7 +450,7 @@ export async function celokConfigHonapChange() {
   const monthStr = E('celokHonapInput').value;
   if (!monthStr) return;
   await loadCelokConfig(monthStr);
-  renderCelokConfig();
+  await renderCelokConfig();
 }
 
 export async function celokAtlagHonapChange() {
