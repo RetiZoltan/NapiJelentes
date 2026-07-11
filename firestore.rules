@@ -202,6 +202,12 @@ service cloud.firestore {
       allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
     }
 
+    // â”€â”€ celok (havi anyagcĂ©lok) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    match /celok/{monthId} {
+      allow read:  if isAuth() && (isMainAdmin() || hasPerm('celokMegtekintes') || hasPerm('celokKezeles'));
+      allow write: if isAuth() && (isMainAdmin() || hasPerm('celokKezeles'));
+    }
+
     // â”€â”€ overtimes (tĂşlĂłra) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     match /overtimes/{id} {
       allow read: if isAuth() && (
