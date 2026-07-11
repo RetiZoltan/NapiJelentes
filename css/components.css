@@ -257,6 +257,7 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 .cel-status.green{background:var(--greenl);color:var(--green);border-color:var(--green);}
 .cel-status.amber{background:var(--amberl);color:var(--amber);border-color:var(--amber);}
 .cel-status.red{background:var(--redl);color:var(--red);border-color:var(--red);}
+.cel-status.gray{background:var(--surf3);color:var(--text3);border-color:var(--border2);}
 .cel-mat-row{border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:10px;overflow:hidden;}
 .cel-mat-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--surf2);cursor:pointer;flex-wrap:wrap;}
 .cel-mat-left{display:flex;align-items:center;gap:6px;}

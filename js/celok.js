@@ -204,12 +204,6 @@ async function renderCelokReview(monthStr) {
     materials = s.exists() ? (s.data().materials || {}) : {};
   } catch { materials = {}; }
 
-  const mats = Object.keys(materials);
-  if (!mats.length) {
-    div.innerHTML = '<div class="empty-st"><div class="empty-ic">🎯</div>Ehhez a hónaphoz még nincs beállítva anyagcél a Beállítás al-fülön.</div>';
-    return;
-  }
-
   const settings = _getSettings();
   const from = `${monthStr}-01`;
   const to   = `${monthStr}-${String(daysInMonth(monthStr)).padStart(2, '0')}`;
@@ -221,7 +215,7 @@ async function renderCelokReview(monthStr) {
   const matData = {};
   entries.forEach(e => {
     const mat = (e.anyag || '').trim();
-    if (!(mat in materials)) return;
+    if (!mat) return;
     const kg = kgOf(e);
     if (kg <= 0) return;
     matData[mat] ??= { total: 0, days: {}, workers: {} };
@@ -232,8 +226,16 @@ async function renderCelokReview(monthStr) {
     matData[mat].workers[nev][e.datum] = (matData[mat].workers[nev][e.datum] || 0) + kg;
   });
 
+  // A termelésből előforduló ÉS a beállított célú anyagok uniója —
+  // így egy célhoz rendelt, de még nem gyártott anyag is megjelenik.
+  const mats = [...new Set([...Object.keys(matData), ...Object.keys(materials)])];
+  if (!mats.length) {
+    div.innerHTML = '<div class="empty-st"><div class="empty-ic">🎯</div>Nincs termelési adat ehhez a hónaphoz.</div>';
+    return;
+  }
+
   const withStats = mats.map(mat => {
-    const target  = materials[mat];
+    const target  = materials[mat] || 0;
     const data    = matData[mat] || { total: 0, days: {}, workers: {} };
     const dayVals = Object.values(data.days);
     return { mat, target, data, avg: average(dayVals), med: median(dayVals) };
@@ -241,7 +243,11 @@ async function renderCelokReview(monthStr) {
 
   withStats.sort((a, b) => {
     if (settings.sortBy === 'cel')        return b.target - a.target;
-    if (settings.sortBy === 'teljesites') return (b.data.total / (b.target || 1)) - (a.data.total / (a.target || 1));
+    if (settings.sortBy === 'teljesites') {
+      const bv = b.target > 0 ? b.data.total / b.target : -1;
+      const av = a.target > 0 ? a.data.total / a.target : -1;
+      return bv - av;
+    }
     return a.mat.localeCompare(b.mat, 'hu');
   });
 
@@ -250,19 +256,26 @@ async function renderCelokReview(monthStr) {
   const alwaysOpen   = settings.viewMode === 'dolgozonkent';
 
   const rows = withStats.map(({ mat, target, data, avg, med }) => {
-    let statusHtml = '';
+    let statusHtml   = '';
     let forecastHtml = '';
-    if (elapsed > 0) {
-      const forecast = data.total / elapsed * total_days;
-      const haladas  = target > 0 ? data.total / target : 0;
-      const idoArany = elapsed / total_days;
-      const diff     = haladas - idoArany;
-      const cls      = diff >= -0.05 ? 'green' : diff >= -0.15 ? 'amber' : 'red';
-      const label    = diff >= -0.05 ? 'Jó ütemben' : diff >= -0.15 ? 'Kis lemaradás' : 'Lemaradás';
-      statusHtml   = `<span class="cel-status ${cls}">${label}</span>`;
-      if (settings.showForecast) forecastHtml = `<span>Előrejelzés: <b>${fmtUnit(forecast, settings.unit)}</b></span>`;
+    const forecast = elapsed > 0 ? data.total / elapsed * total_days : null;
+    if (settings.showForecast && forecast !== null) {
+      forecastHtml = `<span>Előrejelzés: <b>${fmtUnit(forecast, settings.unit)}</b></span>`;
+    }
+
+    if (target > 0) {
+      if (elapsed > 0) {
+        const haladas  = data.total / target;
+        const idoArany = elapsed / total_days;
+        const diff     = haladas - idoArany;
+        const cls      = diff >= -0.05 ? 'green' : diff >= -0.15 ? 'amber' : 'red';
+        const label    = diff >= -0.05 ? 'Jó ütemben' : diff >= -0.15 ? 'Kis lemaradás' : 'Lemaradás';
+        statusHtml = `<span class="cel-status ${cls}">${label}</span>`;
+      } else {
+        statusHtml = '<span class="cel-status amber">Jövőbeli hónap</span>';
+      }
     } else {
-      statusHtml = '<span class="cel-status amber">Jövőbeli hónap</span>';
+      statusHtml = '<span class="cel-status gray">Nincs cél beállítva</span>';
     }
 
     const combinedHtml = showCombined ? `
@@ -291,7 +304,7 @@ async function renderCelokReview(monthStr) {
           <span class="cel-mat-name">${esc(mat)}</span>
         </div>
         <div class="cel-mat-stats">
-          <span>Cél: <b>${fmtUnit(target, settings.unit)}</b></span>
+          ${target > 0 ? `<span>Cél: <b>${fmtUnit(target, settings.unit)}</b></span>` : ''}
           <span>Eddig: <b>${fmtUnit(data.total, settings.unit)}</b></span>
           ${combinedHtml}
           ${forecastHtml}
