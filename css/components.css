@@ -259,6 +259,9 @@ input.pinned,select.pinned{border-left:3px solid var(--accent);}
 .cel-status.red{background:var(--redl);color:var(--red);border-color:var(--red);}
 .cel-mat-row{border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:10px;overflow:hidden;}
 .cel-mat-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--surf2);cursor:pointer;flex-wrap:wrap;}
+.cel-mat-left{display:flex;align-items:center;gap:6px;}
+.cel-chev{color:var(--text3);font-size:11px;width:14px;text-align:center;transition:transform var(--tr);}
+.cel-mat-row.open .cel-chev{transform:rotate(90deg);}
 .cel-mat-name{font-weight:700;font-size:14px;color:var(--text);}
 .cel-mat-stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text2);}
 .cel-mat-stats b{color:var(--text);}

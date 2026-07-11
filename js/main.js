@@ -43,7 +43,8 @@ import { initKeszletTab, switchKeszletTab, loadKeszlet,
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
-import { initCelokTab, celokHonapChange, saveCelokConfig, celokReviewClick } from './celok.js';
+import { initCelokTab, celokConfigHonapChange, celokAtlagHonapChange, saveCelokConfig,
+         celokReviewClick, switchCelokSubtab, celokSetToggle, celokSetChange } from './celok.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
@@ -770,8 +771,15 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('analitikaPanel').addEventListener('input', analitikaPanelInput);
 
   // Célok
-  E('celokHonapInput').addEventListener('change', celokHonapChange);
+  E('celokSubtabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.ctab) return;
+    switchCelokSubtab(btn.dataset.ctab);
+  });
+  E('celokHonapInput').addEventListener('change', celokConfigHonapChange);
   E('celokMentBtn').addEventListener('click', saveCelokConfig);
+  E('celokAtlagHonapInput').addEventListener('change', celokAtlagHonapChange);
+  E('celokSetToggleBtn').addEventListener('click', celokSetToggle);
+  E('celokSetBlock').addEventListener('change', celokSetChange);
   E('celokReviewDiv').addEventListener('click', celokReviewClick);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
