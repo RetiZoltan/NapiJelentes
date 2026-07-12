@@ -529,7 +529,7 @@ function _settingsBlockHtml(meta) {
         </select>
       </div>
       <div class="field" style="margin-bottom:9px;">
-        <label class="rs-lbl"><input type="checkbox" id="anaSetAmFilter"${s.amFilterOutliers ? ' checked' : ''}> Kiugró napi értékek kiszűrése (IQR)</label>
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAmFilter"${s.amFilterOutliers ? ' checked' : ''}> Kiugró műszak-értékek kiszűrése (IQR)</label>
       </div>
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetAmRawVsFiltered"${s.amShowRawVsFiltered ? ' checked' : ''}> Nyers érték is látszódjon a szűrt mellett</label>
@@ -796,9 +796,10 @@ function _renderMatrixResult(dolgKeys, anyagKeys, matrix, dolgTotalsMap) {
     </div>`;
 }
 
-/* ── Átlag / Medián: anyagonként (és dolgozónkénti bontásban) a napi termelés
-   átlaga/mediánja, IQR-alapú kiugró-szűréssel — a cél az legyen, hogy egy-két
-   extrém nap ne torzítsa el a "tipikus" napi mennyiséget. */
+/* ── Átlag / Medián: anyagonként (és dolgozónkénti bontásban) a MŰSZAKONKÉNTI
+   termelés átlaga/mediánja, IQR-alapú kiugró-szűréssel — egy műszak-példány
+   = adott nap + délelőtt/délután, hogy a felhasználó ebből tudjon számolni
+   arra, egy (8 órás) műszakban mennyi termelés reális egy adott anyagból. */
 function _computeAtlagMedianResult() {
   if (!_lastEntries || !_lastHeader) return;
 
@@ -807,26 +808,29 @@ function _computeAtlagMedianResult() {
     const mat = (e.anyag || '').trim();
     if (!mat) return;
     const kg = _kg(e); if (kg <= 0) return;
-    matData[mat] ??= { days: {}, workers: {} };
-    matData[mat].days[e.datum] = (matData[mat].days[e.datum] || 0) + kg;
+    const shiftKey = `${e.datum}||${e.ido || ''}`;
+    matData[mat] ??= { shifts: {}, workers: {} };
+    matData[mat].shifts[shiftKey] = (matData[mat].shifts[shiftKey] || 0) + kg;
     const nev = e.nev || 'Ismeretlen';
     matData[mat].workers[nev] ??= {};
-    matData[mat].workers[nev][e.datum] = (matData[mat].workers[nev][e.datum] || 0) + kg;
+    matData[mat].workers[nev][shiftKey] = (matData[mat].workers[nev][shiftKey] || 0) + kg;
   });
 
   _renderAtlagMedianResult(matData);
 }
 
-/* Az időszak felére osztva a második fél szűrt napi átlagát hasonlítja az
-   elsőhöz — csak durva irány-jelzés, nem statisztikai próba. */
-function _trend(days, from, to) {
-  const dates = Object.keys(days).sort();
-  if (dates.length < 4) return null;
+/* Az időszak felére osztva a második fél szűrt műszak-átlagát hasonlítja az
+   elsőhöz — csak durva irány-jelzés, nem statisztikai próba. A kulcs
+   "YYYY-MM-DD||műszak" alakú, ezért a nap-részét kell kivágni a
+   dátum-összehasonlításhoz. */
+function _trend(shifts, from, to) {
+  const keys = Object.keys(shifts).sort();
+  if (keys.length < 4) return null;
   const [y1, m1, d1] = from.split('-').map(Number);
   const [y2, m2, d2] = to.split('-').map(Number);
   const mid = new Date((new Date(y1, m1 - 1, d1).getTime() + new Date(y2, m2 - 1, d2).getTime()) / 2).toISOString().slice(0, 10);
-  const firstHalf  = dates.filter(d => d <= mid).map(d => days[d]);
-  const secondHalf = dates.filter(d => d > mid).map(d => days[d]);
+  const firstHalf  = keys.filter(k => k.split('||')[0] <= mid).map(k => shifts[k]);
+  const secondHalf = keys.filter(k => k.split('||')[0] >  mid).map(k => shifts[k]);
   if (firstHalf.length < 2 || secondHalf.length < 2) return null;
   const a1 = average(_iqrFilter(firstHalf)), a2 = average(_iqrFilter(secondHalf));
   if (a1 <= 0) return null;
@@ -846,7 +850,7 @@ function _renderAtlagMedianResult(matData) {
     return;
   }
 
-  const withStats = mats.map(mat => ({ mat, data: matData[mat], stats: _filteredStats(Object.values(matData[mat].days)) }));
+  const withStats = mats.map(mat => ({ mat, data: matData[mat], stats: _filteredStats(Object.values(matData[mat].shifts)) }));
   withStats.sort((a, b) => settings.amSortBy === 'mennyiseg'
     ? b.stats.filtered.avg - a.stats.filtered.avg
     : a.mat.localeCompare(b.mat, 'hu'));
@@ -855,7 +859,7 @@ function _renderAtlagMedianResult(matData) {
   const showWorkers  = settings.amViewMode !== 'osszesitve';
   const alwaysOpen   = settings.amViewMode === 'dolgozonkent';
 
-  const statLine = (s, unit) => `<span>Átlag: <b>${_fmtUnitHtml(s.avg, unit)}</b></span><span>Medián: <b>${_fmtUnitHtml(s.med, unit)}</b></span>`;
+  const statLine = (s, unit) => `<span>Átlag/műszak: <b>${_fmtUnitHtml(s.avg, unit)}</b></span><span>Medián/műszak: <b>${_fmtUnitHtml(s.med, unit)}</b></span>`;
 
   const rows = withStats.map(({ mat, data, stats }) => {
     const primary = settings.amFilterOutliers ? stats.filtered : stats.raw;
@@ -867,18 +871,18 @@ function _renderAtlagMedianResult(matData) {
 
     let trendHtml = '';
     if (settings.amShowTrend) {
-      const tr = _trend(data.days, _lastHeader.from, _lastHeader.to);
+      const tr = _trend(data.shifts, _lastHeader.from, _lastHeader.to);
       if (tr) trendHtml = `<span style="color:var(--text3);">${tr.dir} ${tr.label}</span>`;
     }
 
     let workerHtml = '';
     if (showWorkers) {
       const workerRows = Object.entries(data.workers)
-        .map(([nev, days]) => ({ nev, stats: _filteredStats(Object.values(days)) }))
+        .map(([nev, shifts]) => ({ nev, stats: _filteredStats(Object.values(shifts)) }))
         .sort((a, b) => b.stats.filtered.avg - a.stats.filtered.avg)
         .map(w => {
           const p = settings.amFilterOutliers ? w.stats.filtered : w.stats.raw;
-          return `<div class="cel-worker-row"><span>${esc(w.nev)}</span><span>átlag ${_fmtUnitHtml(p.avg, settings.amUnit)} · medián ${_fmtUnitHtml(p.med, settings.amUnit)} (${p.n} nap)</span></div>`;
+          return `<div class="cel-worker-row"><span>${esc(w.nev)}</span><span>átlag ${_fmtUnitHtml(p.avg, settings.amUnit)} · medián ${_fmtUnitHtml(p.med, settings.amUnit)} (${p.n} műszak)</span></div>`;
         })
         .join('') || '<div class="cel-worker-row"><span style="color:var(--text3);">Nincs adat.</span></div>';
       workerHtml = `<div class="cel-worker-detail">${workerRows}</div>`;
@@ -902,7 +906,7 @@ function _renderAtlagMedianResult(matData) {
   }).join('');
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
-    ${settings.amFilterOutliers ? '<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">A kiugróan magas/alacsony napi értékek ki vannak szűrve (IQR-módszer) az átlag/medián számításából.</p>' : ''}
+    ${settings.amFilterOutliers ? '<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">A kiugróan magas/alacsony műszak-értékek ki vannak szűrve (IQR-módszer) az átlag/medián számításából.</p>' : ''}
     ${rows}`;
 }
 
