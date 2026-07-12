@@ -611,9 +611,17 @@ export async function analitikaShowPanel(kind) {
       <div class="card-title" style="margin:0;flex:1;border:none;padding:0;">${esc(meta.title)}</div>
       <button class="btn btn-ghost btn-sq" id="anaPanelCloseBtn" title="Bezárás">✕</button>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px;">
       <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Tól</label><input type="date" id="anaDrTol" value="${defFrom}"></div>
       <div class="field" style="min-width:130px;margin-bottom:13px;"><label class="lbl">Ig</label><input type="date" id="anaDrIg" value="${defTo}"></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      <button class="btn btn-ghost btn-sm" data-range="7">7 nap</button>
+      <button class="btn btn-ghost btn-sm" data-range="30">30 nap</button>
+      <button class="btn btn-ghost btn-sm" data-range="90">90 nap</button>
+      <button class="btn btn-ghost btn-sm" data-range="honap">Idei hónap</button>
+      <button class="btn btn-ghost btn-sm" data-range="ev">Idei év</button>
+      <button class="btn btn-ghost btn-sm" data-range="mind">Teljes előzmény</button>
     </div>
     ${!_hasPicker(meta) ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
@@ -1071,6 +1079,20 @@ export function analitikaPanelClick(e) {
   if (e.target.closest('#anaSettingsToggle')) {
     const block = E('anaSettingsBlock');
     if (block) block.style.display = block.style.display === 'none' ? '' : 'none';
+    return;
+  }
+  const rangeBtn = e.target.closest('[data-range]');
+  if (rangeBtn) {
+    const today = tod();
+    const r = rangeBtn.dataset.range;
+    let from;
+    if (r === 'honap')      from = today.slice(0, 7) + '-01';
+    else if (r === 'ev')    from = today.slice(0, 4) + '-01-01';
+    else if (r === 'mind')  from = '2000-01-01';
+    else                    from = addD(today, -(Number(r) - 1));
+    E('anaDrTol').value = from;
+    E('anaDrIg').value  = today;
+    _renderPanelResult();
     return;
   }
   if (e.target.closest('#anaDrRefreshBtn'))      { _renderPanelResult(); return; }
