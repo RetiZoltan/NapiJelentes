@@ -43,8 +43,6 @@ import { initKeszletTab, switchKeszletTab, loadKeszlet,
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
          savePremiumHistory, switchPremiumTab } from './premium.js';
-import { initCelokTab, celokConfigHonapChange, celokAtlagHonapChange, saveCelokConfig,
-         celokReviewClick, switchCelokSubtab, celokSetToggle, celokSetChange, celokCapRefresh } from './celok.js';
 import { loadEmployees, renderEmployeeGrid, openEmpForm, closeEmpForm, saveEmployee,
          handleEmpGridClick, loadAbsences, saveAbsence, handleAbsenceClick,
          loadCalendar, loadStatisztika, exportCsv, saveCalQuickAdd,
@@ -266,7 +264,6 @@ function switchTab(name, btn) {
   if (name === 'feladatok')   { initTasksUI(); loadTasks(); }
   if (name === 'dolgozok')    { loadEmployees(); _setupDolgozokUI(); }
   if (name === 'premium')     initPremiumTab();
-  if (name === 'celok')       initCelokTab();
   if (name === 'keszlet')     initKeszletTab();
   if (name === 'gepek')       loadMachines();
   if (name === 'adatbevitel') renderWipSection();
@@ -769,20 +766,6 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('analitikaPanel').addEventListener('click', analitikaPanelClick);
   E('analitikaPanel').addEventListener('change', analitikaPanelChange);
   E('analitikaPanel').addEventListener('input', analitikaPanelInput);
-
-  // Célok
-  E('celokSubtabs').addEventListener('click', e => {
-    const btn = e.target.closest('.stab-btn'); if (!btn || !btn.dataset.ctab) return;
-    switchCelokSubtab(btn.dataset.ctab);
-  });
-  E('celokHonapInput').addEventListener('change', celokConfigHonapChange);
-  E('celokMentBtn').addEventListener('click', saveCelokConfig);
-  E('celokAtlagHonapInput').addEventListener('change', celokAtlagHonapChange);
-  E('celokSetToggleBtn').addEventListener('click', celokSetToggle);
-  E('celokSetBlock').addEventListener('change', celokSetChange);
-  E('celokReviewDiv').addEventListener('click', celokReviewClick);
-  E('celokCapDiv').addEventListener('click', celokReviewClick);
-  E('celokCapRefreshBtn').addEventListener('click', celokCapRefresh);
 
   // Dolgozó szűrő → anyag lista dinamikus szűkítése
   E('idoszakosDolgozoSzuro').addEventListener('change', async () => {
