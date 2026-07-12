@@ -62,6 +62,7 @@ let _lastEntries = null;
 let _lastByDay   = null;
 let _expandedLabel = null;      // melyik táblázatsor napi trendje van kinyitva
 let _searchDebounceT = null;    // anyag kereső élő szűrésének debounce timere
+let _amSearchDebounceT = null;  // átlag/medián anyag-egyesítő szűrő debounce timere
 
 /* Előző időszak összevetéséhez: a nyers (szűretlen) bejegyzéseket dátumtartomány
    szerint gyorsítótárazzuk, hogy a beállítások (Top N, szűrők stb.) váltása
@@ -634,6 +635,12 @@ export async function analitikaShowPanel(kind) {
       <label class="lbl">Anyag keresése</label>
       <input type="text" id="anaSearchInput" placeholder="Kezdj el gépelni egy anyagnevet…" autocomplete="off">
     </div>` : ''}
+    ${meta.kind === 'atlagmedian' ? `
+    <div class="field" style="margin-bottom:14px;">
+      <label class="lbl">Anyag szűrő (egyesített átlag/medián)</label>
+      <input type="text" id="anaAmSearchInput" placeholder="Pl. azonos anyag különböző színekkel elmentve…" autocomplete="off">
+      <p class="lhint">Ha kitöltöd, a rész-egyezéssel talált anyagokat egyesítve, egyetlen összesített átlag/mediánt mutat.</p>
+    </div>` : ''}
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
     ${_settingsBlockHtml(meta)}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
@@ -824,7 +831,25 @@ function _computeAtlagMedianResult() {
     matData[mat].workers[nev][shiftKey] = (matData[mat].workers[nev][shiftKey] || 0) + kg;
   });
 
-  _renderAtlagMedianResult(matData);
+  const query = (E('anaAmSearchInput')?.value || '').trim().toLowerCase();
+  if (!query) { _renderAtlagMedianResult(matData, null); return; }
+
+  // Rész-egyezés alapján egyesíti a talált anyagokat (pl. ugyanaz az anyag,
+  // csak más színnel elmentve) egyetlen összesített átlag/medián sorrá.
+  const matched = Object.keys(matData).filter(m => m.toLowerCase().includes(query));
+  if (!matched.length) { _renderAtlagMedianResult({}, { query, matched }); return; }
+
+  const merged = { shifts: {}, workers: {} };
+  matched.forEach(mat => {
+    const d = matData[mat];
+    Object.entries(d.shifts).forEach(([k, v]) => { merged.shifts[k] = (merged.shifts[k] || 0) + v; });
+    Object.entries(d.workers).forEach(([nev, shifts]) => {
+      merged.workers[nev] ??= {};
+      Object.entries(shifts).forEach(([k, v]) => { merged.workers[nev][k] = (merged.workers[nev][k] || 0) + v; });
+    });
+  });
+
+  _renderAtlagMedianResult({ [`🔎 "${query}" — egyesített`]: merged }, { query, matched });
 }
 
 /* Az időszak felére osztva a második fél szűrt műszak-átlagát hasonlítja az
@@ -847,14 +872,14 @@ function _trend(shifts, from, to) {
   return pct > 0 ? { dir: '↑', label: `+${pct.toFixed(0)}%`, pct } : { dir: '↓', label: `${pct.toFixed(0)}%`, pct };
 }
 
-function _renderAtlagMedianResult(matData) {
+function _renderAtlagMedianResult(matData, searchInfo) {
   const out = E('analitikaRiportDiv'); if (!out) return;
   const settings = _getSettings();
   const mats = Object.keys(matData);
 
   if (!mats.length) {
     out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
-      <div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`;
+      <div class="empty-st"><div class="empty-ic">📭</div>${searchInfo ? `Nincs egyező anyag ehhez: „${esc(searchInfo.query)}”` : 'Nincs megjeleníthető adat'}</div>`;
     return;
   }
 
@@ -913,7 +938,11 @@ function _renderAtlagMedianResult(matData) {
     </div>`;
   }).join('');
 
+  const matchedInfo = searchInfo?.matched?.length
+    ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">Egyesített anyagok (${searchInfo.matched.length}): ${searchInfo.matched.map(esc).join(', ')}</p>` : '';
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    ${matchedInfo}
     ${settings.amFilterOutliers ? '<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">A kiugróan magas/alacsony műszak-értékek ki vannak szűrve (IQR-módszer) az átlag/medián számításából.</p>' : ''}
     ${rows}`;
 }
@@ -1150,7 +1179,14 @@ export function analitikaPanelChange(e) {
 /* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,
    ugyanaz a minta, mint a készlet keresőmezőinél (js/main.js). ── */
 export function analitikaPanelInput(e) {
-  if (e.target.id !== 'anaSearchInput') return;
-  clearTimeout(_searchDebounceT);
-  _searchDebounceT = setTimeout(_computeSearchResult, 280);
+  if (e.target.id === 'anaSearchInput') {
+    clearTimeout(_searchDebounceT);
+    _searchDebounceT = setTimeout(_computeSearchResult, 280);
+    return;
+  }
+  if (e.target.id === 'anaAmSearchInput') {
+    clearTimeout(_amSearchDebounceT);
+    _amSearchDebounceT = setTimeout(_computeAtlagMedianResult, 280);
+    return;
+  }
 }
