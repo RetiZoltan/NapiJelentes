@@ -43,6 +43,7 @@ const WIDGETS = [
   { id: 'anyagspec', icon: '🧩', title: 'Anyag-specializáció mátrix', kind: 'matrix' },
   { id: 'anyagkereso', icon: '🔍', title: 'Anyag kereső', kind: 'search' },
   { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
+  { id: 'atlagmedian', icon: '📐', title: 'Átlag / Medián', kind: 'atlagmedian' },
 ];
 
 /* A dolgozó nevéből visszakeresi, melyik műszakvezető csapatához tartozik
@@ -85,6 +86,8 @@ const _SET_DEFAULTS = {
   matrixDolgN: '8', matrixAnyagN: '6',                    // csak anyag-specializáció mátrix
   searchMode: 'reszletes', searchSortBy: 'datum', searchUnit: 't', // csak anyag kereső
   searchShowDatum: true, searchShowDolgozo: true, searchShowReszleg: true,
+  amViewMode: 'mindket', amSortBy: 'nev', amUnit: 'kg',            // csak átlag/medián
+  amFilterOutliers: true, amShowRawVsFiltered: false, amShowMinMax: true, amShowTrend: true,
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -113,6 +116,35 @@ function _totals(entries, keyFn) {
   return Object.entries(t).sort((a, b) => b[1] - a[1]);
 }
 function _topKeys(entries, keyFn, n) { return _totals(entries, keyFn).slice(0, n).map(([k]) => k); }
+
+function average(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+function median(arr) {
+  if (!arr.length) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+function _percentile(sorted, p) {
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+/* IQR-alapú kiugró-szűrés: a Q1-1.5·IQR .. Q3+1.5·IQR tartományon kívüli
+   értékek kimaradnak. 4 elemnél kevesebbnél nincs értelme szűrni. */
+function _iqrFilter(values) {
+  if (values.length < 4) return values;
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1 = _percentile(sorted, 25), q3 = _percentile(sorted, 75);
+  const iqr = q3 - q1;
+  const lo = q1 - 1.5 * iqr, hi = q3 + 1.5 * iqr;
+  return values.filter(v => v >= lo && v <= hi);
+}
+function _filteredStats(values) {
+  const filtered = _iqrFilter(values);
+  const stats = arr => ({ avg: average(arr), med: median(arr), min: arr.length ? Math.min(...arr) : 0, max: arr.length ? Math.max(...arr) : 0, n: arr.length });
+  return { raw: stats(values), filtered: stats(filtered), wasFiltered: filtered.length !== values.length };
+}
 
 /* ── Előző időszak (reports.js _elozoIdoszak "egyéni" ágának mintájára) —
    ugyanolyan hosszú, közvetlenül megelőző időszak. ── */
@@ -476,6 +508,38 @@ function _settingsBlockHtml(meta) {
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetSearchReszleg"${s.searchShowReszleg ? ' checked' : ''}> Részleg oszlop</label>
       </div>`;
+  } else if (meta.kind === 'atlagmedian') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Nézet</label>
+        <select id="anaSetAmView">
+          ${opt('mindket', s.amViewMode, 'Összesített + dolgozónkénti')}${opt('osszesitve', s.amViewMode, 'Csak összesített')}${opt('dolgozonkent', s.amViewMode, 'Csak dolgozónkénti')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Rendezés</label>
+        <select id="anaSetAmSort">
+          ${opt('nev', s.amSortBy, 'Anyag neve (ABC)')}${opt('mennyiseg', s.amSortBy, 'Átlagos mennyiség szerint')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Mértékegység</label>
+        <select id="anaSetAmUnit">
+          ${opt('kg', s.amUnit, 'Kilogramm')}${opt('t', s.amUnit, 'Tonna')}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAmFilter"${s.amFilterOutliers ? ' checked' : ''}> Kiugró napi értékek kiszűrése (IQR)</label>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAmRawVsFiltered"${s.amShowRawVsFiltered ? ' checked' : ''}> Nyers érték is látszódjon a szűrt mellett</label>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAmMinMax"${s.amShowMinMax ? ' checked' : ''}> Min–Max oszlop</label>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetAmTrend"${s.amShowTrend ? ' checked' : ''}> Trend-jelzés</label>
+      </div>`;
   }
 
   const common = !_hasPicker(meta) ? '' : `
@@ -631,6 +695,13 @@ async function _renderPanelResult() {
     return;
   }
 
+  if (meta.kind === 'atlagmedian') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeAtlagMedianResult();
+    _setBtns(false);
+    return;
+  }
+
   _lastHeader = { title: meta.title, from, to };
   _computeCompareResult();
   _setBtns(false);
@@ -723,6 +794,116 @@ function _renderMatrixResult(dolgKeys, anyagKeys, matrix, dolgTotalsMap) {
     <div style="overflow-x:auto;">
       <table class="stbl"><thead><tr><th>Dolgozó</th>${headCells}<th>Domináns anyag</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
+}
+
+/* ── Átlag / Medián: anyagonként (és dolgozónkénti bontásban) a napi termelés
+   átlaga/mediánja, IQR-alapú kiugró-szűréssel — a cél az legyen, hogy egy-két
+   extrém nap ne torzítsa el a "tipikus" napi mennyiséget. */
+function _computeAtlagMedianResult() {
+  if (!_lastEntries || !_lastHeader) return;
+
+  const matData = {};
+  _lastEntries.forEach(e => {
+    const mat = (e.anyag || '').trim();
+    if (!mat) return;
+    const kg = _kg(e); if (kg <= 0) return;
+    matData[mat] ??= { days: {}, workers: {} };
+    matData[mat].days[e.datum] = (matData[mat].days[e.datum] || 0) + kg;
+    const nev = e.nev || 'Ismeretlen';
+    matData[mat].workers[nev] ??= {};
+    matData[mat].workers[nev][e.datum] = (matData[mat].workers[nev][e.datum] || 0) + kg;
+  });
+
+  _renderAtlagMedianResult(matData);
+}
+
+/* Az időszak felére osztva a második fél szűrt napi átlagát hasonlítja az
+   elsőhöz — csak durva irány-jelzés, nem statisztikai próba. */
+function _trend(days, from, to) {
+  const dates = Object.keys(days).sort();
+  if (dates.length < 4) return null;
+  const [y1, m1, d1] = from.split('-').map(Number);
+  const [y2, m2, d2] = to.split('-').map(Number);
+  const mid = new Date((new Date(y1, m1 - 1, d1).getTime() + new Date(y2, m2 - 1, d2).getTime()) / 2).toISOString().slice(0, 10);
+  const firstHalf  = dates.filter(d => d <= mid).map(d => days[d]);
+  const secondHalf = dates.filter(d => d > mid).map(d => days[d]);
+  if (firstHalf.length < 2 || secondHalf.length < 2) return null;
+  const a1 = average(_iqrFilter(firstHalf)), a2 = average(_iqrFilter(secondHalf));
+  if (a1 <= 0) return null;
+  const pct = (a2 - a1) / a1 * 100;
+  if (Math.abs(pct) < 5) return { dir: '→', label: 'stabil', pct: 0 };
+  return pct > 0 ? { dir: '↑', label: `+${pct.toFixed(0)}%`, pct } : { dir: '↓', label: `${pct.toFixed(0)}%`, pct };
+}
+
+function _renderAtlagMedianResult(matData) {
+  const out = E('analitikaRiportDiv'); if (!out) return;
+  const settings = _getSettings();
+  const mats = Object.keys(matData);
+
+  if (!mats.length) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`;
+    return;
+  }
+
+  const withStats = mats.map(mat => ({ mat, data: matData[mat], stats: _filteredStats(Object.values(matData[mat].days)) }));
+  withStats.sort((a, b) => settings.amSortBy === 'mennyiseg'
+    ? b.stats.filtered.avg - a.stats.filtered.avg
+    : a.mat.localeCompare(b.mat, 'hu'));
+
+  const showCombined = settings.amViewMode !== 'dolgozonkent';
+  const showWorkers  = settings.amViewMode !== 'osszesitve';
+  const alwaysOpen   = settings.amViewMode === 'dolgozonkent';
+
+  const statLine = (s, unit) => `<span>Átlag: <b>${_fmtUnitHtml(s.avg, unit)}</b></span><span>Medián: <b>${_fmtUnitHtml(s.med, unit)}</b></span>`;
+
+  const rows = withStats.map(({ mat, data, stats }) => {
+    const primary = settings.amFilterOutliers ? stats.filtered : stats.raw;
+    const combinedHtml = showCombined ? `
+          ${statLine(primary, settings.amUnit)}
+          ${settings.amShowRawVsFiltered && settings.amFilterOutliers && stats.wasFiltered
+            ? `<span style="color:var(--text3);">(nyers: ${_fmtUnitHtml(stats.raw.avg, settings.amUnit)} átlag)</span>` : ''}
+          ${settings.amShowMinMax ? `<span>Min–Max: <b>${_fmtUnitHtml(primary.min, settings.amUnit)} – ${_fmtUnitHtml(primary.max, settings.amUnit)}</b></span>` : ''}` : '';
+
+    let trendHtml = '';
+    if (settings.amShowTrend) {
+      const tr = _trend(data.days, _lastHeader.from, _lastHeader.to);
+      if (tr) trendHtml = `<span style="color:var(--text3);">${tr.dir} ${tr.label}</span>`;
+    }
+
+    let workerHtml = '';
+    if (showWorkers) {
+      const workerRows = Object.entries(data.workers)
+        .map(([nev, days]) => ({ nev, stats: _filteredStats(Object.values(days)) }))
+        .sort((a, b) => b.stats.filtered.avg - a.stats.filtered.avg)
+        .map(w => {
+          const p = settings.amFilterOutliers ? w.stats.filtered : w.stats.raw;
+          return `<div class="cel-worker-row"><span>${esc(w.nev)}</span><span>átlag ${_fmtUnitHtml(p.avg, settings.amUnit)} · medián ${_fmtUnitHtml(p.med, settings.amUnit)} (${p.n} nap)</span></div>`;
+        })
+        .join('') || '<div class="cel-worker-row"><span style="color:var(--text3);">Nincs adat.</span></div>';
+      workerHtml = `<div class="cel-worker-detail">${workerRows}</div>`;
+    }
+
+    const clickable = showWorkers && !alwaysOpen;
+
+    return `<div class="cel-mat-row${alwaysOpen ? ' open' : ''}" data-mat="${esc(mat)}">
+      <div class="cel-mat-hdr"${clickable ? '' : ' style="cursor:default;"'}>
+        <div class="cel-mat-left">
+          ${clickable ? '<span class="cel-chev">▸</span>' : ''}
+          <span class="cel-mat-name">${esc(mat)}</span>
+        </div>
+        <div class="cel-mat-stats">
+          ${combinedHtml}
+          ${trendHtml}
+        </div>
+      </div>
+      ${workerHtml}
+    </div>`;
+  }).join('');
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    ${settings.amFilterOutliers ? '<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">A kiugróan magas/alacsony napi értékek ki vannak szűrve (IQR-módszer) az átlag/medián számításából.</p>' : ''}
+    ${rows}`;
 }
 
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
@@ -899,6 +1080,11 @@ export function analitikaPanelClick(e) {
     _renderResultBody();
     return;
   }
+  const matHdr = e.target.closest('.cel-mat-hdr');
+  if (matHdr && matHdr.style.cursor !== 'default') {
+    matHdr.closest('.cel-mat-row')?.classList.toggle('open');
+    return;
+  }
 }
 
 /* ── Beállítás-mezők (select/checkbox) change eseménye — mentés + azonnali
@@ -926,6 +1112,13 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetSearchDatum')   { _saveSettings({ searchShowDatum: e.target.checked });   _computeSearchResult(); return; }
   if (e.target.id === 'anaSetSearchDolgozo') { _saveSettings({ searchShowDolgozo: e.target.checked }); _computeSearchResult(); return; }
   if (e.target.id === 'anaSetSearchReszleg') { _saveSettings({ searchShowReszleg: e.target.checked }); _computeSearchResult(); return; }
+  if (e.target.id === 'anaSetAmView')          { _saveSettings({ amViewMode: e.target.value });          _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmSort')          { _saveSettings({ amSortBy: e.target.value });            _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmUnit')          { _saveSettings({ amUnit: e.target.value });              _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmFilter')        { _saveSettings({ amFilterOutliers: e.target.checked });  _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmRawVsFiltered') { _saveSettings({ amShowRawVsFiltered: e.target.checked }); _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmMinMax')        { _saveSettings({ amShowMinMax: e.target.checked });      _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaSetAmTrend')         { _saveSettings({ amShowTrend: e.target.checked });       _computeAtlagMedianResult(); return; }
 }
 
 /* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,
