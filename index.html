@@ -315,7 +315,6 @@
       <div class="subtabs" id="jelentesekSubtabs">
         <button class="stab-btn active" data-jstab="napi">📋 Napi</button>
         <button class="stab-btn" data-jstab="idoszakos">📊 Időszakos</button>
-        <button class="stab-btn" data-jstab="analitika">📈 Analitika</button>
       </div>
 
       <!-- Napi al-fül -->
@@ -488,13 +487,6 @@
         <button class="btn btn-ghost" id="idoszakosNyomtatBtn" disabled>🖨 Nyomtat</button>
       </div>
       </div><!-- /jstab-idoszakos -->
-
-      <!-- Analitika al-fül -->
-      <div id="jstab-analitika" class="jstab-panel">
-      <p style="color:var(--text3);font-size:13px;margin:0 0 14px;">Kattints egy csempére a részletes, grafikonos összehasonlításhoz.</p>
-      <div id="analitikaWidgets" class="ana-grid"></div>
-      <div id="analitikaPanel" class="card" style="display:none;margin-top:18px;"></div>
-      </div><!-- /jstab-analitika -->
     </div>
 
     <!-- ══ CÉLOK ══ -->
@@ -522,123 +514,9 @@
 
     <!-- ══ ELEMZÉS ══ -->
     <div id="tab-elemzes" class="tab-panel">
-      <!-- Dátumszűrő -->
-      <div class="card" style="margin-bottom:12px;">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);">Időszak:</span>
-          <button class="btn btn-ghost btn-xs edate-preset active" data-preset="all">Minden adat</button>
-          <button class="btn btn-ghost btn-xs edate-preset" data-preset="30d">30 nap</button>
-          <button class="btn btn-ghost btn-xs edate-preset" data-preset="90d">90 nap</button>
-          <button class="btn btn-ghost btn-xs edate-preset" data-preset="year">Ez az év</button>
-          <button class="btn btn-ghost btn-xs edate-preset" data-preset="custom">Egyéni</button>
-          <div id="edateCustomWrap" style="display:none;gap:6px;align-items:center;">
-            <input type="date" id="edateTol" style="font-size:12px;padding:4px 8px;">
-            <span style="color:var(--text3);">→</span>
-            <input type="date" id="edateIg" style="font-size:12px;padding:4px 8px;">
-            <button class="btn btn-primary btn-xs" id="edateAlkalmaz">OK</button>
-          </div>
-          <button class="btn btn-ghost btn-xs" id="elemzesNyomtatBtn" style="margin-left:auto;">🖨 Nyomtatás</button>
-        </div>
-      </div>
-      <div class="vsw" style="margin-bottom:12px;">
-        <button class="vbtn active" id="eBtnEgyeni">Egyéni</button>
-        <button class="vbtn" id="eBtnAnyagRangsor">Anyag rangsor</button>
-        <button class="vbtn" id="eBtnRekordok">Rekordok</button>
-        <button class="vbtn" id="eBtnOsszehasonlit">Összehasonlítás</button>
-        <button class="vbtn" id="eBtnMuszak">Műszak</button>
-        <button class="vbtn" id="eBtnReszleg">Részleg</button>
-        <button class="vbtn" id="eBtnMuszakVezeto">Műszakvezető</button>
-        <button class="vbtn" id="eBtnCsapatOssz">Csapatok</button>
-      </div>
-
-      <!-- 1. fül: Egyéni elemzés -->
-      <div id="eTabEgyeni">
-        <div class="card">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field"><label class="lbl">Dolgozó</label><select id="egyeniDolgozo" style="min-width:150px;"></select></div>
-            <div class="field"><label class="lbl">Anyag</label><select id="egyeniAnyag" style="min-width:150px;"></select></div>
-            <div class="field" style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="egyeniBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="egyeniDiv"><div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot</div></div>
-      </div>
-
-      <!-- 2. fül: Anyagtípus rangsor -->
-      <div id="eTabAnyagRangsor" style="display:none;">
-        <div class="card">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field"><label class="lbl">Anyag</label><select id="anyagRangsorSel" style="min-width:150px;"></select></div>
-            <div class="field" style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="anyagRangsorBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="anyagRangsorDiv"><div class="empty-st"><div class="empty-ic">📦</div>Válassz anyagot és kattints a Mutat gombra</div></div>
-      </div>
-
-      <!-- 3. fül: Személyes rekordok -->
-      <div id="eTabRekordok" style="display:none;">
-        <div id="rekordokDiv"><div class="empty-st"><div class="empty-ic">🏆</div>Betöltés...</div></div>
-      </div>
-
-      <!-- 4. fül: Összehasonlítás -->
-      <div id="eTabOsszehasonlit" style="display:none;">
-        <div class="card">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field"><label class="lbl">1. Dolgozó</label><select id="osszDolg1" style="min-width:150px;"></select></div>
-            <div class="field"><label class="lbl">2. Dolgozó</label><select id="osszDolg2" style="min-width:150px;"></select></div>
-            <div class="field"><label class="lbl">Anyag</label><select id="osszAnyag" style="min-width:150px;"></select></div>
-            <div class="field" style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="osszBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="osszDiv"><div class="empty-st"><div class="empty-ic">⚖️</div>Válassz két dolgozót és anyagot</div></div>
-      </div>
-
-      <!-- 6. fül: Műszak elemzés -->
-      <div id="eTabMuszak" style="display:none;">
-        <div id="muszakDiv"><div class="empty-st"><div class="empty-ic">🕐</div><div class="empty-title">Kattints ide a műszak elemzéshez</div></div></div>
-      </div>
-
-      <!-- 7. fül: Részleg összesítő -->
-      <div id="eTabReszleg" style="display:none;">
-        <div id="reszlegElemzesDiv"><div class="empty-st"><div class="empty-ic">🏭</div><div class="empty-title">Kattints ide a részleg elemzéshez</div></div></div>
-      </div>
-
-      <!-- 8. fül: Műszakvezető összehasonlítás -->
-      <div id="eTabMuszakVezeto" style="display:none;">
-        <div class="card" style="margin-bottom:10px;">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field"><label class="lbl">Műszakvezető</label><select id="mvElemzSel" style="min-width:160px;"></select></div>
-            <div class="field" style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="mvElemzBtn">Mutat</button>
-            </div>
-          </div>
-        </div>
-        <div id="muszakVezetoDiv"><div class="empty-st"><div class="empty-ic">👷</div>Válassz műszakvezetőt és kattints a Mutat gombra</div></div>
-      </div>
-
-      <!-- 9. fül: Csapatok összehasonlítása -->
-      <div id="eTabCsapatOssz" style="display:none;">
-        <div class="card" style="margin-bottom:10px;">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <div class="field"><label class="lbl">1. Műszakvezető</label><select id="csapatOssz1Sel" style="min-width:160px;"></select></div>
-            <div class="field"><label class="lbl">2. Műszakvezető</label><select id="csapatOssz2Sel" style="min-width:160px;"></select></div>
-            <div class="field" style="margin-bottom:13px;">
-              <label class="lbl" style="visibility:hidden;">–</label>
-              <button class="btn btn-primary btn-sm" id="csapatOsszBtn">Összehasonlít</button>
-            </div>
-          </div>
-        </div>
-        <div id="csapatOsszDiv"><div class="empty-st"><div class="empty-ic">👥</div>Válassz két műszakvezetőt</div></div>
-      </div>
+      <p style="color:var(--text3);font-size:13px;margin:0 0 14px;">Kattints egy csempére a részletes, grafikonos összehasonlításhoz.</p>
+      <div id="analitikaWidgets" class="ana-grid"></div>
+      <div id="analitikaPanel" class="card" style="display:none;margin-top:18px;"></div>
     </div>
 
     <!-- ══ DOLGOZÓK ══ -->

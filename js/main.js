@@ -28,7 +28,6 @@ import { loadAdminUsers, loadRoles, saveRole, cancelRoleForm,
          handleRoleListClick, mentFajl, betoltFajl, mindTorol,
          loadNoticeAdmin, saveNotice, applyRoleTemplate,
          loadAuditLogAdmin, loadLoginLog, exportAllDataExcel } from './admin.js';
-import { initElemzes } from './worker-analysis.js';
 import { initDashboard, reloadDashboard, setAutoRefresh, closeWidgetDrawer } from './dashboard.js';
 import { initHelp } from './help.js';
 import { logAction } from './auditlog.js';
@@ -269,10 +268,7 @@ function switchTab(name, btn) {
   if (name === 'adatbevitel') renderWipSection();
   if (name === 'dashboard')   { initDashboard(); loadAndDisplayNotice(); }
   if (name === 'sugo')        initHelp();
-  if (name === 'elemzes' && !switchTab._elemzesInited) {
-    switchTab._elemzesInited = true;
-    initElemzes();
-  }
+  if (name === 'elemzes')     analitikaInitWidgets();
 }
 
 const _NOTICE_TYPES = {
@@ -366,7 +362,6 @@ function switchJelentesekSubtab(name) {
   document.querySelectorAll('.jstab-panel').forEach(p => p.classList.remove('active'));
   E('jstab-' + name).classList.add('active');
   if (name !== 'napi') cleanupNapiListener();
-  if (name === 'analitika') analitikaInitWidgets();
 }
 
 function switchDolgozokSubtab(name) {
