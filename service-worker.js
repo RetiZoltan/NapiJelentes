@@ -1,4 +1,4 @@
-const CACHE    = 'plexiq-v142';
+const CACHE    = 'plexiq-v143';
 const PRECACHE = [
   '/', '/index.html',
   '/css/tokens.css', '/css/components.css', '/css/report.css',

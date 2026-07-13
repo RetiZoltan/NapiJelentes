@@ -1,4 +1,4 @@
-import { fetchEntries, fillSel } from './db.js';
+import { fetchEntries, fillSel, getWorkerMaterials } from './db.js';
 import { state, isMuszakVezeto } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent, nyomtatDiv } from './reports.js';
@@ -33,6 +33,7 @@ const WIDGETS = [
         const csapat = state.muszakVezetokMap[s.csapatSzuro] || [];
         if (e.nev !== s.csapatSzuro && !csapat.includes(e.nev)) return false;
       }
+      if (s.dolgozokAnyagSzuro && (e.anyag || '').trim() !== s.dolgozokAnyagSzuro) return false;
       return true;
     } },
   { id: 'muszakok', icon: '🕐', title: 'Műszakok összehasonlítása', unit: 'műszak', max: 2,
@@ -40,10 +41,16 @@ const WIDGETS = [
   { id: 'csapatok', icon: '👥', title: 'Csapatok összehasonlítása', unit: 'csapat', max: 8,
     visible: () => Object.keys(state.muszakVezetokMap).length > 0,
     keyFn: _csapatKeyFn, listSrc: () => Object.keys(state.muszakVezetokMap).map(v => `${v} csapata`) },
+  { id: 'reszlegek', icon: '🏭', title: 'Részlegek összehasonlítása', unit: 'részleg', max: 8,
+    keyFn: e => (e.reszleg || '').trim(), listSrc: () => state.reszlegek },
   { id: 'anyagspec', icon: '🧩', title: 'Anyag-specializáció mátrix', kind: 'matrix' },
   { id: 'anyagkereso', icon: '🔍', title: 'Anyag kereső', kind: 'search' },
   { id: 'datum', icon: '📅', title: 'Dátum szerinti elemzés', kind: 'datum' },
   { id: 'atlagmedian', icon: '📐', title: 'Átlag / Medián', kind: 'atlagmedian' },
+  { id: 'rekordok', icon: '🏆', title: 'Rekordok', kind: 'rekordok' },
+  { id: 'csapatreszletes', icon: '👑', title: 'Csapat részletei', kind: 'csapatreszletes',
+    visible: () => Object.keys(state.muszakVezetokMap).length > 0 },
+  { id: 'egyeni', icon: '🔬', title: 'Egyéni mélyfúrás', kind: 'egyeni' },
 ];
 
 /* A dolgozó nevéből visszakeresi, melyik műszakvezető csapatához tartozik
@@ -78,8 +85,8 @@ const _SET_DEFAULTS = {
   topN: '', sortBy: 'kg', unit: 't', showOther: false, compareEnabled: false, // közös
   reszlegSzuro: '', csapatSzuro: '',                     // anyagok + dolgozók
   anyagCsoport: false,                                   // csak anyagok
-  archivalt: false,                                      // csak dolgozók
-  muszakMode: 'osszeg',                                  // csak műszakok: 'osszeg' | 'atlag'
+  archivalt: false, dolgozokAnyagSzuro: '',               // csak dolgozók
+  muszakMode: 'osszeg', muszakDolgozonkent: false,        // csak műszakok: 'osszeg' | 'atlag', dolgozónkénti bontás
   sajatCsapat: false,                                    // csak csapatok (műszakvezetőknek)
   hetiBontas: false,                                     // csak dátum szerinti elemzés
   napSorrend: 'kronologikus',                            // csak dátum szerinti elemzés: 'kronologikus' | 'rangsor'
@@ -429,6 +436,8 @@ function _settingsBlockHtml(meta) {
         <label class="rs-lbl"><input type="checkbox" id="anaSetAnyagCsoport"${s.anyagCsoport ? ' checked' : ''}> Csoportosítás anyagcsoport szerint</label>
       </div>`;
   } else if (meta.id === 'dolgozok') {
+    const anyagOpts = ['<option value="">— Mind —</option>', ...[...state.anyagok].sort((a, b) => a.localeCompare(b, 'hu'))
+      .map(a => `<option value="${esc(a)}"${s.dolgozokAnyagSzuro === a ? ' selected' : ''}>${esc(a)}</option>`)].join('');
     extra = `
       <div class="field">
         <label class="lbl">Részleg szerint</label>
@@ -439,6 +448,10 @@ function _settingsBlockHtml(meta) {
         <label class="lbl">Csapat szerint</label>
         <select id="anaSetCsapat">${csapatOpts}</select>
       </div>` : ''}
+      <div class="field">
+        <label class="lbl">Csak egy anyag (összevetéshez)</label>
+        <select id="anaSetDolgozokAnyag">${anyagOpts}</select>
+      </div>
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetArchivalt"${s.archivalt ? ' checked' : ''}> Archivált dolgozók is</label>
       </div>`;
@@ -449,6 +462,9 @@ function _settingsBlockHtml(meta) {
         <select id="anaSetMuszakMode">
           ${opt('osszeg', s.muszakMode, 'Összesen')}${opt('atlag', s.muszakMode, 'Napi átlag (aktív napokra)')}
         </select>
+      </div>
+      <div class="field" style="margin-bottom:9px;">
+        <label class="rs-lbl"><input type="checkbox" id="anaSetMuszakDolgozonkent"${s.muszakDolgozonkent ? ' checked' : ''}> Dolgozónkénti bontás (melyik műszakban jobb ki)</label>
       </div>`;
   } else if (meta.id === 'csapatok' && isMuszakVezeto()) {
     extra = `
@@ -641,6 +657,16 @@ export async function analitikaShowPanel(kind) {
       <input type="text" id="anaAmSearchInput" placeholder="Pl. azonos anyag különböző színekkel elmentve…" autocomplete="off">
       <p class="lhint">Ha kitöltöd, a rész-egyezéssel talált anyagokat egyesítve, egyetlen összesített átlag/mediánt mutat.</p>
     </div>` : ''}
+    ${meta.kind === 'csapatreszletes' ? `
+    <div class="field" style="margin-bottom:14px;min-width:200px;">
+      <label class="lbl">Csapatvezető</label>
+      <select id="anaCsapatVezetoSel"></select>
+    </div>` : ''}
+    ${meta.kind === 'egyeni' ? `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div class="field" style="min-width:170px;"><label class="lbl">Dolgozó</label><select id="anaEgyeniDolgozoSel"></select></div>
+      <div class="field" style="min-width:170px;"><label class="lbl">Anyag</label><select id="anaEgyeniAnyagSel"></select></div>
+    </div>` : ''}
     <button class="btn btn-ghost btn-sm" id="anaSettingsToggle" style="margin-bottom:10px;">⚙ Beállítások</button>
     ${_settingsBlockHtml(meta)}
     <button class="btn btn-primary btn-sm" id="anaDrRefreshBtn" style="margin-bottom:14px;">Frissítés</button>
@@ -651,6 +677,13 @@ export async function analitikaShowPanel(kind) {
       <button class="btn btn-ghost" id="analitikaNyomtatBtn" disabled>🖨 Nyomtat</button>
     </div>`;
   if (_hasPicker(meta)) _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  if (meta.kind === 'csapatreszletes') {
+    fillSel(E('anaCsapatVezetoSel'), Object.keys(state.muszakVezetokMap), '— Válassz csapatvezetőt —');
+  }
+  if (meta.kind === 'egyeni') {
+    fillSel(E('anaEgyeniDolgozoSel'), state.nevek.filter(n => !state.nevMetadata[n]?.archivalt), '— Válassz dolgozót —');
+    fillSel(E('anaEgyeniAnyagSel'), state.anyagok, '— Válassz anyagot —');
+  }
 
   panel.style.display = '';
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -713,6 +746,27 @@ async function _renderPanelResult() {
   if (meta.kind === 'atlagmedian') {
     _lastHeader = { title: meta.title, from, to };
     _computeAtlagMedianResult();
+    _setBtns(false);
+    return;
+  }
+
+  if (meta.kind === 'rekordok') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeRekordokResult();
+    _setBtns(false);
+    return;
+  }
+
+  if (meta.kind === 'csapatreszletes') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeCsapatReszletekResult();
+    _setBtns(false);
+    return;
+  }
+
+  if (meta.kind === 'egyeni') {
+    _lastHeader = { title: meta.title, from, to };
+    _computeEgyeniResult();
     _setBtns(false);
     return;
   }
@@ -947,6 +1001,175 @@ function _renderAtlagMedianResult(matData, searchInfo) {
     ${rows}`;
 }
 
+/* ── Rekordok: mindenki saját legjobb egyedi napja a kiválasztott
+   időszakban — nem anyag-specifikus, a napi teljes termelést nézi. */
+function _computeRekordokResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
+
+  const byWorkerDay = {};
+  _lastEntries.forEach(e => {
+    const kg = _kg(e); if (kg <= 0) return;
+    const nev = e.nev || 'Ismeretlen';
+    byWorkerDay[nev] ??= {};
+    byWorkerDay[nev][e.datum] ??= { total: 0, mats: {} };
+    byWorkerDay[nev][e.datum].total += kg;
+    const mat = (e.anyag || '').trim();
+    if (mat) byWorkerDay[nev][e.datum].mats[mat] = (byWorkerDay[nev][e.datum].mats[mat] || 0) + kg;
+  });
+
+  const records = Object.entries(byWorkerDay).map(([nev, days]) => {
+    const best = Object.entries(days).reduce((a, [datum, d]) => d.total > a.total ? { datum, ...d } : a, { total: -1 });
+    const domMat = Object.entries(best.mats || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+    return { nev, total: best.total, datum: best.datum, domMat };
+  }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+
+  if (!records.length) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`;
+    return;
+  }
+
+  const settings = _getSettings();
+  const medal = i => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+  const rows = records.map((r, i) => `<tr>
+    <td style="font-weight:700;width:32px;">${medal(i)}</td>
+    <td style="font-weight:600;">${esc(r.nev)}</td>
+    <td class="v-bold">${_fmtUnitHtml(r.total, settings.unit)}</td>
+    <td>${esc(fmtS(r.datum))}</td>
+    <td>${esc(r.domMat)}</td>
+  </tr>`).join('');
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    <p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">Mindenki saját legjobb egyedi napja a kiválasztott időszakban.</p>
+    <div style="overflow-x:auto;">
+      <table class="stbl"><thead><tr><th></th><th>Dolgozó</th><th>Napi termelés</th><th>Dátum</th><th>Domináns anyag</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+/* ── Csapat részletei: egy kiválasztott csapatvezető csapatának tagonkénti
+   rangsora + a csapat napi termelésének trendje. */
+function _computeCsapatReszletekResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
+  const vezeto = E('anaCsapatVezetoSel')?.value;
+  if (!vezeto) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">👑</div>Válassz csapatvezetőt fent.</div>`;
+    return;
+  }
+
+  const team = [vezeto, ...(state.muszakVezetokMap[vezeto] || [])];
+  const entries = _lastEntries.filter(e => team.includes(e.nev));
+  const settings = _getSettings();
+
+  const byMember = {};
+  entries.forEach(e => {
+    const kg = _kg(e); if (kg <= 0) return;
+    byMember[e.nev] ??= {};
+    byMember[e.nev][e.datum] = (byMember[e.nev][e.datum] || 0) + kg;
+  });
+
+  const members = team.map(nev => {
+    const vals = Object.values(byMember[nev] || {});
+    return { nev, total: vals.reduce((a, b) => a + b, 0), avg: average(vals), best: vals.length ? Math.max(...vals) : 0, n: vals.length };
+  }).sort((a, b) => b.avg - a.avg);
+
+  if (!members.some(m => m.n > 0)) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat ehhez a csapathoz.</div>`;
+    return;
+  }
+
+  const teamDayTotals = {};
+  entries.forEach(e => { const kg = _kg(e); if (kg > 0) teamDayTotals[e.datum] = (teamDayTotals[e.datum] || 0) + kg; });
+  const teamVals  = Object.values(teamDayTotals);
+  const teamTotal = teamVals.reduce((a, b) => a + b, 0);
+
+  const rows = members.map(m => `<tr>
+    <td style="font-weight:600;">${m.nev === vezeto ? '👑 ' : ''}${esc(m.nev)}</td>
+    <td class="v-bold">${_fmtUnitHtml(m.total, settings.unit)}</td>
+    <td>${_fmtUnitHtml(m.avg, settings.unit)}</td>
+    <td>${_fmtUnitHtml(m.best, settings.unit)}</td>
+    <td>${m.n}</td>
+  </tr>`).join('');
+
+  const spark = teamVals.length >= 2
+    ? `<div class="r-section" style="margin-top:14px;"><div class="r-sec-title">📈 Csapat napi termelése</div>${_sparkline(
+        Object.entries(teamDayTotals).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg })), 60)}</div>`
+    : '';
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    <div class="prem-grand" style="margin-bottom:14px;">
+      <span>Csapat összesen: <strong>${_fmtUnitHtml(teamTotal, settings.unit)}</strong></span>
+      <span>Napi átlag: <strong>${_fmtUnitHtml(average(teamVals), settings.unit)}</strong></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="stbl"><thead><tr><th>Dolgozó</th><th>Összesen</th><th>Napi átlag</th><th>Legjobb nap</th><th>Aktív napok</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    ${spark}`;
+}
+
+/* ── Egyéni mélyfúrás: egy dolgozó + egy anyag napi trendje, naptár-heatmap,
+   és összevetés az adott anyagot termelő összes dolgozó átlagával. */
+function _computeEgyeniResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
+  const nev   = E('anaEgyeniDolgozoSel')?.value;
+  const anyag = E('anaEgyeniAnyagSel')?.value;
+
+  if (!nev || !anyag) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">👤</div>Válassz dolgozót és anyagot fent.</div>`;
+    return;
+  }
+
+  const settings  = _getSettings();
+  const allForMat = _lastEntries.filter(e => (e.anyag || '').trim() === anyag && _kg(e) > 0);
+  const ownDays   = {};
+  allForMat.filter(e => e.nev === nev).forEach(e => { ownDays[e.datum] = (ownDays[e.datum] || 0) + _kg(e); });
+
+  const ownVals = Object.values(ownDays);
+  if (!ownVals.length) {
+    out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+      <div class="empty-st"><div class="empty-ic">📭</div>${esc(nev)} nem termelt ${esc(anyag)}-t ebben az időszakban.</div>`;
+    return;
+  }
+
+  // Üzemi átlag: az adott anyagot termelő összes dolgozó napi átlaga (a mi dolgozónkat is beleértve).
+  const plantByWorker = {};
+  allForMat.forEach(e => {
+    plantByWorker[e.nev] ??= {};
+    plantByWorker[e.nev][e.datum] = (plantByWorker[e.nev][e.datum] || 0) + _kg(e);
+  });
+  const plantAvgs = Object.values(plantByWorker).map(days => average(Object.values(days)));
+  const plantAvg  = average(plantAvgs);
+
+  const ownAvg  = average(ownVals);
+  const ownMed  = median(ownVals);
+  const ownBest = Math.max(...ownVals);
+  const ownWorst = Math.min(...ownVals);
+  const diffPct = plantAvg > 0 ? (ownAvg - plantAvg) / plantAvg * 100 : 0;
+
+  const statHtml = `<div class="prem-grand" style="margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <span>Napi átlag: <strong>${_fmtUnitHtml(ownAvg, settings.unit)}</strong></span>
+    <span>Medián: <strong>${_fmtUnitHtml(ownMed, settings.unit)}</strong></span>
+    <span>Legjobb nap: <strong>${_fmtUnitHtml(ownBest, settings.unit)}</strong></span>
+    <span>Leggyengébb nap: <strong>${_fmtUnitHtml(ownWorst, settings.unit)}</strong></span>
+    <span>Aktív napok: <strong>${ownVals.length}</strong></span>
+  </div>`;
+
+  const compareHtml = `<p style="color:${diffPct >= 0 ? 'var(--green)' : 'var(--red)'};font-size:13px;margin:0 0 14px;">
+    ${esc(nev)} napi átlaga ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(0)}%-kal ${diffPct >= 0 ? 'jobb' : 'rosszabb'}, mint az üzemi átlag (${_fmtUnitHtml(plantAvg, settings.unit)}/nap, ${plantAvgs.length} dolgozó alapján) ${esc(anyag)}-ból.</p>`;
+
+  const sparkData = Object.entries(ownDays).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
+  const trendHtml = sparkData.length >= 2
+    ? `<div class="r-section"><div class="r-sec-title">📈 Napi trend</div>${_sparkline(sparkData, 60)}</div>` : '';
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    ${statHtml}
+    ${compareHtml}
+    ${trendHtml}
+    <div class="r-section" style="margin-top:14px;"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(ownDays, _lastHeader.from, _lastHeader.to)}</div>`;
+}
+
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
    nyers bejegyzés-lista + összsúly — nem aggregál dolgozó/anyag szerint,
    mint a többi csempe, hanem a konkrét egyedi bejegyzéseket listázza. */
@@ -1095,11 +1318,49 @@ function _renderResultBody() {
     ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 10px;">Összevetve: <strong style="color:var(--text);">${esc(opts.prevMap.label)}</strong></p>`
     : '';
 
+  const muszakDolgHtml = (_panelKind === 'muszakok' && settings.muszakDolgozonkent) ? _muszakDolgozonkentHtml(settings.unit) : '';
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>${compareCaption}` + (
     series.length
-      ? chart + _rankTable(series, opts)
+      ? chart + _rankTable(series, opts) + muszakDolgHtml
       : `<div class="empty-st"><div class="empty-ic">📭</div>Nincs megjeleníthető adat</div>`
   );
+}
+
+/* Dolgozónkénti DE/DU napi átlag + melyik műszakban jobb az adott dolgozó —
+   a "Műszakok összehasonlítása" csempe opcionális kiegészítő táblázata. */
+function _muszakDolgozonkentHtml(unit) {
+  if (!_lastEntries) return '';
+  const buckets = {};
+  _lastEntries.forEach(e => {
+    const kg = _kg(e); if (kg <= 0) return;
+    const nev = e.nev || 'Ismeretlen';
+    const shift = (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt';
+    buckets[nev] ??= { 'Délelőtt': {}, 'Délután': {} };
+    buckets[nev][shift][e.datum] = (buckets[nev][shift][e.datum] || 0) + kg;
+  });
+
+  const rows = Object.entries(buckets).map(([nev, sh]) => {
+    const deVals = Object.values(sh['Délelőtt']), duVals = Object.values(sh['Délután']);
+    const deAvg = average(deVals), duAvg = average(duVals);
+    const jobb = deVals.length && duVals.length ? (deAvg >= duAvg ? 'Délelőtt' : 'Délután')
+      : (deVals.length ? 'Délelőtt' : duVals.length ? 'Délután' : '—');
+    return { nev, deAvg, duAvg, deN: deVals.length, duN: duVals.length, jobb };
+  }).sort((a, b) => Math.max(b.deAvg, b.duAvg) - Math.max(a.deAvg, a.duAvg));
+
+  if (!rows.length) return '';
+
+  const trs = rows.map(r => `<tr>
+    <td style="font-weight:600;">${esc(r.nev)}</td>
+    <td${r.jobb === 'Délelőtt' ? ' class="v-bold"' : ''}>${r.deN ? _fmtUnitHtml(r.deAvg, unit) : '—'}</td>
+    <td${r.jobb === 'Délután' ? ' class="v-bold"' : ''}>${r.duN ? _fmtUnitHtml(r.duAvg, unit) : '—'}</td>
+    <td>${esc(r.jobb)}</td>
+  </tr>`).join('');
+
+  return `<div class="r-section"><div class="r-sec-title">🕐 Dolgozónkénti műszak-bontás (napi átlag)</div>
+    <div style="overflow-x:auto;">
+      <table class="stbl"><thead><tr><th>Dolgozó</th><th>Délelőtt átlag</th><th>Délután átlag</th><th>Jobb műszak</th></tr></thead><tbody>${trs}</tbody></table>
+    </div></div>`;
 }
 
 /* ── Panel belsejének eseménydelegálása (a tartalom többször újraépül) ── */
@@ -1153,7 +1414,9 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetCsapat')      { _saveSettings({ csapatSzuro: e.target.value });  _computeCompareResult(); return; }
   if (e.target.id === 'anaSetAnyagCsoport'){ _saveSettings({ anyagCsoport: e.target.checked }); _rebuildSelectAndRecompute(); return; }
   if (e.target.id === 'anaSetArchivalt')   { _saveSettings({ archivalt: e.target.checked });    _rebuildSelectAndRecompute(); return; }
+  if (e.target.id === 'anaSetDolgozokAnyag') { _saveSettings({ dolgozokAnyagSzuro: e.target.value }); _computeCompareResult(); return; }
   if (e.target.id === 'anaSetMuszakMode')  { _saveSettings({ muszakMode: e.target.value });     _renderResultBody();          return; }
+  if (e.target.id === 'anaSetMuszakDolgozonkent') { _saveSettings({ muszakDolgozonkent: e.target.checked }); _renderResultBody(); return; }
   if (e.target.id === 'anaSetNapSorrend')  { _saveSettings({ napSorrend: e.target.value });     _computeDatumResult();        return; }
   if (e.target.id === 'anaSetHetiBontas')  { _saveSettings({ hetiBontas: e.target.checked });   _computeDatumResult();        return; }
   if (e.target.id === 'anaSetSajatCsapat') { _saveSettings({ sajatCsapat: e.target.checked });  _computeCompareResult();      return; }
@@ -1174,6 +1437,15 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetAmRawVsFiltered') { _saveSettings({ amShowRawVsFiltered: e.target.checked }); _computeAtlagMedianResult(); return; }
   if (e.target.id === 'anaSetAmMinMax')        { _saveSettings({ amShowMinMax: e.target.checked });      _computeAtlagMedianResult(); return; }
   if (e.target.id === 'anaSetAmTrend')         { _saveSettings({ amShowTrend: e.target.checked });       _computeAtlagMedianResult(); return; }
+  if (e.target.id === 'anaCsapatVezetoSel')  { _computeCsapatReszletekResult(); return; }
+  if (e.target.id === 'anaEgyeniAnyagSel')   { _computeEgyeniResult(); return; }
+  if (e.target.id === 'anaEgyeniDolgozoSel') {
+    const worker = e.target.value;
+    if (!worker) { fillSel(E('anaEgyeniAnyagSel'), state.anyagok, '— Válassz anyagot —'); _computeEgyeniResult(); return; }
+    getWorkerMaterials(worker).then(mats => fillSel(E('anaEgyeniAnyagSel'), mats, '— Válassz anyagot —'));
+    _computeEgyeniResult();
+    return;
+  }
 }
 
 /* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,

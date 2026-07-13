@@ -164,32 +164,28 @@ const SECTIONS = [
   /* ── Elemzés ─────────────────────────────────────────── */
   {
     id: 'elemzes', icon: '📈', title: 'Elemzés',
-    teaser: '7 al-fül: egyéni, rangsor, rekordok, összehasonlítás, műszak, részleg, műszakvezető',
+    teaser: 'Kattintható csempék: anyagok, dolgozók, műszakok, csapatok, részlegek, rekordok és egyéni mélyfúrás',
     perm: () => isMainAdmin() || hasPerm('elemzes'),
     content: () => `
-      <p>Az <strong>Elemzés</strong> lapon 7 al-fül érhető el. Minden nézethez <strong>időszak szűrő</strong> állítható be a tetején: Minden adat / 30 nap / 90 nap / Ez az év / Egyéni tól–ig.</p>
+      <p>Az <strong>Elemzés</strong> lapon csempék listája jelenik meg — egy csempére kattintva alatta nyílik meg a részletes, grafikonos panel: <strong>Tól/Ig dátumszűrővel</strong> (plusz gyorsgombok: 7/30/90 nap, Idei hónap, Idei év, Teljes előzmény) és egy <strong>⚙ Beállítások</strong> panellel, ami csempénként más opciókat kínál.</p>
 
-      <p><strong>👤 Egyéni elemzés:</strong></p>
-      <ul>
-        <li>Válassz dolgozót és anyagot → Összefoglaló: aktív napok, legjobb/leggyengébb nap, napi átlag, szórás</li>
-        <li>Üzemi átlaggal való összehasonlítás (+/-% eltérés)</li>
-        <li><strong>📉 Trend vonaldiagram</strong> — SVG grafikon az időbeli változásról (≥2 adatpont esetén)</li>
-        <li><strong>🗓️ Naptár hőtérkép</strong> — sötétebb cella = nagyobb napi termelés (≥5 aktív nap esetén); hover megmutatja a pontos értéket</li>
-        <li><strong>📦 Anyagok szerinti rangsor</strong> — az adott dolgozó összes anyaga átlag/nap szerint; a kiválasztott anyag ◀ jelöléssel kiemelve</li>
-        <li>Napi bontás táblázat a végén</li>
-      </ul>
+      <p><strong>📦 Anyagtípusok / 👤 Dolgozók / 👥 Csapatok / 🏭 Részlegek összehasonlítása:</strong> Top-N rangsor sávdiagrammal és táblázattal, szűrőkkel (részleg, csapat, anyagcsoport, archivált dolgozók, egy konkrét anyagra szűrés a Dolgozóknál). Egy táblázatsorra kattintva megnyílik az adott elem napi trendje.</p>
 
-      <p><strong>🏅 Anyagtípus rangsor:</strong> Egy anyagnál ki termel legtöbbet átlagosan — személyes legjobb és leggyengébb nappal.</p>
+      <p><strong>🕐 Műszakok összehasonlítása:</strong> Délelőtt vs. Délután, összesen vagy napi átlag nézetben; bekapcsolható a dolgozónkénti bontás, ami megmutatja, ki melyik műszakban termel jobban.</p>
 
-      <p><strong>🏆 Személyes rekordok:</strong> Minden dolgozó valaha volt legjobb napja, rangsorolva. 🥇🥈🥉 érmek a top 3-nak.</p>
+      <p><strong>🧩 Anyag-specializáció mátrix:</strong> Dolgozó × anyag táblázat, a cellák az adott dolgozó termelésén belüli arányt mutatják — kiderül, ki mire "specializálódott".</p>
 
-      <p><strong>⚖️ Összehasonlítás:</strong> Két dolgozó egymás mellé helyezve ugyanarra az anyagra — statisztikai tábla (✓ jelöli a győztest), vizuális sávdiagram és kettős vonaldiagram.</p>
+      <p><strong>🔍 Anyag kereső:</strong> Élő (gépelés közbeni) rész-szó keresés az anyagnév mezőn, listázza az egyező bejegyzéseket és az összsúlyt.</p>
 
-      <p><strong>🕐 Műszak elemzés:</strong> Dolgozónként Délelőtt vs. Délután átlagos napi termelés, ✓ jelöli a jobb műszakot. Üzemi összesítő: melyik műszak termel többet és mennyivel.</p>
+      <p><strong>📅 Dátum szerinti elemzés:</strong> Naptár hőtérkép, heti bontás és a hét napjai szerinti átlagok, legjobb/leggyengébb nap.</p>
 
-      <p><strong>🏭 Részleg összesítő:</strong> Részlegenként össztermelés sávdiagrammal (🥇🥈🥈 érmek), napi átlag és legjobb nap feltüntetésével. Alatta részletes összehasonlító táblázat: össztermelés · aktív napok · napi átlag · legjobb nap.</p>
+      <p><strong>📐 Átlag / Medián:</strong> Anyagonként (és dolgozónkénti bontásban) a napi átlag/medián termelés, kiugró napok IQR-alapú kiszűrésével, Min–Max és trend-jelzéssel. Kereső mezővel egyesíthetők a rész-egyezéssel talált anyagok (pl. ugyanaz az anyag más néven/színnel elmentve).</p>
 
-      <p><strong>👥 Műszakvezető csapat elemzés:</strong> Válassz egy műszakvezetőt → látod a teljes csapat havi rangsorát sávdiagrammal és részletes táblázattal. A vezető 👑 koronával jelölve. Minden taghoz megjelenik: össztermelés, aktív napok száma, napi átlag, legjobb nap.</p>
+      <p><strong>🏆 Rekordok:</strong> Minden dolgozó saját legjobb napja a kiválasztott időszakban, rangsorolva, 🥇🥈🥉 érmekkel.</p>
+
+      <p><strong>👑 Csapat részletei:</strong> Egy kiválasztott csapatvezető csapatának tagonkénti rangsora (össztermelés, napi átlag, legjobb nap) + a csapat napi trendje. A vezető 👑 koronával jelölve.</p>
+
+      <p><strong>🔬 Egyéni mélyfúrás:</strong> Egy dolgozó + egy anyag kiválasztásával: napi átlag/medián/legjobb/leggyengébb nap, összevetés az adott anyagot termelő összes dolgozó átlagával, napi trend és naptár hőtérkép.</p>
     `
   },
 
@@ -414,7 +410,7 @@ const SECTIONS = [
         <li><strong>Dolgozó → Alapértelmezett részleg</strong> — névválasztáskor automatikusan kitöltődik (ha nincs 📌-el rögzítve)</li>
         <li><strong>Részleg → Anyag hozzárendelés</strong> — melyik részleg melyik anyagokkal dolgozik; ha üres, minden anyag látható</li>
         <li><strong>Anyag → Csoport hozzárendelés</strong> — anyagokat csoporthoz rendelve csoportosított legördülő az adatbevitelben</li>
-        <li><strong>Dolgozó → Műszakvezető hozzárendelés</strong> — minden aktív dolgozóhoz egy műszakvezetőt lehet rendelni. Szekció automatikusan megjelenik, ha legalább 2 aktív dolgozó van. Mentés után a napi és időszakos jelentésekben megjelenik a műszakvezető szűrő, az Elemzés lapon a Műszakvezető al-fül, és a dashboardon a Csapat összesítő widget.</li>
+        <li><strong>Dolgozó → Műszakvezető hozzárendelés</strong> — minden aktív dolgozóhoz egy műszakvezetőt lehet rendelni. Szekció automatikusan megjelenik, ha legalább 2 aktív dolgozó van. Mentés után a napi és időszakos jelentésekben megjelenik a műszakvezető szűrő, az Elemzés lapon a Csapatok/Csapat részletei csempék, és a dashboardon a Csapat összesítő widget.</li>
       </ul>
       ` : ''}
 
