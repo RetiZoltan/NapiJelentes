@@ -946,21 +946,26 @@ function _renderAtlagMedianResult(matData, searchInfo) {
   const showWorkers  = settings.amViewMode !== 'osszesitve';
   const alwaysOpen   = settings.amViewMode === 'dolgozonkent';
 
-  const statLine = (s, unit) => `<span>Átlag/műszak: <b>${_fmtUnitHtml(s.avg, unit)}</b></span><span>Medián/műszak: <b>${_fmtUnitHtml(s.med, unit)}</b></span>`;
+  const sep = ' <span class="cel-sep">·</span> ';
+  const statLine = (s, unit) => `Átlag/műszak: <b>${_fmtUnitHtml(s.avg, unit)}</b>${sep}Medián/műszak: <b>${_fmtUnitHtml(s.med, unit)}</b>`;
 
   const rows = withStats.map(({ mat, data, stats }) => {
     const primary = settings.amFilterOutliers ? stats.filtered : stats.raw;
-    const combinedHtml = showCombined ? `
-          ${statLine(primary, settings.amUnit)}
-          ${settings.amShowRawVsFiltered && settings.amFilterOutliers && stats.wasFiltered
-            ? `<span style="color:var(--text3);">(nyers: ${_fmtUnitHtml(stats.raw.avg, settings.amUnit)} átlag)</span>` : ''}
-          ${settings.amShowMinMax ? `<span>Min–Max: <b>${_fmtUnitHtml(primary.min, settings.amUnit)} – ${_fmtUnitHtml(primary.max, settings.amUnit)}</b></span>` : ''}` : '';
-
-    let trendHtml = '';
+    const statParts = [];
+    if (showCombined) {
+      statParts.push(statLine(primary, settings.amUnit));
+      if (settings.amShowRawVsFiltered && settings.amFilterOutliers && stats.wasFiltered) {
+        statParts.push(`<span style="color:var(--text3);">(nyers: ${_fmtUnitHtml(stats.raw.avg, settings.amUnit)} átlag)</span>`);
+      }
+      if (settings.amShowMinMax) {
+        statParts.push(`Min–Max: <b>${_fmtUnitHtml(primary.min, settings.amUnit)} – ${_fmtUnitHtml(primary.max, settings.amUnit)}</b>`);
+      }
+    }
     if (settings.amShowTrend) {
       const tr = _trend(data.shifts, _lastHeader.from, _lastHeader.to);
-      if (tr) trendHtml = `<span style="color:var(--text3);">${tr.dir} ${tr.label}</span>`;
+      if (tr) statParts.push(`<span style="color:var(--text3);">${tr.dir} ${tr.label}</span>`);
     }
+    const combinedHtml = statParts.join(sep);
 
     let workerHtml = '';
     if (showWorkers) {
@@ -969,7 +974,7 @@ function _renderAtlagMedianResult(matData, searchInfo) {
         .sort((a, b) => b.stats.filtered.avg - a.stats.filtered.avg)
         .map(w => {
           const p = settings.amFilterOutliers ? w.stats.filtered : w.stats.raw;
-          return `<div class="cel-worker-row"><span>${esc(w.nev)}</span><span>átlag ${_fmtUnitHtml(p.avg, settings.amUnit)} · medián ${_fmtUnitHtml(p.med, settings.amUnit)} (${p.n} műszak)</span></div>`;
+          return `<div class="cel-worker-row"><b>${esc(w.nev)}</b> — átlag ${_fmtUnitHtml(p.avg, settings.amUnit)}${sep}medián ${_fmtUnitHtml(p.med, settings.amUnit)} (${p.n} műszak)</div>`;
         })
         .join('') || '<div class="cel-worker-row"><span style="color:var(--text3);">Nincs adat.</span></div>';
       workerHtml = `<div class="cel-worker-detail">${workerRows}</div>`;
@@ -985,7 +990,6 @@ function _renderAtlagMedianResult(matData, searchInfo) {
         </div>
         <div class="cel-mat-stats">
           ${combinedHtml}
-          ${trendHtml}
         </div>
       </div>
       ${workerHtml}
