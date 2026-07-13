@@ -185,7 +185,7 @@ const SECTIONS = [
 
       <p><strong>👑 Csapat részletei:</strong> Egy kiválasztott csapatvezető csapatának tagonkénti rangsora (össztermelés, napi átlag, legjobb nap) + a csapat napi trendje. A vezető 👑 koronával jelölve.</p>
 
-      <p><strong>🔬 Egyéni mélyfúrás:</strong> Egy dolgozó + egy anyag kiválasztásával: napi átlag/medián/legjobb/leggyengébb nap, összevetés az adott anyagot termelő összes dolgozó átlagával, napi trend és naptár hőtérkép.</p>
+      <p><strong>🔬 Egyéni elemzés:</strong> Egy dolgozó + egy anyag kiválasztásával: napi átlag/medián/legjobb/leggyengébb nap, összevetés az adott anyagot termelő összes dolgozó átlagával, napi trend és naptár hőtérkép, a dolgozó összes anyagának rangsora napi átlag szerint (a kiválasztott anyag ◀ jelöléssel kiemelve), és egy napi bontás táblázat.</p>
     `
   },
 

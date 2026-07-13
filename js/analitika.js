@@ -50,7 +50,7 @@ const WIDGETS = [
   { id: 'rekordok', icon: '🏆', title: 'Rekordok', kind: 'rekordok' },
   { id: 'csapatreszletes', icon: '👑', title: 'Csapat részletei', kind: 'csapatreszletes',
     visible: () => Object.keys(state.muszakVezetokMap).length > 0 },
-  { id: 'egyeni', icon: '🔬', title: 'Egyéni mélyfúrás', kind: 'egyeni' },
+  { id: 'egyeni', icon: '🔬', title: 'Egyéni elemzés', kind: 'egyeni' },
 ];
 
 /* A dolgozó nevéből visszakeresi, melyik műszakvezető csapatához tartozik
@@ -1112,7 +1112,7 @@ function _computeCsapatReszletekResult() {
     ${spark}`;
 }
 
-/* ── Egyéni mélyfúrás: egy dolgozó + egy anyag napi trendje, naptár-heatmap,
+/* ── Egyéni elemzés: egy dolgozó + egy anyag napi trendje, naptár-heatmap,
    és összevetés az adott anyagot termelő összes dolgozó átlagával. */
 function _computeEgyeniResult() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
@@ -1167,11 +1167,34 @@ function _computeEgyeniResult() {
   const trendHtml = sparkData.length >= 2
     ? `<div class="r-section"><div class="r-sec-title">📈 Napi trend</div>${_sparkline(sparkData, 60)}</div>` : '';
 
+  // Anyagok szerinti rangsor: a dolgozó összes anyaga átlag/nap szerint,
+  // a jelenleg kiválasztott anyag ◀ jelöléssel kiemelve.
+  const ownAllMat = {};
+  _lastEntries.filter(e => e.nev === nev && _kg(e) > 0).forEach(e => {
+    const mat = (e.anyag || '').trim(); if (!mat) return;
+    ownAllMat[mat] ??= {};
+    ownAllMat[mat][e.datum] = (ownAllMat[mat][e.datum] || 0) + _kg(e);
+  });
+  const matRanking = Object.entries(ownAllMat)
+    .map(([mat, days]) => ({ mat, avg: average(Object.values(days)), n: Object.keys(days).length }))
+    .sort((a, b) => b.avg - a.avg);
+  const rankingHtml = matRanking.length > 1 ? `<div class="r-section"><div class="r-sec-title">📦 ${esc(nev)} anyagai napi átlag szerint</div>
+    <div style="overflow-x:auto;"><table class="stbl"><thead><tr><th>#</th><th>Anyag</th><th>Napi átlag</th><th>Aktív napok</th></tr></thead><tbody>
+      ${matRanking.map((r, i) => `<tr${r.mat === anyag ? ' style="background:var(--agl);"' : ''}><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;">${r.mat === anyag ? '◀ ' : ''}${esc(r.mat)}</td><td class="v-bold">${_fmtUnitHtml(r.avg, settings.unit)}</td><td>${r.n}</td></tr>`).join('')}
+    </tbody></table></div></div>` : '';
+
+  const dailyRows = Object.entries(ownDays).sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([datum, kg]) => `<tr><td>${esc(fmtS(datum))}</td><td class="v-bold">${_fmtUnitHtml(kg, settings.unit)}</td></tr>`).join('');
+  const dailyTableHtml = `<div class="r-section"><div class="r-sec-title">📋 Napi bontás</div>
+    <div style="overflow-x:auto;max-height:320px;overflow-y:auto;"><table class="stbl"><thead><tr><th>Dátum</th><th>Mennyiség</th></tr></thead><tbody>${dailyRows}</tbody></table></div></div>`;
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
     ${statHtml}
     ${compareHtml}
     ${trendHtml}
-    <div class="r-section" style="margin-top:14px;"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(ownDays, _lastHeader.from, _lastHeader.to)}</div>`;
+    <div class="r-section" style="margin-top:14px;"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(ownDays, _lastHeader.from, _lastHeader.to)}</div>
+    ${rankingHtml}
+    ${dailyTableHtml}`;
 }
 
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
