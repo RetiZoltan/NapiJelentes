@@ -1252,7 +1252,7 @@ function _weekBarSvg(weekStart, byDay) {
   return `<svg viewBox="0 0 ${svgW} ${BAR_H + 16}" style="width:100%;margin-top:10px;overflow:visible;">${bars}</svg>`;
 }
 
-/* ── Gyors áttekintő: 4 kis, dashboard-widget-stílusú kártya —
+/* ── Gyors áttekintő: kis, dashboard-widget-stílusú kártyák —
    nem a teljes 12-csempés rácsot előre kiszámolva, csak erre az egyre,
    amikor rákattintanak. */
 async function _computeAttekintoResult() {
@@ -1287,8 +1287,41 @@ async function _computeAttekintoResult() {
     weekTotal > 0 ? `${_fmtUnitPlain(weekTotal, 't')} ezen a héten` : 'Még nincs adat ezen a héten',
     _weekBarSvg(weekStart, weekByDay));
 
+  const bestWorstHtml = _bestWorstDay(byDay);
+  const bestWorstCard = bestWorstHtml
+    ? _card('🏆', 'Legjobb / Leggyengébb nap', '', '', bestWorstHtml)
+    : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', '');
+
+  let deKg = 0, duKg = 0;
+  _lastEntries.forEach(e => {
+    const kg = _kg(e); if (kg <= 0) return;
+    if ((e.ido || '').trim() === 'Délután') duKg += kg; else deKg += kg;
+  });
+  const muszakTotal = deKg + duKg;
+  const dePct = muszakTotal > 0 ? deKg / muszakTotal * 100 : 0;
+  const duPct = muszakTotal > 0 ? duKg / muszakTotal * 100 : 0;
+  // Nem justify-content:space-between-nel térközölünk (html2canvas nem veszi
+  // figyelembe export közben), hanem két flex:1 elemmel, jobbra igazítva a másodikat.
+  const muszakExtra = muszakTotal > 0 ? `
+    <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;">
+      <div style="width:${dePct.toFixed(1)}%;background:var(--accent);"></div>
+      <div style="width:${duPct.toFixed(1)}%;background:var(--amber);"></div>
+    </div>
+    <div style="display:flex;font-size:11px;color:var(--text3);margin-top:6px;">
+      <span style="flex:1;">☀️ Délelőtt ${dePct.toFixed(0)}%</span>
+      <span style="flex:1;text-align:right;">🌙 Délután ${duPct.toFixed(0)}%</span>
+    </div>` : '';
+  const muszakCard = _card('🕐', 'Műszak-megoszlás', '',
+    muszakTotal > 0 ? `${_fmtUnitPlain(muszakTotal, 't')} összesen` : 'Nincs adat', muszakExtra);
+
+  let csapatCard = '';
+  if (Object.keys(state.muszakVezetokMap).length > 0) {
+    const csapatTotals = _totals(_lastEntries, _csapatKeyFn).slice(0, 3);
+    csapatCard = _card('👥', 'Top csapatok', '', 'Kiválasztott időszak', _miniRanking(csapatTotals));
+  }
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
-    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}</div>`;
+    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}${bestWorstCard}${muszakCard}${csapatCard}</div>`;
 }
 
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
