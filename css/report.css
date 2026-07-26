@@ -82,6 +82,10 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
 
   /* Hide everything except the print frame */
   body.is-printing>*:not(#print-frame){display:none!important;}
+  /* A klónozott tartalom belépő animációi (pl. .card/.dash-widget "fu"/"dashIn")
+     a kezdő (láthatatlan) képkockán ragadhatnak, mert a print-pillanatkép
+     azelőtt készül, hogy az animáció lefutna — ezért itt kikapcsoljuk őket. */
+  #print-frame *{animation:none!important;transition:none!important;opacity:1!important;transform:none!important;}
   #print-frame{display:block!important;font-family:'Source Sans 3','Segoe UI',sans-serif;font-size:13px;line-height:1.6;color:#1E293B;background:#fff;
     /* Világos téma színeinek kényszerítése (inline SVG-k és var()-os elemek számára, sötét téma esetén is) */
     --bg:#EFF2F7; --surf:#FFFFFF; --surf2:#F8FAFC; --surf3:#EEF2F8;
@@ -107,6 +111,10 @@ table.rt{width:100%;border-collapse:collapse;font-size:13px;}
   .card{animation:none!important;opacity:1!important;border:1px solid #CBD5E1;border-radius:6px;padding:12px 14px;margin-bottom:10px;break-inside:avoid;box-shadow:none;}
   .card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#1565C0;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
   .card-title-icon{font-size:12px;}
+
+  /* Dashboard-stílusú mini widget kártyák (pl. Gyors áttekintő csempe) */
+  .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .dash-widget{border:1px solid #CBD5E1;border-radius:6px;padding:12px 14px;box-shadow:none;break-inside:avoid;}
 
   /* Statistics tables */
   table.stbl{width:100%;border-collapse:collapse;font-size:11.5px;}

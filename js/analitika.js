@@ -1211,12 +1211,14 @@ function _miniRanking(totals) {
   if (!totals.length) return '<p style="color:var(--text3);font-size:12.5px;margin:6px 0 0;">Nincs adat.</p>';
   const medalGrad = ['linear-gradient(135deg,#FFD700,#E6A000)', 'linear-gradient(135deg,#C8C8C8,#909090)', 'linear-gradient(135deg,#CD853F,#8B4513)'];
   const medal = i => i < 3
-    ? `<span style="background:${medalGrad[i]};color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${i + 1}</span>`
-    : `<span style="color:var(--text3);width:22px;text-align:center;display:inline-block;flex-shrink:0;font-size:12px;">${i + 1}.</span>`;
+    ? `<span style="background:${medalGrad[i]};color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-right:8px;">${i + 1}</span>`
+    : `<span style="color:var(--text3);width:22px;text-align:center;display:inline-block;flex-shrink:0;font-size:12px;margin-right:8px;">${i + 1}.</span>`;
+  // Nem flex `gap`-pel térközölünk a medál/név/érték között, mert az html2canvas
+  // (Kép/PDF export) nem veszi figyelembe a gap-et — explicit margin-right marad.
   const rows = totals.map(([label, kg], i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+    <div style="display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
       ${medal(i)}
-      <span style="font-size:${i === 0 ? '13.5' : '12.5'}px;font-weight:${i === 0 ? 700 : 600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(label)}</span>
+      <span style="font-size:${i === 0 ? '13.5' : '12.5'}px;font-weight:${i === 0 ? 700 : 600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;">${esc(label)}</span>
       <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i === 0 ? 600 : 400};">${_fmtUnitPlain(kg, 't')}</span>
     </div>`).join('');
   return `<div style="margin-top:6px;">${rows}</div>`;
