@@ -69,6 +69,8 @@ let _lastHeader  = null;
 let _lastEntries = null;
 let _lastByDay   = null;
 let _expandedLabel = null;      // melyik táblázatsor napi trendje van kinyitva
+let _attekintoCache = null;     // Gyors áttekintő: egyszer lekérdezett/összesített adatok
+let _attekintoExpanded = null;  // Gyors áttekintő: melyik mini-kártya van helyben kibontva
 let _searchDebounceT = null;    // anyag kereső élő szűrésének debounce timere
 let _amSearchDebounceT = null;  // átlag/medián anyag-egyesítő szűrő debounce timere
 
@@ -621,6 +623,8 @@ export async function analitikaShowPanel(kind) {
   _panelKind = kind;
   _expandedLabel = null;
   _lastPrevMap = null;
+  _attekintoCache = null;
+  _attekintoExpanded = null;
   const panel = E('analitikaPanel'); if (!panel) return;
 
   document.querySelectorAll('#analitikaWidgets .dash-widget-clickable').forEach(w => {
@@ -1260,28 +1264,20 @@ function _weekBarSvg(weekStart, byDay) {
 
 /* ── Gyors áttekintő: kis, dashboard-widget-stílusú kártyák —
    nem a teljes 12-csempés rácsot előre kiszámolva, csak erre az egyre,
-   amikor rákattintanak. */
+   amikor rákattintanak. Az adatgyűjtés (async, hét-lekérdezéssel) és a
+   renderelés szét van választva, hogy egy kártyára kattintva a helyben
+   kibontható részlet újrarajzolása ne indítson felesleges lekérdezést. */
 async function _computeAttekintoResult() {
-  const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
+  if (!_lastEntries || !_lastHeader) return;
   const settings = _getSettings();
   const entries  = settings.reszlegSzuro ? _lastEntries.filter(e => (e.reszleg || '').trim() === settings.reszlegSzuro) : _lastEntries;
 
   const byDay = {};
   entries.forEach(e => { const kg = _kg(e); if (kg > 0) byDay[e.datum] = (byDay[e.datum] || 0) + kg; });
-  const totalKg = Object.values(byDay).reduce((a, b) => a + b, 0);
-  const activeDays = Object.keys(byDay).length;
-  const sparkData = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
 
-  const summaryCard = _card('📊', 'Összesítő (kiválasztott időszak)',
-    totalKg > 0 ? _fmtUnitHtml(totalKg, settings.unit) : '<span style="color:var(--text3);font-size:20px;">—</span>',
-    activeDays > 0 ? `${activeDays} aktív nap · átlag ${_fmtUnitPlain(totalKg / activeDays, settings.unit)}/nap` : 'Nincs adat',
-    sparkData.length >= 2 ? _sparkline(sparkData) : '');
-
-  const dolgTotals  = _totals(entries, e => e.nev).slice(0, 3);
-  const topDolgCard = _card('🏅', 'Top 3 dolgozó', '', `Kiválasztott időszak`, _miniRanking(dolgTotals));
-
-  const anyagTotals  = _totals(entries, e => (e.anyag || '').trim()).slice(0, 3);
-  const topAnyagCard = _card('📦', 'Top 3 anyag', '', `Kiválasztott időszak`, _miniRanking(anyagTotals));
+  const dolgTotals   = _totals(entries, e => e.nev);
+  const anyagTotals  = _totals(entries, e => (e.anyag || '').trim());
+  const csapatTotals = Object.keys(state.muszakVezetokMap).length > 0 ? _totals(entries, _csapatKeyFn) : [];
 
   const todayStr  = tod();
   const dow       = new Date(todayStr + 'T12:00:00').getDay() || 7;
@@ -1290,21 +1286,48 @@ async function _computeAttekintoResult() {
   const weekEntries = settings.reszlegSzuro ? weekEntriesAll.filter(e => (e.reszleg || '').trim() === settings.reszlegSzuro) : weekEntriesAll;
   const weekByDay = {};
   weekEntries.forEach(e => { const kg = _kg(e); if (kg > 0) weekByDay[e.datum] = (weekByDay[e.datum] || 0) + kg; });
-  const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
-  const weekCard = _card('📉', 'Heti bontás (aktuális hét)', '',
-    weekTotal > 0 ? `${_fmtUnitPlain(weekTotal, 't')} ezen a héten` : 'Még nincs adat ezen a héten',
-    _weekBarSvg(weekStart, weekByDay));
-
-  const bestWorstHtml = _bestWorstDay(byDay);
-  const bestWorstCard = bestWorstHtml
-    ? _card('🏆', 'Legjobb / Leggyengébb nap', '', '', bestWorstHtml)
-    : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', '');
 
   let deKg = 0, duKg = 0;
   entries.forEach(e => {
     const kg = _kg(e); if (kg <= 0) return;
     if ((e.ido || '').trim() === 'Délután') duKg += kg; else deKg += kg;
   });
+
+  _attekintoCache = { entries, byDay, dolgTotals, anyagTotals, csapatTotals, weekStart, weekByDay, deKg, duKg };
+  _renderAttekinto();
+}
+
+/* Csak a már összesített _attekintoCache-ből épít újra — kártyára kattintva
+   (helyben kibontás) vagy nézet-beállítás váltásakor nincs új lekérdezés. */
+function _renderAttekinto() {
+  const out = E('analitikaRiportDiv'); if (!out || !_attekintoCache || !_lastHeader) return;
+  const settings = _getSettings();
+  const { entries, byDay, dolgTotals, anyagTotals, csapatTotals, weekStart, weekByDay, deKg, duKg } = _attekintoCache;
+
+  const totalKg = Object.values(byDay).reduce((a, b) => a + b, 0);
+  const activeDays = Object.keys(byDay).length;
+  const sparkData = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
+
+  const cardWrap = (key, html) => `<div data-card="${key}" class="dash-widget-clickable" title="Kattints a részletekért">${html}</div>`;
+
+  const summaryCard = cardWrap('summary', _card('📊', 'Összesítő (kiválasztott időszak)',
+    totalKg > 0 ? _fmtUnitHtml(totalKg, settings.unit) : '<span style="color:var(--text3);font-size:20px;">—</span>',
+    activeDays > 0 ? `${activeDays} aktív nap · átlag ${_fmtUnitPlain(totalKg / activeDays, settings.unit)}/nap` : 'Nincs adat',
+    sparkData.length >= 2 ? _sparkline(sparkData) : ''));
+
+  const topDolgCard = cardWrap('dolg', _card('🏅', 'Top 3 dolgozó', '', 'Kiválasztott időszak', _miniRanking(dolgTotals.slice(0, 3))));
+  const topAnyagCard = cardWrap('anyag', _card('📦', 'Top 3 anyag', '', 'Kiválasztott időszak', _miniRanking(anyagTotals.slice(0, 3))));
+
+  const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
+  const weekCard = cardWrap('week', _card('📉', 'Heti bontás (aktuális hét)', '',
+    weekTotal > 0 ? `${_fmtUnitPlain(weekTotal, 't')} ezen a héten` : 'Még nincs adat ezen a héten',
+    _weekBarSvg(weekStart, weekByDay)));
+
+  const bestWorstHtml = _bestWorstDay(byDay);
+  const bestWorstCard = cardWrap('bestworst', bestWorstHtml
+    ? _card('🏆', 'Legjobb / Leggyengébb nap', '', '', bestWorstHtml)
+    : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', ''));
+
   const muszakTotal = deKg + duKg;
   const dePct = muszakTotal > 0 ? deKg / muszakTotal * 100 : 0;
   const duPct = muszakTotal > 0 ? duKg / muszakTotal * 100 : 0;
@@ -1319,21 +1342,65 @@ async function _computeAttekintoResult() {
       <span style="flex:1;">☀️ Délelőtt ${dePct.toFixed(0)}%</span>
       <span style="flex:1;text-align:right;">🌙 Délután ${duPct.toFixed(0)}%</span>
     </div>` : '';
-  const muszakCard = _card('🕐', 'Műszak-megoszlás', '',
-    muszakTotal > 0 ? `${_fmtUnitPlain(muszakTotal, 't')} összesen` : 'Nincs adat', muszakExtra);
+  const muszakCard = cardWrap('muszak', _card('🕐', 'Műszak-megoszlás', '',
+    muszakTotal > 0 ? `${_fmtUnitPlain(muszakTotal, 't')} összesen` : 'Nincs adat', muszakExtra));
 
-  let csapatCard = '';
-  if (Object.keys(state.muszakVezetokMap).length > 0) {
-    const csapatTotals = _totals(entries, _csapatKeyFn).slice(0, 3);
-    csapatCard = _card('👥', 'Top csapatok', '', 'Kiválasztott időszak', _miniRanking(csapatTotals));
-  }
+  const csapatCard = csapatTotals.length ? cardWrap('csapat', _card('👥', 'Top csapatok', '', 'Kiválasztott időszak', _miniRanking(csapatTotals.slice(0, 3)))) : '';
 
   const reszlegInfo = settings.reszlegSzuro
     ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">Szűrve: <strong style="color:var(--text);">${esc(settings.reszlegSzuro)}</strong> részleg (a heti bontás is erre a részlegre vonatkozik)</p>` : '';
 
+  const detailHtml = _attekintoExpanded ? _attekintoDetailHtml(_attekintoExpanded, _attekintoCache, settings.unit) : '';
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
     ${reszlegInfo}
-    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}${bestWorstCard}${muszakCard}${csapatCard}</div>`;
+    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}${bestWorstCard}${muszakCard}${csapatCard}</div>
+    ${detailHtml}`;
+}
+
+function _detailWrap(title, body) {
+  return `<div class="card" style="margin-top:14px;"><div class="card-title">${esc(title)}</div>${body}</div>`;
+}
+
+function _fullRankingTable(totals, unit) {
+  if (!totals.length) return '<p style="color:var(--text3);font-size:13px;margin:0;">Nincs adat.</p>';
+  const rows = totals.map(([label, kg], i) => `<tr><td style="color:var(--text3);width:28px;">${i + 1}.</td><td style="font-weight:600;">${esc(label)}</td><td class="v-bold">${_fmtUnitHtml(kg, unit)}</td></tr>`).join('');
+  return `<div style="overflow-x:auto;max-height:340px;overflow-y:auto;"><table class="stbl"><thead><tr><th>#</th><th>Megnevezés</th><th>Mennyiség</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* A Gyors áttekintő kártyáira kattintva helyben kibontott részlet-tartalom —
+   ugyanabból a cache-elt adatból, nincs új lekérdezés. */
+function _attekintoDetailHtml(key, cache, unit) {
+  const { entries, byDay, dolgTotals, anyagTotals, csapatTotals, weekStart, weekByDay } = cache;
+  const closeNote = `<p style="color:var(--text3);font-size:11.5px;margin:0 0 10px;">Kattints újra a kártyára a bezáráshoz.</p>`;
+
+  if (key === 'summary') {
+    const rows = Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([datum, kg]) => `<tr><td>${esc(fmtS(datum))}</td><td class="v-bold">${_fmtUnitHtml(kg, unit)}</td></tr>`).join('')
+      || '<tr><td colspan="2" style="color:var(--text3);">Nincs adat.</td></tr>';
+    return _detailWrap('📊 Napi bontás — teljes időszak', closeNote +
+      `<div style="overflow-x:auto;max-height:340px;overflow-y:auto;"><table class="stbl"><thead><tr><th>Dátum</th><th>Mennyiség</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }
+  if (key === 'week') {
+    const days = Array.from({ length: 7 }, (_, i) => addD(weekStart, i));
+    const rows = days.map(d => `<tr><td>${esc(fmtS(d))}</td><td class="v-bold">${_fmtUnitHtml(weekByDay[d] || 0, unit)}</td></tr>`).join('');
+    return _detailWrap('📉 Heti bontás — napi értékek', closeNote +
+      `<table class="stbl"><thead><tr><th>Nap</th><th>Mennyiség</th></tr></thead><tbody>${rows}</tbody></table>`);
+  }
+  if (key === 'dolg')   return _detailWrap('🏅 Dolgozók — teljes rangsor', closeNote + _fullRankingTable(dolgTotals, unit));
+  if (key === 'anyag')  return _detailWrap('📦 Anyagok — teljes rangsor', closeNote + _fullRankingTable(anyagTotals, unit));
+  if (key === 'csapat') return _detailWrap('👥 Csapatok — teljes rangsor', closeNote + _fullRankingTable(csapatTotals, unit));
+  if (key === 'bestworst') {
+    const list = Object.entries(byDay).filter(([, kg]) => kg > 0).sort((a, b) => b[1] - a[1]);
+    const top5 = list.slice(0, 5), bottom5 = list.slice(-5).reverse();
+    const dayTable = rows => rows.length
+      ? `<table class="stbl"><thead><tr><th>Dátum</th><th>Mennyiség</th></tr></thead><tbody>${rows.map(([datum, kg]) => `<tr><td>${esc(fmtS(datum))}</td><td class="v-bold">${_fmtUnitHtml(kg, unit)}</td></tr>`).join('')}</tbody></table>`
+      : '<p style="color:var(--text3);font-size:13px;margin:0;">Nincs adat.</p>';
+    return _detailWrap('🏆 Top 5 legjobb / leggyengébb nap', closeNote +
+      `<div class="g2"><div><p class="rs-group-lbl" style="margin-bottom:6px;">Legjobb napok</p>${dayTable(top5)}</div><div><p class="rs-group-lbl" style="margin-bottom:6px;">Leggyengébb napok</p>${dayTable(bottom5)}</div></div>`);
+  }
+  if (key === 'muszak') return _detailWrap('🕐 Dolgozónkénti műszak-bontás', closeNote + (_muszakDolgozonkentHtml(unit, entries) || '<p style="color:var(--text3);font-size:13px;margin:0;">Nincs adat.</p>'));
+  return '';
 }
 
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
@@ -1495,10 +1562,10 @@ function _renderResultBody() {
 
 /* Dolgozónkénti DE/DU napi átlag + melyik műszakban jobb az adott dolgozó —
    a "Műszakok összehasonlítása" csempe opcionális kiegészítő táblázata. */
-function _muszakDolgozonkentHtml(unit) {
-  if (!_lastEntries) return '';
+function _muszakDolgozonkentHtml(unit, entries = _lastEntries) {
+  if (!entries) return '';
   const buckets = {};
-  _lastEntries.forEach(e => {
+  entries.forEach(e => {
     const kg = _kg(e); if (kg <= 0) return;
     const nev = e.nev || 'Ismeretlen';
     const shift = (e.ido || '').trim() === 'Délután' ? 'Délután' : 'Délelőtt';
@@ -1565,6 +1632,13 @@ export function analitikaPanelClick(e) {
   const matHdr = e.target.closest('.cel-mat-hdr');
   if (matHdr && matHdr.style.cursor !== 'default') {
     matHdr.closest('.cel-mat-row')?.classList.toggle('open');
+    return;
+  }
+  const attCard = e.target.closest('[data-card]');
+  if (attCard && _panelKind === 'attekinto') {
+    const key = attCard.dataset.card;
+    _attekintoExpanded = _attekintoExpanded === key ? null : key;
+    _renderAttekinto();
     return;
   }
 }
