@@ -558,6 +558,12 @@ function _settingsBlockHtml(meta) {
       <div class="field" style="margin-bottom:9px;">
         <label class="rs-lbl"><input type="checkbox" id="anaSetAmTrend"${s.amShowTrend ? ' checked' : ''}> Trend-jelzés</label>
       </div>`;
+  } else if (meta.kind === 'attekinto') {
+    extra = `
+      <div class="field">
+        <label class="lbl">Részleg szerint</label>
+        <select id="anaSetReszleg">${reszlegOpts}</select>
+      </div>`;
   }
 
   const common = !_hasPicker(meta) ? '' : `
@@ -1258,9 +1264,10 @@ function _weekBarSvg(weekStart, byDay) {
 async function _computeAttekintoResult() {
   const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
   const settings = _getSettings();
+  const entries  = settings.reszlegSzuro ? _lastEntries.filter(e => (e.reszleg || '').trim() === settings.reszlegSzuro) : _lastEntries;
 
   const byDay = {};
-  _lastEntries.forEach(e => { const kg = _kg(e); if (kg > 0) byDay[e.datum] = (byDay[e.datum] || 0) + kg; });
+  entries.forEach(e => { const kg = _kg(e); if (kg > 0) byDay[e.datum] = (byDay[e.datum] || 0) + kg; });
   const totalKg = Object.values(byDay).reduce((a, b) => a + b, 0);
   const activeDays = Object.keys(byDay).length;
   const sparkData = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
@@ -1270,16 +1277,17 @@ async function _computeAttekintoResult() {
     activeDays > 0 ? `${activeDays} aktív nap · átlag ${_fmtUnitPlain(totalKg / activeDays, settings.unit)}/nap` : 'Nincs adat',
     sparkData.length >= 2 ? _sparkline(sparkData) : '');
 
-  const dolgTotals  = _totals(_lastEntries, e => e.nev).slice(0, 3);
+  const dolgTotals  = _totals(entries, e => e.nev).slice(0, 3);
   const topDolgCard = _card('🏅', 'Top 3 dolgozó', '', `Kiválasztott időszak`, _miniRanking(dolgTotals));
 
-  const anyagTotals  = _totals(_lastEntries, e => (e.anyag || '').trim()).slice(0, 3);
+  const anyagTotals  = _totals(entries, e => (e.anyag || '').trim()).slice(0, 3);
   const topAnyagCard = _card('📦', 'Top 3 anyag', '', `Kiválasztott időszak`, _miniRanking(anyagTotals));
 
   const todayStr  = tod();
   const dow       = new Date(todayStr + 'T12:00:00').getDay() || 7;
   const weekStart = addD(todayStr, -(dow - 1));
-  const weekEntries = await fetchEntries({ datumFrom: weekStart, datumTo: addD(weekStart, 6) }).catch(() => []);
+  const weekEntriesAll = await fetchEntries({ datumFrom: weekStart, datumTo: addD(weekStart, 6) }).catch(() => []);
+  const weekEntries = settings.reszlegSzuro ? weekEntriesAll.filter(e => (e.reszleg || '').trim() === settings.reszlegSzuro) : weekEntriesAll;
   const weekByDay = {};
   weekEntries.forEach(e => { const kg = _kg(e); if (kg > 0) weekByDay[e.datum] = (weekByDay[e.datum] || 0) + kg; });
   const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
@@ -1293,7 +1301,7 @@ async function _computeAttekintoResult() {
     : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', '');
 
   let deKg = 0, duKg = 0;
-  _lastEntries.forEach(e => {
+  entries.forEach(e => {
     const kg = _kg(e); if (kg <= 0) return;
     if ((e.ido || '').trim() === 'Délután') duKg += kg; else deKg += kg;
   });
@@ -1316,11 +1324,15 @@ async function _computeAttekintoResult() {
 
   let csapatCard = '';
   if (Object.keys(state.muszakVezetokMap).length > 0) {
-    const csapatTotals = _totals(_lastEntries, _csapatKeyFn).slice(0, 3);
+    const csapatTotals = _totals(entries, _csapatKeyFn).slice(0, 3);
     csapatCard = _card('👥', 'Top csapatok', '', 'Kiválasztott időszak', _miniRanking(csapatTotals));
   }
 
+  const reszlegInfo = settings.reszlegSzuro
+    ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">Szűrve: <strong style="color:var(--text);">${esc(settings.reszlegSzuro)}</strong> részleg (a heti bontás is erre a részlegre vonatkozik)</p>` : '';
+
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    ${reszlegInfo}
     <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}${bestWorstCard}${muszakCard}${csapatCard}</div>`;
 }
 
@@ -1564,7 +1576,11 @@ export function analitikaPanelChange(e) {
   if (e.target.id === 'anaSetSort')        { _saveSettings({ sortBy: e.target.value });       _computeCompareResult(); return; }
   if (e.target.id === 'anaSetUnit')        { _saveSettings({ unit: e.target.value });         _renderResultBody();      return; }
   if (e.target.id === 'anaSetOther')       { _saveSettings({ showOther: e.target.checked });  _computeCompareResult(); return; }
-  if (e.target.id === 'anaSetReszleg')     { _saveSettings({ reszlegSzuro: e.target.value }); _computeCompareResult(); return; }
+  if (e.target.id === 'anaSetReszleg')     {
+    _saveSettings({ reszlegSzuro: e.target.value });
+    if (_panelKind === 'attekinto') _computeAttekintoResult(); else _computeCompareResult();
+    return;
+  }
   if (e.target.id === 'anaSetCsapat')      { _saveSettings({ csapatSzuro: e.target.value });  _computeCompareResult(); return; }
   if (e.target.id === 'anaSetAnyagCsoport'){ _saveSettings({ anyagCsoport: e.target.checked }); _rebuildSelectAndRecompute(); return; }
   if (e.target.id === 'anaSetArchivalt')   { _saveSettings({ archivalt: e.target.checked });    _rebuildSelectAndRecompute(); return; }

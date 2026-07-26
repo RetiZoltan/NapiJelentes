@@ -187,7 +187,7 @@ const SECTIONS = [
 
       <p><strong>🔬 Egyéni elemzés:</strong> Egy dolgozó + egy anyag kiválasztásával: napi átlag/medián/legjobb/leggyengébb nap, összevetés az adott anyagot termelő összes dolgozó átlagával, napi trend és naptár hőtérkép, a dolgozó összes anyagának rangsora napi átlag szerint (a kiválasztott anyag ◀ jelöléssel kiemelve), és egy napi bontás táblázat.</p>
 
-      <p><strong>⚡ Gyors áttekintő:</strong> A dashboard-widgetekhez hasonló kártyás gyorsnézet: összesítő szám + trend görbe (a kiválasztott időszakra), Top 3 dolgozó és Top 3 anyag érmes mini-rangsorral, heti bontás oszlopdiagram (mindig az aktuális naptári hétre, a Tól/Ig szűrőtől függetlenül), legjobb/leggyengébb nap, műszak-megoszlás (Délelőtt/Délután arány), és — ha vannak műszakvezetők beállítva — Top csapatok mini-rangsor.</p>
+      <p><strong>⚡ Gyors áttekintő:</strong> A dashboard-widgetekhez hasonló kártyás gyorsnézet: összesítő szám + trend görbe (a kiválasztott időszakra), Top 3 dolgozó és Top 3 anyag érmes mini-rangsorral, heti bontás oszlopdiagram (mindig az aktuális naptári hétre, a Tól/Ig szűrőtől függetlenül), legjobb/leggyengébb nap, műszak-megoszlás (Délelőtt/Délután arány), és — ha vannak műszakvezetők beállítva — Top csapatok mini-rangsor. A ⚙ Beállítások panelben Részleg szerint is szűrhető (a heti bontás kártyára is vonatkozik).</p>
     `
   },
 
