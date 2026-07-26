@@ -186,6 +186,8 @@ const SECTIONS = [
       <p><strong>👑 Csapat részletei:</strong> Egy kiválasztott csapatvezető csapatának tagonkénti rangsora (össztermelés, napi átlag, legjobb nap) + a csapat napi trendje. A vezető 👑 koronával jelölve.</p>
 
       <p><strong>🔬 Egyéni elemzés:</strong> Egy dolgozó + egy anyag kiválasztásával: napi átlag/medián/legjobb/leggyengébb nap, összevetés az adott anyagot termelő összes dolgozó átlagával, napi trend és naptár hőtérkép, a dolgozó összes anyagának rangsora napi átlag szerint (a kiválasztott anyag ◀ jelöléssel kiemelve), és egy napi bontás táblázat.</p>
+
+      <p><strong>⚡ Gyors áttekintő:</strong> A dashboard-widgetekhez hasonló, 4 kis kártyás gyorsnézet: összesítő szám + trend görbe (a kiválasztott időszakra), Top 3 dolgozó és Top 3 anyag érmes mini-rangsorral, és egy heti bontás oszlopdiagram (mindig az aktuális naptári hétre, a Tól/Ig szűrőtől függetlenül).</p>
     `
   },
 

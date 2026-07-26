@@ -2,7 +2,7 @@ import { fetchEntries, fillSel, getWorkerMaterials } from './db.js';
 import { state, isMuszakVezeto } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent, nyomtatDiv } from './reports.js';
-import { _sparkline } from './dashboard.js';
+import { _sparkline, _card } from './dashboard.js';
 
 /* ── Vizuális összehasonlító elemzés (Jelentések → Analitika) ──
    Kattintható, egyszerű csempék; kattintásra a csempék alatt nyílik meg
@@ -51,6 +51,7 @@ const WIDGETS = [
   { id: 'csapatreszletes', icon: '👑', title: 'Csapat részletei', kind: 'csapatreszletes',
     visible: () => Object.keys(state.muszakVezetokMap).length > 0 },
   { id: 'egyeni', icon: '🔬', title: 'Egyéni elemzés', kind: 'egyeni' },
+  { id: 'attekinto', icon: '⚡', title: 'Gyors áttekintő', kind: 'attekinto' },
 ];
 
 /* A dolgozó nevéből visszakeresi, melyik műszakvezető csapatához tartozik
@@ -771,6 +772,13 @@ async function _renderPanelResult() {
     return;
   }
 
+  if (meta.kind === 'attekinto') {
+    _lastHeader = { title: meta.title, from, to };
+    await _computeAttekintoResult();
+    _setBtns(false);
+    return;
+  }
+
   _lastHeader = { title: meta.title, from, to };
   _computeCompareResult();
   _setBtns(false);
@@ -1195,6 +1203,90 @@ function _computeEgyeniResult() {
     <div class="r-section" style="margin-top:14px;"><div class="r-sec-title">🗓 Naptár nézet</div>${_calendarHeatmap(ownDays, _lastHeader.from, _lastHeader.to)}</div>
     ${rankingHtml}
     ${dailyTableHtml}`;
+}
+
+/* Kis, dashboard-widget-stílusú érmés rangsor (top 3 kiemelve), a _card()
+   "extra" tartalmaként — anyagok/dolgozók top listájához egyaránt jó. */
+function _miniRanking(totals) {
+  if (!totals.length) return '<p style="color:var(--text3);font-size:12.5px;margin:6px 0 0;">Nincs adat.</p>';
+  const medalGrad = ['linear-gradient(135deg,#FFD700,#E6A000)', 'linear-gradient(135deg,#C8C8C8,#909090)', 'linear-gradient(135deg,#CD853F,#8B4513)'];
+  const medal = i => i < 3
+    ? `<span style="background:${medalGrad[i]};color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${i + 1}</span>`
+    : `<span style="color:var(--text3);width:22px;text-align:center;display:inline-block;flex-shrink:0;font-size:12px;">${i + 1}.</span>`;
+  const rows = totals.map(([label, kg], i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      ${medal(i)}
+      <span style="font-size:${i === 0 ? '13.5' : '12.5'}px;font-weight:${i === 0 ? 700 : 600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(label)}</span>
+      <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i === 0 ? 600 : 400};">${_fmtUnitPlain(kg, 't')}</span>
+    </div>`).join('');
+  return `<div style="margin-top:6px;">${rows}</div>`;
+}
+
+/* Mini heti oszlopdiagram (mindig az aktuális naptári hét, a panel Tól/Ig
+   szűrőjétől függetlenül — ugyanaz a "Heti bontás" fogalom, mint a dashboardon). */
+function _weekBarSvg(weekStart, byDay) {
+  const days = Array.from({ length: 7 }, (_, i) => addD(weekStart, i));
+  const today = tod();
+  const vals = days.map(d => byDay[d] || 0);
+  const maxV = Math.max(...vals, 1);
+  const BAR_H = 52, BAR_W = 28, GAP = 5;
+  const svgW = 7 * (BAR_W + GAP) - GAP;
+
+  const bars = days.map((d, i) => {
+    const v = vals[i];
+    const h = v > 0 ? Math.max(4, Math.round(v / maxV * BAR_H)) : 0;
+    const x = i * (BAR_W + GAP);
+    const isToday = d === today, isFuture = d > today;
+    const barFill = `style="fill:var(--accent);opacity:${isFuture ? '0.18' : isToday ? '1' : '0.52'}"`;
+    const lblFill = `style="fill:${isToday ? 'var(--accent)' : 'var(--text3)'};font-weight:${isToday ? '700' : '400'}"`;
+    const valFill = `style="fill:${isToday ? 'var(--accent)' : 'var(--text3)'}"`;
+    return [
+      h > 0 ? `<rect x="${x}" y="${BAR_H - h}" width="${BAR_W}" height="${h}" rx="3" ${barFill}/>` : '',
+      `<text x="${x + BAR_W / 2}" y="${BAR_H + 12}" text-anchor="middle" font-size="9.5" font-family="Source Sans 3,sans-serif" ${lblFill}>${HU_DAYS[i].slice(0, 1)}</text>`,
+      v > 0 && !isFuture ? `<text x="${x + BAR_W / 2}" y="${BAR_H - h - 3}" text-anchor="middle" font-size="8.5" font-family="Source Sans 3,sans-serif" ${valFill}>${(v / 1000).toFixed(1)}t</text>` : '',
+    ].join('');
+  }).join('');
+
+  return `<svg viewBox="0 0 ${svgW} ${BAR_H + 16}" style="width:100%;margin-top:10px;overflow:visible;">${bars}</svg>`;
+}
+
+/* ── Gyors áttekintő: 4 kis, dashboard-widget-stílusú kártya —
+   nem a teljes 12-csempés rácsot előre kiszámolva, csak erre az egyre,
+   amikor rákattintanak. */
+async function _computeAttekintoResult() {
+  const out = E('analitikaRiportDiv'); if (!out || !_lastEntries || !_lastHeader) return;
+  const settings = _getSettings();
+
+  const byDay = {};
+  _lastEntries.forEach(e => { const kg = _kg(e); if (kg > 0) byDay[e.datum] = (byDay[e.datum] || 0) + kg; });
+  const totalKg = Object.values(byDay).reduce((a, b) => a + b, 0);
+  const activeDays = Object.keys(byDay).length;
+  const sparkData = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
+
+  const summaryCard = _card('📊', 'Összesítő (kiválasztott időszak)',
+    totalKg > 0 ? _fmtUnitHtml(totalKg, settings.unit) : '<span style="color:var(--text3);font-size:20px;">—</span>',
+    activeDays > 0 ? `${activeDays} aktív nap · átlag ${_fmtUnitPlain(totalKg / activeDays, settings.unit)}/nap` : 'Nincs adat',
+    sparkData.length >= 2 ? _sparkline(sparkData) : '');
+
+  const dolgTotals  = _totals(_lastEntries, e => e.nev).slice(0, 3);
+  const topDolgCard = _card('🏅', 'Top 3 dolgozó', '', `Kiválasztott időszak`, _miniRanking(dolgTotals));
+
+  const anyagTotals  = _totals(_lastEntries, e => (e.anyag || '').trim()).slice(0, 3);
+  const topAnyagCard = _card('📦', 'Top 3 anyag', '', `Kiválasztott időszak`, _miniRanking(anyagTotals));
+
+  const todayStr  = tod();
+  const dow       = new Date(todayStr + 'T12:00:00').getDay() || 7;
+  const weekStart = addD(todayStr, -(dow - 1));
+  const weekEntries = await fetchEntries({ datumFrom: weekStart, datumTo: addD(weekStart, 6) }).catch(() => []);
+  const weekByDay = {};
+  weekEntries.forEach(e => { const kg = _kg(e); if (kg > 0) weekByDay[e.datum] = (weekByDay[e.datum] || 0) + kg; });
+  const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
+  const weekCard = _card('📉', 'Heti bontás (aktuális hét)', '',
+    weekTotal > 0 ? `${_fmtUnitPlain(weekTotal, 't')} ezen a héten` : 'Még nincs adat ezen a héten',
+    _weekBarSvg(weekStart, weekByDay));
+
+  out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
+    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}</div>`;
 }
 
 /* ── Anyag kereső: élő (gépelés közbeni) részszó-keresés az anyag mezőn,
