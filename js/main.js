@@ -738,6 +738,7 @@ E('megj').addEventListener('focus', e => e.target.select());
     E('egyeniTolWrap').style.display    = v === 'egyeni' ? '' : 'none';
     E('egyeniIgWrap').style.display     = v === 'egyeni' ? '' : 'none';
     E('setHaviAtlagWrap').style.display = v === 'eves'   ? '' : 'none';
+    E('setHaviBontasWrap').style.display = v === 'eves'  ? '' : 'none';
   }
   E('idoszakTipus').addEventListener('change', updateIdoszakInputs);
   updateIdoszakInputs();
@@ -795,6 +796,7 @@ E('megj').addEventListener('focus', e => e.target.select());
     { id: 'setDolgReszlet',   key: 'dolgReszlet',   def: false },
     { id: 'setAnyagReszlet',  key: 'anyagReszlet',  def: false },
     { id: 'setNapiBontas',    key: 'napiBontas',    def: true  },
+    { id: 'setHaviBontas',    key: 'haviBontas',    def: true  },
   ];
   function saveRiportSettings() {
     const s = {};

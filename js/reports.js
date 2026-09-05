@@ -13,7 +13,7 @@ const HONAP_NEVEK = ['január','február','március','április','május','júniu
 const RIPORT_DEF = {
   teljes: true, dolgRangsor: true, anyagOssz: true,
   napiAtlag: true, dolgNapiAtlag: false, haviAtlag: false, muszak: false,
-  dolgReszlet: false, anyagReszlet: false, napiBontas: true
+  dolgReszlet: false, anyagReszlet: false, napiBontas: true, haviBontas: true
 };
 function getRiportSet(key) {
   try { const s = JSON.parse(localStorage.getItem('napiJelentesRiportSet') || '{}'); return key in s ? s[key] : (RIPORT_DEF[key] ?? true); }
@@ -685,7 +685,7 @@ export async function evesRiport() {
   if (getRiportSet('muszak'))        html += muszakHtml(hA);
   if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
-  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, true);
+  if (getRiportSet('haviBontas'))    html += napiBontasHtml(hA, true);
   E('idoszakosRiportDiv').innerHTML = html;
   _setIdoszakBtns(false);
 }
@@ -705,6 +705,7 @@ export async function riportKlikk(e) {
     E('haviInputWrap').style.display = '';
     E('evesInputWrap').style.display = 'none';
     E('setHaviAtlagWrap').style.display = 'none';
+    E('setHaviBontasWrap').style.display = 'none';
     haviRiport();
     return;
   }

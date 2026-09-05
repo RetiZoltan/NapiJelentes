@@ -121,7 +121,7 @@ const SECTIONS = [
             <li><em>Fő összesítések:</em> Teljes termelés · Dolgozói rangsor · Anyagtípus összesítés</li>
             <li><em>Grafikonok:</em> 🏆 Időszak rekordjai · 🗓 Naptár hőtérkép · Napi vonaldiagram · Dolgozói sávdiagram</li>
             <li><em>Átlagok:</em> Napi átlagteljesítmény · Dolgozónkénti napi átlag · Havi átlag (csak Éves riportnál) · Műszakok összehasonlítása</li>
-            <li><em>Részletező táblázatok:</em> Dolgozónkénti · Anyagonkénti · Napi bontás</li>
+            <li><em>Részletező táblázatok:</em> Dolgozónkénti · Anyagonkénti · Napi bontás · Havi bontás (csak Éves riportnál)</li>
           </ul>
         </li>
         <li><strong>🏭 Részleg összesítés</strong> — mindig látható (legalább két aktív részlegnél)</li>
