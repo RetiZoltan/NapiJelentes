@@ -13,7 +13,7 @@ const HONAP_NEVEK = ['január','február','március','április','május','júniu
 const RIPORT_DEF = {
   teljes: true, dolgRangsor: true, anyagOssz: true,
   napiAtlag: true, dolgNapiAtlag: false, haviAtlag: false, muszak: false,
-  dolgReszlet: false, anyagReszlet: false, napiBontas: true, haviBontas: true
+  dolgReszlet: false, anyagReszlet: false, napiBontas: true, haviBontas: true, reszlegHaviBontas: true
 };
 function getRiportSet(key) {
   try { const s = JSON.parse(localStorage.getItem('napiJelentesRiportSet') || '{}'); return key in s ? s[key] : (RIPORT_DEF[key] ?? true); }
@@ -686,6 +686,7 @@ export async function evesRiport() {
   if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('haviBontas'))    html += napiBontasHtml(hA, true);
+  if (getRiportSet('reszlegHaviBontas')) html += reszlegHaviBontasHtml(hA);
   if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
   _setIdoszakBtns(false);
@@ -707,6 +708,7 @@ export async function riportKlikk(e) {
     E('evesInputWrap').style.display = 'none';
     E('setHaviAtlagWrap').style.display = 'none';
     E('setHaviBontasWrap').style.display = 'none';
+    E('setReszlegHaviBontasWrap').style.display = 'none';
     haviRiport();
     return;
   }
@@ -1286,6 +1288,40 @@ function anyagReszletHtml(entries) {
     h += `</tbody><tfoot><tr class="tot"><td>Összesen</td><td>${fmtKg(total)}</td></tr></tfoot></table></div>`;
   });
   return h + `</div>`;
+}
+
+function reszlegHaviBontasHtml(entries) {
+  const honNev = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+  const deptTotal = {}, byMonth = {};
+  entries.forEach(a => {
+    const r  = (a.reszleg || '').trim() || 'Ismeretlen részleg';
+    const mk = a.datum.substring(0, 7);
+    const kg = (a.sulyok || []).reduce((s, x) => s + x.suly, 0);
+    deptTotal[r] = (deptTotal[r] || 0) + kg;
+    if (!byMonth[mk]) byMonth[mk] = {};
+    byMonth[mk][r] = (byMonth[mk][r] || 0) + kg;
+  });
+  const depts = Object.keys(deptTotal).filter(r => deptTotal[r] > 0).sort((a, b) => {
+    if (a === 'Ismeretlen részleg') return 1;
+    if (b === 'Ismeretlen részleg') return -1;
+    return deptTotal[b] - deptTotal[a];
+  });
+  if (depts.length < 2) return '';
+  const months = Object.keys(byMonth).sort();
+  if (!months.length) return '';
+
+  let h = `<div class="card" style="margin-bottom:12px;overflow-x:auto;"><div class="card-title"><span class="card-title-icon">🏭</span>Részlegenkénti havi bontás</div>` +
+    `<table class="stbl"><thead><tr><th>Hónap</th>${depts.map(d => `<th>${esc(d)}</th>`).join('')}<th>Összesen</th></tr></thead><tbody>`;
+  months.forEach(mk => {
+    const row = byMonth[mk] || {};
+    const rowTotal = depts.reduce((s, d) => s + (row[d] || 0), 0);
+    h += `<tr><td><button class="dlink" data-goto-havi="${mk}">${honNev[parseInt(mk.split('-')[1]) - 1]}</button></td>` +
+      depts.map(d => `<td>${row[d] ? fmtKg(row[d]) : '—'}</td>`).join('') +
+      `<td class="v-bold">${fmtKg(rowTotal)}</td></tr>`;
+  });
+  const grand = depts.reduce((s, d) => s + deptTotal[d], 0);
+  h += `</tbody><tfoot><tr class="tot"><td>Éves összesen</td>${depts.map(d => `<td>${fmtKg(deptTotal[d])}</td>`).join('')}<td>${fmtKg(grand)}</td></tr></tfoot></table></div>`;
+  return h;
 }
 
 function napiBontasHtml(entries, isEves) {
