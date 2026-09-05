@@ -686,6 +686,7 @@ export async function evesRiport() {
   if (getRiportSet('dolgReszlet'))   html += dolgReszletHtml(hA);
   if (getRiportSet('anyagReszlet'))  html += anyagReszletHtml(hA);
   if (getRiportSet('haviBontas'))    html += napiBontasHtml(hA, true);
+  if (getRiportSet('napiBontas'))    html += napiBontasHtml(hA, false);
   E('idoszakosRiportDiv').innerHTML = html;
   _setIdoszakBtns(false);
 }
