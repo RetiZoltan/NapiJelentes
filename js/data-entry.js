@@ -13,7 +13,9 @@ function _draftKey() { return `nj_draft_${state.appUser?.uid || 'anon'}`; }
 export function updateAnyagSel(reszleg = '', currentVal = '') {
   const mats = filterAnyagForReszleg(reszleg, currentVal);
   fillSelGrouped(E('anyag'), mats, '— Válassz anyagot —');
-  if (currentVal) E('anyag').value = currentVal;
+  // fillSelGrouped magától visszaállítja a select korábbi értékét — ezt itt
+  // felülírjuk, hogy currentVal hiányában (pl. clearF-nél) tényleg üresre álljon.
+  E('anyag').value = currentVal || '';
 }
 
 export function saveDraft() {
