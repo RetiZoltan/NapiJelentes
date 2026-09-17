@@ -44,7 +44,7 @@ const SECTIONS = [
         <li><strong>🔄 Auto frissítés</strong> — 1 / 5 / 10 / 30 perc, vagy kikapcsolva</li>
       </ul>
 
-      <p><strong>Elérhető widgetek (13 db):</strong></p>
+      <p><strong>Elérhető widgetek (15 db):</strong></p>
       <ul>
         <li>⚖️ <strong>Mai össztermelés</strong> — mai termelés tonnában, %-os eltérés a havi átlagtól</li>
         <li>📊 <strong>Havi összesítő</strong> — hónap eddigi termelése + napi átlag</li>
@@ -59,6 +59,8 @@ const SECTIONS = [
         <li>🎖️ <strong>Belépési jubileumok</strong> — 30 napon belüli munkaévfordulók (1+ év)</li>
         <li>📋 <strong>Utóbbi bejegyzések</strong> — az utolsó 5 bejegyzés dátummal és tonnával</li>
         <li>🔧 <strong>Karbantartás</strong> — 14 napon belül esedékes gépeseménynek figyelmeztető</li>
+        <li>🔄 <strong>Műszak-átadás</strong> — a gépen maradt, félbehagyott zsákok, amiket a következő műszaknak át kell venni</li>
+        <li>👥 <strong>Csapat összesítő</strong> — csak műszakvezetői csapatok beállítása esetén: saját csapat havi termelése</li>
       </ul>
 
       <div class="help-tip">Az üdvözlő szöveg naphoz igazodik: hétfőn a múlt hét összesítőjét, pénteken az aktuális hét összesítőjét mutatja.</div>
@@ -138,7 +140,7 @@ const SECTIONS = [
       <ul>
         <li><strong>⬇ Kép</strong> — JPG, mindig világos háttérrel (sötét módban is olvasható)</li>
         <li><strong>⬇ PDF</strong> — nyomtatható, többoldalas ha szükséges</li>
-        <li><strong>⬇ Excel</strong> — XLSX; dolgozónkénti/anyagonkénti részletezésnél minden tétel külön munkalapon</li>
+        <li><strong>⬇ Excel</strong> — XLSX, <em>csak az Időszakos riportnál</em>; dolgozónkénti/anyagonkénti részletezésnél minden tétel külön munkalapon</li>
         <li><strong>🖨 Nyomtat</strong> — böngészős nyomtatási párbeszéd fejléccel és lábléccel</li>
       </ul>
       <div class="help-tip">Az exportgombok csak akkor aktívak, ha már megjelenítettél egy riportot.</div>
@@ -276,10 +278,9 @@ const SECTIONS = [
 
       <p><strong>📊 Aktuális készlet:</strong></p>
       <ul>
-        <li>Anyagonként és helyszínenként: <strong>zsák darabszám</strong> · összsúly (kg/t) · átlag/zsák · 🚛 kamion-szám</li>
-        <li>A kamion kapacitás a ⚙️ Beállítások fülön helyszínenként állítható (alapértelmezett: 22 zsák)</li>
-        <li>Kattintásra ▶ kinyílik a részletező: bevitelezések dátumával és <strong>egyedi zsák súlyok chipekben</strong></li>
-        <li>Szűrhető anyag és helyszín szerint</li>
+        <li>Anyagonként és helyszínenként: <strong>zsák darabszám</strong> · összsúly (kg/t) · <strong>Forrás</strong> (🏭 belső = termelésből betárolva / 📥 külső)</li>
+        <li>Kattintásra ▶ kinyílik a részletező: <strong>egyedi zsák súlyok chipekben</strong></li>
+        <li>Szűrhető anyag és helyszín szerint; fejléc-kártyák mutatják az összes zsákot, összsúlyt és tételszámot</li>
       </ul>
 
       <p><strong>↔️ Anyagmozgás — 2 típus:</strong></p>
@@ -289,7 +290,7 @@ const SECTIONS = [
       </ul>
       <p>A kijelölés zsák-csempékkel (chip) történik; az anyag/helyszín szűrőkkel megtalálod a kívánt tételt. Kijelölés után a felbukkanó <strong>⚡ panelen</strong> add meg a célhelyszínt, dátumot, opcionális megjegyzést, majd <strong>✓ Rögzít</strong>. A <strong>🗑 Töröl</strong> gombbal visszavonható egy korábban rögzített mozgás (jogosultságtól függően).</p>
 
-      <p><strong>⚙️ Helyszínek</strong> (szerkesztési joggal): raktárak/területek felvétele, szerkesztése, színkóddal való megkülönböztetése. Archiválás nem töröl — a mozgások hivatkoznak rá.</p>
+      <p><strong>⚙️ Helyszínek</strong> (szerkesztési joggal): raktárak/területek felvétele, szerkesztése, színkóddal való megkülönböztetése (kattints a színes pöttyre). <strong>A törlés végleges</strong> — nincs archiválás, a törölt helyszínre hivatkozó korábbi mozgások megmaradnak, de a helyszín neve többé nem szerkeszthető.</p>
     `
   },
 
@@ -393,8 +394,8 @@ const SECTIONS = [
 
       <p><strong>🎭 Szerepkörök:</strong></p>
       <ul>
-        <li>13+ jogosultság 4 kategóriában: Termelés / Szervezet / Pénzügyi / Adminisztráció</li>
-        <li>4 gyors sablon: 👷 Dolgozó · 👨‍💼 Csoportvezető · 📋 HR · 📊 Könyvelő</li>
+        <li>20+ jogosultság 4 kategóriában: Termelés / Szervezet / Pénzügyi / Adminisztráció</li>
+        <li>5 gyors sablon: 👷 Dolgozó · 🕐 Műszakvezető · 👨‍💼 Csoportvezető · 📋 HR · 📊 Könyvelő</li>
         <li>A szerepkör kártyákon color-coded badge-ek mutatják a jogosultságokat</li>
       </ul>
       ` : ''}
