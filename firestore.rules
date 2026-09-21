@@ -215,7 +215,7 @@ service cloud.firestore {
       );
       allow create: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
-      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('dolgozokKezeles'));
     }
 
     // â”€â”€ megkezdettZsakok (WIP zsĂˇk ĂˇtadĂˇs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
