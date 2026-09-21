@@ -1,5 +1,5 @@
-import { db, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, query,
-         where, getDocs, orderBy, serverTimestamp, onSnapshot } from './firebase.js';
+import { db, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, collection, query,
+         where, getDocs, orderBy, serverTimestamp, onSnapshot, writeBatch } from './firebase.js';
 import { state, canSeeAllReports } from './state.js';
 import { E, esc, msg, ag } from './utils.js';
 
@@ -395,12 +395,61 @@ export async function editNevItem(e) {
   const t   = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
   if (t.toLowerCase() === old.toLowerCase()) return;
   if (state.nevek.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
-  const i = state.nevek.findIndex(x => x.toLowerCase() === old.toLowerCase());
-  if (i > -1) {
-    state.nevek[i] = t;
-    if (state.nevMetadata[old]) { state.nevMetadata[t] = state.nevMetadata[old]; delete state.nevMetadata[old]; }
-    refreshListUI(); await saveLists(); msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 5000);
+  await renameWorkerEverywhere(old, t);
+}
+
+/**
+ * Egy dolgozó nevének átvezetése MINDENHOL: a Névlistán (state.nevek),
+ * a Dolgozók (employees) törzsadaton, és minden korábbi bejegyzésen
+ * (entries, absences, overtime), ahol a régi név szerepel.
+ * A régi és új név is szabad szöveg — nem kell hozzá létező Névlista-tétel.
+ */
+export async function renameWorkerEverywhere(oldNev, newNev) {
+  oldNev = (oldNev || '').trim();
+  newNev = (newNev || '').trim();
+  if (!oldNev || !newNev || oldNev === newNev) return null;
+
+  const counts = { entries: 0, absences: 0, overtimes: 0, employees: 0, nevLista: false };
+
+  // Névlista + metaadat (alapértelmezett részleg, műszakvezető stb.)
+  const li = state.nevek.findIndex(x => x === oldNev);
+  if (li > -1) {
+    if (state.nevek.some(x => x === newNev)) state.nevek.splice(li, 1);
+    else state.nevek[li] = newNev;
+    if (state.nevMetadata[oldNev]) {
+      state.nevMetadata[newNev] = { ...state.nevMetadata[oldNev], ...(state.nevMetadata[newNev] || {}) };
+      delete state.nevMetadata[oldNev];
+    }
+    refreshListUI();
+    await saveLists();
+    counts.nevLista = true;
   }
+
+  // Dolgozók (HR törzsadat)
+  const empSnap = await getDocs(query(collection(db, 'employees'), where('nev', '==', oldNev)));
+  for (const d of empSnap.docs) { await updateDoc(d.ref, { nev: newNev }); counts.employees++; }
+
+  // Korábbi bejegyzések tömeges átírása (500-as Firestore batch-limit miatt darabolva)
+  const jobs = [
+    { col: 'entries',   field: 'nev' },
+    { col: 'absences',  field: 'dolgozoNev' },
+    { col: 'overtimes', field: 'dolgozoNev' },
+  ];
+  for (const { col, field } of jobs) {
+    const snap = await getDocs(query(collection(db, col), where(field, '==', oldNev)));
+    let batch = writeBatch(db), pending = 0;
+    for (const d of snap.docs) {
+      batch.update(d.ref, { [field]: newNev });
+      pending++;
+      if (pending === 450) { await batch.commit(); batch = writeBatch(db); pending = 0; }
+    }
+    if (pending > 0) await batch.commit();
+    counts[col] = snap.docs.length;
+  }
+
+  msg(`"${esc(oldNev)}" → "${esc(newNev)}": ${counts.entries} bejegyzés, ${counts.absences} hiányzás, ${counts.overtimes} túlóra` +
+      (counts.employees ? `, ${counts.employees} dolgozói profil` : '') + ' frissítve.', 'success', 7000);
+  return counts;
 }
 
 export async function updDolgSzuro() {

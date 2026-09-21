@@ -4,6 +4,7 @@ import { state, hasPerm, isMainAdmin } from './state.js';
 import { logAction } from './auditlog.js';
 import { queueOp } from './offlineQueue.js';
 import { E, esc, msg, tod } from './utils.js';
+import { renameWorkerEverywhere } from './db.js';
 
 const HIANYZAS = {
   szabadsag:      { label: 'Szabadság',       icon: '🌴', cls: 'abs-szabadsag' },
@@ -16,6 +17,7 @@ const SZERZODES = { hatarozatlan:'Határozatlan', hatarozott:'Határozott', megb
 let _employees    = [];
 let _empLoaded    = false;
 let _editingId    = null;
+let _editingOldNev = null;
 let _szabadsagMap = {};   // { nev: { szabadsag, betegseg, fizetesnelkuli, egyeb } }
 let _lastStatData = null;
 let _kompList     = [];
@@ -206,7 +208,8 @@ export function renderEmployeeGrid() {
 }
 
 export function openEmpForm(emp = null) {
-  _editingId = emp?.id || null;
+  _editingId    = emp?.id  || null;
+  _editingOldNev = emp?.nev || null;
   E('empFormNev').value            = emp?.nev            || '';
   E('empFormReszleg').value        = emp?.reszleg        || '';
   E('empFormPozicio').value        = emp?.pozicio        || '';
@@ -240,7 +243,8 @@ export function openEmpForm(emp = null) {
 }
 
 export function closeEmpForm() {
-  _editingId = null;
+  _editingId     = null;
+  _editingOldNev = null;
   E('dolgozoForm').style.display = 'none';
 }
 
@@ -264,10 +268,16 @@ export async function saveEmployee() {
   };
   try {
     if (_editingId) {
+      const oldNev = _editingOldNev;
       await updateDoc(doc(db, 'employees', _editingId),
         { ...data, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
-      msg('Dolgozó frissítve.');
       logAction('employee.update', { nev: data.nev });
+      if (oldNev && oldNev !== data.nev) {
+        // Átvezeti az új nevet a Névlistán és minden korábbi bejegyzésen is
+        await renameWorkerEverywhere(oldNev, data.nev);
+      } else {
+        msg('Dolgozó frissítve.');
+      }
     } else {
       await addDoc(collection(db, 'employees'),
         { ...data, createdBy: state.appUser.uid, createdAt: serverTimestamp() });

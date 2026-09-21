@@ -8,7 +8,7 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, delFromList, editItem, editNevItem,
+         addToList, delFromList, editItem, editNevItem, renameWorkerEverywhere,
          getWorkerMaterials, updIdoszakosFilters,
          saveCsoportMap, saveReszlegAnyagMap,
          saveNevMeta, archivNev, visszaNev,
@@ -1078,6 +1078,14 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('nevArchivBtn').addEventListener('click', archivNev);
   E('nevVisszaBtn').addEventListener('click', visszaNev);
   E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
+  E('nevJavBtn').addEventListener('click', async () => {
+    const regi = E('nevJavRegi').value.trim();
+    const uj   = E('nevJavUj').value.trim();
+    if (!regi || !uj) { msg('Add meg mindkét nevet!', 'error'); return; }
+    if (!confirm(`"${regi}" → "${uj}"\n\nEz véglegesen átírja a nevet a Névlistán, a Dolgozók törzsadaton és minden korábbi bejegyzésen, hiányzáson és túlórán. Folytatod?`)) return;
+    await renameWorkerEverywhere(regi, uj);
+    E('nevJavRegi').value = ''; E('nevJavUj').value = '';
+  });
   E('nevMetaSaveBtn').addEventListener('click', saveNevMeta);
   E('muszakVezetoSaveBtn')?.addEventListener('click', saveMuszakVezetokMap);
   E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
