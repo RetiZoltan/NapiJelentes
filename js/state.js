@@ -15,6 +15,7 @@ export const state = {
   isReszlegPinned:   false,
   isMuszakPinned:    false,
   editingEntryId:    null,
+  editingMergeDeleteIds: [],
 };
 
 export function isMainAdmin()        { return state.userData?.isMainAdmin === true; }

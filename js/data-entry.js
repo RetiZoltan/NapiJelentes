@@ -1,4 +1,4 @@
-import { db, doc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js';
+import { db, doc, addDoc, updateDoc, collection, serverTimestamp, writeBatch } from './firebase.js';
 import { state } from './state.js';
 import { E, msg, ag } from './utils.js';
 import { saveNapiFor, loadNapiFor,
@@ -206,7 +206,15 @@ export async function rogzit() {
       if (state.editingEntryId) {
         const { createdBy: _cb, createdAt: _ca, ...fields } = entry;
         await updateDoc(doc(db, 'entries', state.editingEntryId), { ...fields, updatedBy: state.appUser.uid, updatedAt: serverTimestamp() });
-        logAction('entry.edit', { nev: entry.nev, datum: entry.datum });
+        // Ha több, korábban külön rögzített bejegyzés lett egybeszerkesztve,
+        // a szerkesztett bejegyzés most már mindet tartalmazza — a többi eredeti
+        // (immár felesleges) dokumentum törlődik, hogy ne duplázódjon az adat.
+        if (state.editingMergeDeleteIds?.length) {
+          const batch = writeBatch(db);
+          state.editingMergeDeleteIds.forEach(id => batch.delete(doc(db, 'entries', id)));
+          await batch.commit();
+        }
+        logAction('entry.edit', { nev: entry.nev, datum: entry.datum, merged: state.editingMergeDeleteIds?.length || 0 });
         msg('Bejegyzés szerkesztve!');
       } else {
         await addDoc(collection(db, 'entries'), entry);
@@ -229,6 +237,7 @@ export async function rogzit() {
 
 export function clearF(sh = true) {
   state.editingEntryId = null;
+  state.editingMergeDeleteIds = [];
   clearDraft();
   E('rogzitBtn').textContent = '✓ Adatok rögzítése';
   const banner = E('editBanner');
@@ -245,6 +254,7 @@ export function clearF(sh = true) {
 
 export async function startEditEntry(entry) {
   state.editingEntryId = entry.id;
+  state.editingMergeDeleteIds = entry.mergeDeleteIds || [];
   E('datum').value   = entry.datum       || '';
   E('ido').value     = entry.ido         || 'Délelőtt';
   E('nev').value     = entry.nev         || '';
@@ -271,5 +281,13 @@ export async function startEditEntry(entry) {
 
   E('rogzitBtn').textContent = '✓ Szerkesztés mentése';
   const banner = E('editBanner');
-  if (banner) banner.style.display = 'flex';
+  if (banner) {
+    banner.style.display = 'flex';
+    const txt = banner.querySelector('.edit-banner-txt');
+    if (txt) {
+      txt.textContent = state.editingMergeDeleteIds.length
+        ? `✎ Bejegyzés szerkesztése — ${state.editingMergeDeleteIds.length + 1} korábbi bejegyzés egyben (mentéskor eggyé olvad)`
+        : '✎ Bejegyzés szerkesztése folyamatban';
+    }
+  }
 }

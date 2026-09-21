@@ -721,10 +721,31 @@ export async function riportKlikk(e) {
   const editBtn = e.target.closest('.edit-btn');
   if (editBtn) {
     const id = editBtn.dataset.editId;
+    const mergeIds = (editBtn.dataset.mergeIds || '').split(',').filter(Boolean);
     const snap = await getDoc(doc(db, 'entries', id));
-    if (snap.exists()) {
-      document.dispatchEvent(new CustomEvent('napi-edit-entry', { detail: { id: snap.id, ...snap.data() } }));
+    if (!snap.exists()) return;
+    const data = { id: snap.id, ...snap.data() };
+    if (mergeIds.length) {
+      // Több bejegyzés is tartozik ehhez a sorhoz (pl. két részletben lett
+      // felvíve) — mindet egybetöltjük szerkesztésre, mint egyetlen bejegyzést;
+      // mentéskor a felesleges duplikátumok törlődnek (lásd startEditEntry).
+      const extraSnaps = await Promise.all(mergeIds.map(mid => getDoc(doc(db, 'entries', mid))));
+      const sulyok = [...(data.sulyok || [])];
+      const zsakSulyok = [...(data.zsakSulyok || [])];
+      const megjParts = data.megjegyzes?.trim() ? [data.megjegyzes.trim()] : [];
+      extraSnaps.forEach(es => {
+        if (!es.exists()) return;
+        const ed = es.data();
+        sulyok.push(...(ed.sulyok || []));
+        zsakSulyok.push(...(ed.zsakSulyok || []));
+        if (ed.megjegyzes?.trim()) megjParts.push(ed.megjegyzes.trim());
+      });
+      data.sulyok = sulyok;
+      data.zsakSulyok = zsakSulyok;
+      data.megjegyzes = megjParts.join(' / ');
+      data.mergeDeleteIds = mergeIds;
     }
+    document.dispatchEvent(new CustomEvent('napi-edit-entry', { detail: data }));
     return;
   }
   const btn = e.target.closest('.del-btn'); if (!btn) return;
@@ -1071,15 +1092,12 @@ function grpWorkers(list) {
     const hS = Array.isArray(a.sulyok) && a.sulyok.length > 0;
     const hZ = Array.isArray(a.zsakSulyok) && a.zsakSulyok.length > 0;
     if ((a.anyag || '').trim() || hS || hZ) {
-      if (!c[a.nev].anyagok[ak]) c[a.nev].anyagok[ak] = { nev: (a.anyag || '').trim() || '—', sulyok: [], zsakSulyok: [], megj: [], ids: [], owners: [], docs: [] };
+      if (!c[a.nev].anyagok[ak]) c[a.nev].anyagok[ak] = { nev: (a.anyag || '').trim() || '—', sulyok: [], zsakSulyok: [], megj: [], ids: [], owners: [] };
       if (hS) c[a.nev].anyagok[ak].sulyok.push(...a.sulyok);
       if (hZ) c[a.nev].anyagok[ak].zsakSulyok.push(...a.zsakSulyok);
       if (a.megjegyzes?.trim()) c[a.nev].anyagok[ak].megj.push(a.megjegyzes.trim());
       c[a.nev].anyagok[ak].ids.push(a.id);
       c[a.nev].anyagok[ak].owners.push(a.createdBy);
-      // Bejegyzésenkénti bontás is megmarad, hogy 2+ bejegyzés esetén is
-      // szerkeszthető/törölhető maradjon egyenként, ne csak összevontan.
-      c[a.nev].anyagok[ak].docs.push({ id: a.id, owner: a.createdBy, ido: a.ido || '', sulyok: a.sulyok || [] });
     } else if (a.megjegyzes?.trim()) c[a.nev].csMegj.push({ id: a.id, text: a.megjegyzes.trim(), owner: a.createdBy });
   });
   return c;
@@ -1099,30 +1117,19 @@ function workerHtml(c) {
         let sh = '—';
         if (aa.sulyok.length > 0) {
           const os  = aa.sulyok.reduce((s, x) => s + x.suly, 0); ds += os;
-          let det;
-          if (multi) {
-            // Több bejegyzés is van erre az anyagra — bejegyzésenként külön
-            // sorban, saját szerkesztés/törlés gombbal, hogy elírás esetén
-            // az egyik bejegyzés a másik érintése nélkül javítható legyen.
-            det = aa.docs.map(d => {
-              const w = d.sulyok.length
-                ? d.sulyok.map(s => `<span class="${s.statusz === 'teli' ? 'v-teli' : 'v-kezdett'}">${s.suly.toFixed(0)}</span>`).join(', ')
-                : '—';
-              const dCanEdit = isMainAdmin() || d.owner === state.appUser.uid;
-              const dEditBtn = dCanEdit ? `<button class="edit-btn" data-edit-id="${esc(d.id)}" title="Szerkesztés">✎</button>` : '';
-              const dDelBtn  = dCanEdit ? `<button class="del-btn" data-ids="${esc(d.id)}" title="Törlés">✕</button>` : '';
-              return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;">${d.ido ? `<span style="color:var(--text3);min-width:60px;">${esc(d.ido)}</span>` : ''}<span>${w}</span>${dEditBtn}${dDelBtn}</div>`;
-            }).join('');
-          } else {
-            det = aa.sulyok.map(s => `<span class="${s.statusz === 'teli' ? 'v-teli' : 'v-kezdett'}">${s.suly.toFixed(0)}</span>`).join(', ');
-          }
+          const det = aa.sulyok.map(s => `<span class="${s.statusz === 'teli' ? 'v-teli' : 'v-kezdett'}">${s.suly.toFixed(0)}</span>`).join(', ');
           sh = `<span class="dtoggle" style="cursor:pointer">${fmtKg(os)}</span><div style="display:none;font-size:12px;margin-top:3px;">${det}</div>`;
         }
         let zh = '—';
         if (aa.zsakSulyok.length > 0) { const zo = aa.zsakSulyok.reduce((s, x) => s + x, 0); dz += zo; zh = `<span class="v-green">${aa.zsakSulyok.map(s => s.toFixed(0)).join(', ')} kg</span>`; }
-        const canEdit = !multi && (isMainAdmin() || aa.owners[0] === state.appUser.uid);
+        // Ha erre az anyagra több bejegyzés is van aznap (pl. mert két
+        // részletben lett felvíve), a szerkesztés gomb mindet egyben tölti be
+        // — mentéskor a szerkesztett bejegyzés a felesleges duplikátumok
+        // törlésével eggyé olvad, pont mintha egyszerre lett volna felvíve.
+        const canEdit = isMainAdmin() || aa.owners.every(o => o === state.appUser.uid);
         const canDelete = isMainAdmin() || aa.owners.every(o => o === state.appUser.uid);
-        const editBtn = canEdit ? `<button class="edit-btn" data-edit-id="${esc(aa.ids[0])}" title="Szerkesztés">✎</button>` : '';
+        const mergeAttr = multi ? ` data-merge-ids="${esc(aa.ids.slice(1).join(','))}"` : '';
+        const editBtn = canEdit ? `<button class="edit-btn" data-edit-id="${esc(aa.ids[0])}"${mergeAttr} title="${multi ? 'Mind szerkesztése egyben' : 'Szerkesztés'}">✎</button>` : '';
         const delBtnHtml = canDelete ? `<button class="del-btn" data-ids="${esc(ids)}" title="${multi ? 'Mind törlése' : 'Törlés'}">✕</button>` : '';
         h += `<tr><td>${esc(aa.nev)}</td><td>${sh}</td><td>${zh}</td><td style="white-space:nowrap;">${editBtn}${delBtnHtml}</td></tr>`;
         aa.megj.forEach(m => { notes += `<div class="wnote">${esc(m)}</div>`; });
