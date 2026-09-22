@@ -8,7 +8,8 @@ import { E, esc, msg, ag, tod, initTheme, toggleTheme, showScreen,
          applyColorTheme, initColorTheme,
          applyLayout, initLayout, initKiosk, toggleKiosk } from './utils.js';
 import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
-         addToList, delFromList, editItem, editNevItem, renameWorkerEverywhere,
+         addToList, delFromList, editItem, editCsoportItem, editNevItem, renameWorkerEverywhere,
+         checklistChecked, checklistEditHandler, filterChecklist,
          getWorkerMaterials, updIdoszakosFilters,
          saveCsoportMap, saveReszlegAnyagMap,
          saveNevMeta, archivNev, visszaNev,
@@ -1066,14 +1067,19 @@ E('megj').addEventListener('focus', e => e.target.select());
   });
 
   // Admin — listák
-  E('nevLista').addEventListener('dblclick',    e => editNevItem(e));
-  E('anyagLista').addEventListener('dblclick',  e => editItem(e, state.anyagok));
-  E('reszlegLista').addEventListener('dblclick',e => editItem(e, state.reszlegek));
+  E('nevListaBox').addEventListener('click', checklistEditHandler('nevListaBox', editNevItem));
+  E('anyagListaBox').addEventListener('click', checklistEditHandler('anyagListaBox', v => editItem(v, state.anyagok)));
+  E('reszlegListaBox').addEventListener('click', checklistEditHandler('reszlegListaBox', v => editItem(v, state.reszlegek)));
+  E('csoportListaBox').addEventListener('click', checklistEditHandler('csoportListaBox', editCsoportItem));
+  E('nevListaSearch').addEventListener('input',     e => filterChecklist('nevListaBox',     e.target.value));
+  E('anyagListaSearch').addEventListener('input',   e => filterChecklist('anyagListaBox',   e.target.value));
+  E('reszlegListaSearch').addEventListener('input', e => filterChecklist('reszlegListaBox', e.target.value));
+  E('csoportListaSearch').addEventListener('input', e => filterChecklist('csoportListaBox', e.target.value));
   E('nevAddBtn').addEventListener('click',    () => addToList(E('nevInput'),      state.nevek));
   E('nevInput').addEventListener('keydown',   e => { if (e.key === 'Enter') addToList(E('nevInput'), state.nevek); });
-  E('nevArchivBtn').addEventListener('click', archivNev);
-  E('nevVisszaBtn').addEventListener('click', visszaNev);
-  E('nevTorBtn').addEventListener('click',    () => delFromList(E('nevLista'),    state.nevek));
+  E('nevArchivBtn').addEventListener('click', () => archivNev(checklistChecked('nevListaBox')));
+  E('nevVisszaBtn').addEventListener('click', () => visszaNev(checklistChecked('nevListaBox')));
+  E('nevTorBtn').addEventListener('click',    () => delFromList(checklistChecked('nevListaBox'), state.nevek));
   E('nevJavBtn').addEventListener('click', async () => {
     const regi = E('nevJavRegi').value.trim();
     const uj   = E('nevJavUj').value.trim();
@@ -1086,28 +1092,13 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('muszakVezetoSaveBtn')?.addEventListener('click', saveMuszakVezetokMap);
   E('anyagAddBtn').addEventListener('click',  () => addToList(E('anyagInput'),    state.anyagok));
   E('anyagInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('anyagInput'), state.anyagok); });
-  E('anyagTorBtn').addEventListener('click',  () => delFromList(E('anyagLista'),  state.anyagok));
+  E('anyagTorBtn').addEventListener('click',  () => delFromList(checklistChecked('anyagListaBox'), state.anyagok));
   E('reszlegAddBtn').addEventListener('click',  () => addToList(E('reszlegInput'),  state.reszlegek));
   E('reszlegInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('reszlegInput'), state.reszlegek); });
-  E('reszlegTorBtn').addEventListener('click',  () => delFromList(E('reszlegLista'),state.reszlegek));
-  E('csoportLista').addEventListener('dblclick', async e => {
-    const sel = e.target.closest('select'); if (!sel || sel.selectedOptions.length !== 1) return;
-    const old = sel.selectedOptions[0].value;
-    const nv  = prompt(`"${old}" átnevezése:`, old); if (nv === null) return;
-    const t   = nv.trim(); if (!t || t.toLowerCase() === old.toLowerCase()) return;
-    if (state.anyagCsoportok.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
-    const i = state.anyagCsoportok.findIndex(x => x.toLowerCase() === old.toLowerCase());
-    if (i > -1) {
-      state.anyagCsoportok[i] = t;
-      Object.keys(state.anyagCsoportMap).forEach(a => { if (state.anyagCsoportMap[a] === old) state.anyagCsoportMap[a] = t; });
-      refreshListUI();
-      await saveLists();
-      msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 4000);
-    }
-  });
+  E('reszlegTorBtn').addEventListener('click',  () => delFromList(checklistChecked('reszlegListaBox'), state.reszlegek));
   E('csoportAddBtn').addEventListener('click',  () => addToList(E('csoportInput'), state.anyagCsoportok));
   E('csoportInput').addEventListener('keydown', e => { if (e.key === 'Enter') addToList(E('csoportInput'), state.anyagCsoportok); });
-  E('csoportTorBtn').addEventListener('click',  () => delFromList(E('csoportLista'), state.anyagCsoportok));
+  E('csoportTorBtn').addEventListener('click',  () => delFromList(checklistChecked('csoportListaBox'), state.anyagCsoportok));
   E('csoportMapSaveBtn').addEventListener('click', saveCsoportMap);
   E('reszlegAnyagSaveBtn').addEventListener('click', saveReszlegAnyagMap);
 

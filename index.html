@@ -1072,12 +1072,16 @@
 
         <!-- Listák -->
         <div id="stab-lists" class="stab-panel">
+          <div class="card" style="margin-bottom:12px;">
+            <div class="card-title"><span class="card-title-icon">📋</span>Áttekintés</div>
+            <div id="listakStatusRow" class="stock-summary-row"></div>
+          </div>
           <div class="lmgrid">
             <div class="lbox">
               <div class="lbox-t">Névlista</div>
-              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés · dőlt = archivált</p>
-              <select id="nevLista" multiple size="6" style="width:100%;"></select>
-              <div style="display:flex;gap:6px;margin-top:4px;">
+              <input type="text" class="lsearch" id="nevListaSearch" placeholder="Keresés…">
+              <div class="lchecklist" id="nevListaBox"></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
                 <input id="nevInput" type="text" placeholder="Új dolgozó neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
                 <button class="btn btn-primary btn-sm" id="nevAddBtn">+</button>
               </div>
@@ -1089,9 +1093,9 @@
             </div>
             <div class="lbox">
               <div class="lbox-t">Anyaglista</div>
-              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
-              <select id="anyagLista" multiple size="5" style="width:100%;"></select>
-              <div style="display:flex;gap:6px;margin-top:4px;">
+              <input type="text" class="lsearch" id="anyagListaSearch" placeholder="Keresés…">
+              <div class="lchecklist" id="anyagListaBox"></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
                 <input id="anyagInput" type="text" placeholder="Új anyag neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
                 <button class="btn btn-primary btn-sm" id="anyagAddBtn">+</button>
               </div>
@@ -1099,9 +1103,9 @@
             </div>
             <div class="lbox">
               <div class="lbox-t">Részleglista</div>
-              <p class="lhint">Ctrl+klik = több · Dupla klik = szerkesztés</p>
-              <select id="reszlegLista" multiple size="5" style="width:100%;"></select>
-              <div style="display:flex;gap:6px;margin-top:4px;">
+              <input type="text" class="lsearch" id="reszlegListaSearch" placeholder="Keresés…">
+              <div class="lchecklist" id="reszlegListaBox"></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
                 <input id="reszlegInput" type="text" placeholder="Új részleg neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
                 <button class="btn btn-primary btn-sm" id="reszlegAddBtn">+</button>
               </div>
@@ -1109,9 +1113,9 @@
             </div>
             <div class="lbox">
               <div class="lbox-t">Anyagcsoportok</div>
-              <p class="lhint">Dupla klik = szerkesztés · Ctrl+klik = több</p>
-              <select id="csoportLista" multiple size="5" style="width:100%;"></select>
-              <div style="display:flex;gap:6px;margin-top:4px;">
+              <input type="text" class="lsearch" id="csoportListaSearch" placeholder="Keresés…">
+              <div class="lchecklist" id="csoportListaBox"></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
                 <input id="csoportInput" type="text" placeholder="Új csoport neve…" class="inp" style="flex:1;font-size:13px;padding:4px 7px;">
                 <button class="btn btn-primary btn-sm" id="csoportAddBtn">+</button>
               </div>
@@ -1130,7 +1134,7 @@
           </div>
           <div id="nevMetaSection" style="margin-top:12px;display:none;">
             <details class="map-details">
-              <summary class="map-summary">Dolgozó → Alapértelmezett részleg</summary>
+              <summary class="map-summary">Dolgozó → Alapértelmezett részleg <span class="map-summary-badge"></span></summary>
               <div class="map-body">
                 <p class="lhint">Névválasztáskor a részleg mező automatikusan kitöltődik (ha nincs rögzítve).</p>
                 <div id="nevMetaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>
@@ -1140,7 +1144,7 @@
           </div>
           <div id="muszakVezetoMapSection" style="margin-top:12px;display:none;">
             <details class="map-details">
-              <summary class="map-summary">Dolgozó → Műszakvezető</summary>
+              <summary class="map-summary">Dolgozó → Műszakvezető <span class="map-summary-badge"></span></summary>
               <div class="map-body">
                 <p class="lhint">Rendeld hozzá a dolgozókat a megfelelő műszakvezetőhöz. A műszakvezető saját neve ne legyen önmagának beosztottja.</p>
                 <div id="muszakVezetoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;"></div>

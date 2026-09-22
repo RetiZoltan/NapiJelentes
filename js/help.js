@@ -402,9 +402,9 @@ const SECTIONS = [
       ${isMainAdmin() || hasPerm('felhasznalokKezelese') ? `
       <p><strong>📋 Listák:</strong></p>
       <ul>
-        <li><strong>Névlista</strong> — Ctrl+klik = több · Dupla klik = szerkesztés · dőlt = archivált. Archiválás eltünteti a legördülőből, de az adatok megmaradnak; Visszaállítás visszahozza</li>
-        <li><strong>Anyaglista</strong> — Ctrl+klik = több · Dupla klik = szerkesztés · Kijelöltek törlése</li>
-        <li><strong>Részleglista</strong> — Ctrl+klik = több · Dupla klik = szerkesztés · Kijelöltek törlése</li>
+        <li>A tetején egy <strong>Áttekintés</strong> kártya összesíti a dolgozók/anyagok/részlegek számát, és jelzi ha valahol hiányos egy hozzárendelés (pl. hány dolgozónál nincs beállítva a részleg)</li>
+        <li>Mind a 4 lista (Névlista, Anyaglista, Részleglista, Anyagcsoportok) egyformán működik: <strong>keresőmező</strong> a lista fölött, jelölőnégyzetek soronként, <strong>✎</strong> gomb a szerkesztéshez, a kijelölt sorok a lenti gombokkal (Kijelöltek törlése, Névlistánál Archiválás/Visszaállítás) kezelhetők</li>
+        <li><strong>Névlista archiválás</strong> — eltünteti a dolgozót a legördülőkből, de az adatok megmaradnak; Visszaállítás visszahozza</li>
         <li><strong>Anyagcsoportok</strong> — anyagok csoportosítása; az adatbevitelben csoportosítva jelennek meg a legördülőben</li>
       </ul>
       <p><strong>Hozzárendelések</strong> (összecsukható szekciók):</p>

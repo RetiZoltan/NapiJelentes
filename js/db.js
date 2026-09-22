@@ -95,9 +95,15 @@ export function refreshListUI() {
   fillSelGrouped(E('anyag'), filterAnyagForReszleg(_curReszleg, _curAnyag), '— Válassz anyagot —');
   if (_curAnyag) { const a = E('anyag'); if (a) a.value = _curAnyag; }
   fillNevListaAdmin();
-  fillSel(E('anyagLista'),     state.anyagok);
-  fillSel(E('reszlegLista'),   state.reszlegek);
-  fillSel(E('csoportLista'),   state.anyagCsoportok);
+  renderChecklist('anyagListaBox',   state.anyagok);
+  renderChecklist('reszlegListaBox', state.reszlegek);
+  renderChecklist('csoportListaBox', state.anyagCsoportok);
+  // Keresőmezők állapotának visszaállítása a friss soroknál
+  filterChecklist('nevListaBox',     E('nevListaSearch')?.value);
+  filterChecklist('anyagListaBox',   E('anyagListaSearch')?.value);
+  filterChecklist('reszlegListaBox', E('reszlegListaSearch')?.value);
+  filterChecklist('csoportListaBox', E('csoportListaSearch')?.value);
+  renderListakStatus();
   renderCsoportMapUI();
   renderReszlegAnyagMapUI();
   renderNevMetaUI();
@@ -195,6 +201,74 @@ export function fillSelGrouped(sel, anyagok, emptyLabel = '') {
   if (prev) sel.value = prev;
 }
 
+/* ── Generikus jelölőnégyzetes lista (Névlista, Anyaglista, Részleglista, Anyagcsoportok) ──
+   A natív <select multiple> helyett: soronként checkbox + ✎ szerkesztés gomb,
+   Ctrl+klik és dupla klik helyett egyértelmű, felfedezhető felület. ── */
+function renderChecklist(containerId, items, { archivedSet = null } = {}) {
+  const box = E(containerId); if (!box) return;
+  const sorted = [...items].sort((a, b) => a.localeCompare(b, 'hu'));
+  if (!sorted.length) { box.innerHTML = `<p class="lempty">Még nincs elem.</p>`; return; }
+  box.innerHTML = sorted.map(v => {
+    const arch = archivedSet?.has(v);
+    return `<label class="lrow${arch ? ' lrow-arch' : ''}">
+      <input type="checkbox" class="lrow-cb" value="${esc(v)}">
+      <span class="lrow-txt">${esc(v)}${arch ? ' <em>(archivált)</em>' : ''}</span>
+      <button type="button" class="lrow-btn lrow-edit" title="Szerkesztés">✎</button>
+    </label>`;
+  }).join('');
+}
+
+export function checklistChecked(containerId) {
+  const box = E(containerId); if (!box) return [];
+  return Array.from(box.querySelectorAll('.lrow-cb:checked')).map(cb => cb.value);
+}
+
+// Kereséskor csak elrejti a nem egyező sorokat — a checkbox-állapot megmarad.
+export function filterChecklist(containerId, term) {
+  const box = E(containerId); if (!box) return;
+  const t = (term || '').trim().toLowerCase();
+  box.querySelectorAll('.lrow').forEach(row => {
+    const val = row.querySelector('.lrow-cb')?.value || '';
+    row.hidden = !!t && !val.toLowerCase().includes(t);
+  });
+}
+
+// Event delegation: bármelyik checklist konténeren belüli ✎ kattintás ide fut be.
+export function checklistEditHandler(containerId, onEdit) {
+  return e => {
+    const btn = e.target.closest('.lrow-edit'); if (!btn) return;
+    const val = btn.closest('.lrow')?.querySelector('.lrow-cb')?.value;
+    if (val) onEdit(val);
+  };
+}
+
+function renderListakStatus() {
+  const row = E('listakStatusRow'); if (!row) return;
+  const activeNev  = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
+  const archCount  = state.nevek.length - activeNev.length;
+  const missingR   = activeNev.filter(n => !state.nevMetadata[n]?.reszleg).length;
+  const showMV     = activeNev.length >= 2;
+  const missingMV  = showMV ? activeNev.filter(n => !state.nevMetadata[n]?.muszakVezeto).length : 0;
+
+  const tile = (val, lbl, warn) => `<div class="ssc${warn ? ' ssc-warn' : ''}"><div class="ssc-val">${val}</div><div class="ssc-lbl">${lbl}</div></div>`;
+  let h = '';
+  h += tile(activeNev.length, `aktív dolgozó${archCount ? ` <span style="opacity:.7;">(+${archCount} archivált)</span>` : ''}`);
+  h += tile(state.anyagok.length, 'anyagtípus');
+  h += tile(state.reszlegek.length, 'részleg');
+  h += tile(state.anyagCsoportok.length, 'anyagcsoport');
+  if (activeNev.length) {
+    h += missingR
+      ? tile(missingR, 'dolgozónál nincs alapértelmezett részleg', true)
+      : tile('✓', 'mindenkinél be van állítva a részleg');
+  }
+  if (showMV) {
+    h += missingMV
+      ? tile(missingMV, 'dolgozónál nincs műszakvezető', true)
+      : tile('✓', 'mindenkinél be van állítva a műszakvezető');
+  }
+  row.innerHTML = h;
+}
+
 function renderCsoportMapUI() {
   const section = E('csoportMapSection');
   if (!section) return;
@@ -288,18 +362,14 @@ export async function saveReszlegAnyagMap() {
 }
 
 function fillNevListaAdmin() {
-  const sel = E('nevLista'); if (!sel) return;
-  const prev = Array.from(sel.selectedOptions).map(o => o.value);
-  sel.innerHTML = '';
-  [...state.nevek].sort((a, b) => a.localeCompare(b, 'hu')).forEach(n => {
-    const o = document.createElement('option');
-    o.value = n;
-    const arch = state.nevMetadata[n]?.archivalt;
-    o.textContent = arch ? `${n} (archivált)` : n;
-    if (arch) { o.style.color = 'var(--text3)'; o.style.fontStyle = 'italic'; }
-    if (prev.includes(n)) o.selected = true;
-    sel.appendChild(o);
-  });
+  const archivedSet = new Set(state.nevek.filter(n => state.nevMetadata[n]?.archivalt));
+  renderChecklist('nevListaBox', state.nevek, { archivedSet });
+}
+
+function _setMapBadge(section, missing) {
+  const b = section?.querySelector('.map-summary-badge'); if (!b) return;
+  b.textContent = missing ? `${missing} hiányzik` : '✓ kész';
+  b.className = 'map-badge map-summary-badge ' + (missing ? 'map-badge-warn' : 'map-badge-ok');
 }
 
 function renderNevMetaUI() {
@@ -318,6 +388,7 @@ function renderNevMetaUI() {
   </div>`).join('');
   const selEls = E('nevMetaGrid').querySelectorAll('.nmeta-sel');
   sorted.forEach((n, i) => { if (selEls[i] && state.nevMetadata[n]?.reszleg) selEls[i].value = state.nevMetadata[n].reszleg; });
+  _setMapBadge(section, sorted.filter(n => !state.nevMetadata[n]?.reszleg).length);
 }
 
 export async function saveNevMeta() {
@@ -352,6 +423,7 @@ function renderMuszakVezetokMapUI() {
     const mv = state.nevMetadata[n]?.muszakVezeto;
     if (selEls[i] && mv && mv !== n) selEls[i].value = mv;
   });
+  _setMapBadge(section, activeNev.filter(n => !state.nevMetadata[n]?.muszakVezeto).length);
 }
 
 export async function saveMuszakVezetokMap() {
@@ -388,28 +460,24 @@ export function updMuszakVezetoSzuro() {
   });
 }
 
-export async function archivNev() {
-  const sel = E('nevLista');
-  const names = Array.from(sel.selectedOptions).map(o => o.value).filter(n => !state.nevMetadata[n]?.archivalt);
+export async function archivNev(checked) {
+  const names = checked.filter(n => !state.nevMetadata[n]?.archivalt);
   if (!names.length) { msg('Válassz ki aktív dolgozót!', 'error'); return; }
   if (!confirm(`Archiválod: ${names.join(', ')}?`)) return;
   names.forEach(n => { (state.nevMetadata[n] ??= {}).archivalt = true; });
   refreshListUI(); await saveLists(); msg(`${names.length} dolgozó archiválva.`);
 }
 
-export async function visszaNev() {
-  const sel = E('nevLista');
-  const names = Array.from(sel.selectedOptions).map(o => o.value).filter(n => state.nevMetadata[n]?.archivalt);
+export async function visszaNev(checked) {
+  const names = checked.filter(n => state.nevMetadata[n]?.archivalt);
   if (!names.length) { msg('Válassz ki archivált dolgozót!', 'error'); return; }
   names.forEach(n => { state.nevMetadata[n].archivalt = false; });
   refreshListUI(); await saveLists(); msg(`${names.length} dolgozó visszaállítva.`);
 }
 
-export async function editNevItem(e) {
-  const sel = e.target.closest('select'); if (!sel || sel.selectedOptions.length !== 1) return;
-  const old = sel.selectedOptions[0].value;
-  const nv  = prompt(`"${old}" módosítása:`, old); if (nv === null) return;
-  const t   = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
+export async function editNevItem(old) {
+  const nv = prompt(`"${old}" módosítása:`, old); if (nv === null) return;
+  const t  = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
   if (t.toLowerCase() === old.toLowerCase()) return;
   if (state.nevek.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
   await renameWorkerEverywhere(old, t);
@@ -518,8 +586,7 @@ export async function addToList(inp, list) {
   msg(`"${esc(v)}" hozzáadva.`);
 }
 
-export async function delFromList(sel, list) {
-  const ch = Array.from(sel.selectedOptions).map(o => o.value);
+export async function delFromList(ch, list) {
   if (!ch.length) { msg('Jelölj ki törlendő elemet!', 'error'); return; }
   if (!confirm(`Törlöd: ${ch.join(', ')}?`)) return;
   ch.forEach(v => { const i = list.findIndex(x => x.toLowerCase() === v.toLowerCase()); if (i > -1) list.splice(i, 1); });
@@ -528,16 +595,29 @@ export async function delFromList(sel, list) {
   msg(`${ch.length} elem törölve.`);
 }
 
-export async function editItem(e, list) {
-  const sel = e.target.closest('select'); if (!sel) return;
-  if (sel.selectedOptions.length !== 1) return;
-  const old = sel.selectedOptions[0].value;
-  const nv  = prompt(`"${old}" módosítása:`, old); if (nv === null) return;
-  const t   = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
+export async function editItem(old, list) {
+  const nv = prompt(`"${old}" módosítása:`, old); if (nv === null) return;
+  const t  = nv.trim(); if (!t) { msg('Nem lehet üres!', 'error'); return; }
   if (t.toLowerCase() === old.toLowerCase()) return;
   if (list.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
   const i = list.findIndex(x => x.toLowerCase() === old.toLowerCase());
   if (i > -1) { list[i] = t; refreshListUI(); await saveLists(); msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 5000); }
+}
+
+// Anyagcsoport átnevezése — a generikus editItem-től eltérően az anyagCsoportMap
+// hivatkozásait is át kell vezetni a régi névről az újra.
+export async function editCsoportItem(old) {
+  const nv = prompt(`"${old}" átnevezése:`, old); if (nv === null) return;
+  const t  = nv.trim(); if (!t || t.toLowerCase() === old.toLowerCase()) return;
+  if (state.anyagCsoportok.some(x => x.toLowerCase() === t.toLowerCase())) { msg('Már létezik!', 'error'); return; }
+  const i = state.anyagCsoportok.findIndex(x => x.toLowerCase() === old.toLowerCase());
+  if (i > -1) {
+    state.anyagCsoportok[i] = t;
+    Object.keys(state.anyagCsoportMap).forEach(a => { if (state.anyagCsoportMap[a] === old) state.anyagCsoportMap[a] = t; });
+    refreshListUI();
+    await saveLists();
+    msg(`"${esc(old)}" → "${esc(t)}"`, 'success', 4000);
+  }
 }
 
 // Key format: "reszleg|ido"  (e.g. "R A|Délelőtt", "|Délután", "|" for migrated old global)
