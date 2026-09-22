@@ -30,17 +30,14 @@ export function saveDraft() {
     suly:    parseFloat(r.querySelector('.wsuly')?.value) || 0,
     statusz: r.querySelector('.wstat')?.value || 'teli'
   })).filter(s => s.suly > 0);
-  const zsakSulyok = [...E('zsakC').querySelectorAll('.wrow')].map(r =>
-    parseFloat(r.querySelector('.wzsak')?.value) || 0
-  ).filter(v => v > 0);
   const draft = {
     datum: E('datum')?.value, ido: E('ido')?.value,
     reszleg: E('reszleg')?.value, nev: E('nev')?.value,
     anyag: E('anyag')?.value, megj: E('megj')?.value,
-    sulyok, zsakSulyok, ts: Date.now()
+    sulyok, ts: Date.now()
   };
   // Csak ha van érdemi tartalom
-  if (!draft.nev && !draft.anyag && !sulyok.length && !zsakSulyok.length) return;
+  if (!draft.nev && !draft.anyag && !sulyok.length) return;
   localStorage.setItem(_draftKey(), JSON.stringify(draft));
 }
 
@@ -63,13 +60,12 @@ export function restoreDraft(d) {
   updateAnyagSel(d.reszleg || '', d.anyag || '');
   if (d.nev)     updateNevSel(d.reszleg || '', d.nev);
   if (d.megj)    E('megj').value    = d.megj;
-  if (d.sulyok?.length) {
+  if (d.sulyok?.length || d.zsakSulyok?.length) {
     E('sulyC').innerHTML = '';
-    d.sulyok.forEach(s => addSuly(s.suly, s.statusz));
-  }
-  if (d.zsakSulyok?.length) {
-    E('zsakC').innerHTML = '';
-    d.zsakSulyok.forEach(v => addZsak(v));
+    (d.sulyok || []).forEach(s => addSuly(s.suly, s.statusz));
+    // Régebbi (két külön listás) vázlatból megmaradt teli zsák súlyok —
+    // Teli sorként jelennek meg, hogy semmi ne vesszen el.
+    (d.zsakSulyok || []).forEach(v => addSuly(v, 'teli'));
   }
   msg('Vázlat visszaállítva.', 'info', 3000);
 }
@@ -99,40 +95,31 @@ export async function syncOfflineQueue() {
   if (saved > 0) msg(`${saved} offline bejegyzés szinkronizálva!`, 'success', 5000);
 }
 
-export function addSuly(v = '', st = 'teli') {
+// zsakOverride: csak a WIP-zsák befejezésekor kap értéket (wip-bags.js) — ilyenkor
+// a fizikai, lezárt zsák teljes súlya eltérhet a soron megjelenő (nettó, aznapi
+// teljesítményként elszámolt) súlytól. Normál kézi rögzítésnél nincs override:
+// egy Teli sor súlya egyben a zsák súlya is, mentéskor abból származik a Készlet-tétel.
+export function addSuly(v = '', st = 'teli', zsakOverride = null) {
   const d = document.createElement('div');
   d.className = 'wrow';
+  if (zsakOverride != null) d.dataset.zsakOverride = zsakOverride;
   d.innerHTML = `<input type="number" class="wsuly" placeholder="kg" value="${v}" min="0.01" step="0.01">
     <select class="wstat"><option value="teli" ${st==='teli'?'selected':''}>Teli</option><option value="kezdett" ${st==='kezdett'?'selected':''}>Megkezdve</option></select>
     <div class="wbtns"><button type="button" class="wb a aSuly">＋</button><button type="button" class="wb d dSuly">✕</button></div>`;
   E('sulyC').appendChild(d);
   const inp = d.querySelector('.wsuly');
   inp.addEventListener('focus', e => e.target.select());
-  inp.addEventListener('keydown', e => wEnter(e, 'suly'));
+  inp.addEventListener('keydown', e => wEnter(e));
 }
 
-export function addZsak(v = '') {
-  const d = document.createElement('div');
-  d.className = 'wrow';
-  d.innerHTML = `<input type="number" class="wzsak" placeholder="kg" value="${v}" min="0.01" step="0.01">
-    <div class="wbtns"><button type="button" class="wb a aZsak">＋</button><button type="button" class="wb d dZsak">✕</button></div>`;
-  E('zsakC').appendChild(d);
-  const inp = d.querySelector('.wzsak');
-  inp.addEventListener('focus', e => e.target.select());
-  inp.addEventListener('keydown', e => wEnter(e, 'zsak'));
-}
-
-function wEnter(e, type) {
+function wEnter(e) {
   if (e.key !== 'Enter') return;
   e.preventDefault();
-  const cont = type === 'suly' ? E('sulyC') : E('zsakC');
-  const rows  = Array.from(cont.querySelectorAll('.wrow'));
-  const cur   = e.target.closest('.wrow');
-  const idx   = rows.indexOf(cur);
-  if (idx === rows.length - 1) {
-    if (type === 'suly') { const f = E('zsakC').querySelector('input[type="number"]'); if (f) f.focus(); }
-    else E('rogzitBtn').click();
-  } else rows[idx + 1].querySelector('input[type="number"]').focus();
+  const rows = Array.from(E('sulyC').querySelectorAll('.wrow'));
+  const cur  = e.target.closest('.wrow');
+  const idx  = rows.indexOf(cur);
+  if (idx === rows.length - 1) E('rogzitBtn').click();
+  else rows[idx + 1].querySelector('input[type="number"]').focus();
 }
 
 export async function rogzit() {
@@ -146,15 +133,13 @@ export async function rogzit() {
   if (!datum) { msg('Dátum kötelező!', 'error'); E('datum').focus(); return; }
 
   const sm = E('sulyC').querySelectorAll('.wrow');
-  const zm = E('zsakC').querySelectorAll('.wrow');
   const vA = anyagB !== '';
   const vS = Array.from(sm).some(m => m.querySelector('.wsuly').value.trim() !== '');
-  const vZ = Array.from(zm).some(m => m.querySelector('.wzsak').value.trim() !== '');
 
   await saveNapiFor(datum, E('reszleg').value.trim(), E('ido').value);
 
   // Ha csak napi megjegyzés van (nincs nev/anyag/súly/megj), csak azt mentjük
-  if (!nev && !vA && !vS && !vZ && !dolgMegj) {
+  if (!nev && !vA && !vS && !dolgMegj) {
     if (napiSzoveg) {
       msg('Napi megjegyzés mentve.');
     } else {
@@ -167,23 +152,27 @@ export async function rogzit() {
 
   let entry = null;
 
-  if (vA || vS || vZ) {
+  if (vA || vS) {
     if (!vA) { msg('Anyagtípus kötelező ha súlyt rögzítesz!', 'error'); E('anyag').focus(); return; }
     const sulyok = [], zsakSulyok = [];
     let hiba = false;
     sm.forEach(m => {
       const i = m.querySelector('.wsuly'), s = m.querySelector('.wstat'), v = parseFloat(i.value);
+      // Egy Teli sor egyben zsák is: a Készletbe alapból a sor saját súlya kerül,
+      // kivéve ha a sor rejtett zsakOverride-ot hordoz (lásd wip-bags.js
+      // completeWipBag) — ott a fizikai zsák teljes súlya eltérhet az itt
+      // elszámolt (nettó, aznapi) teljesítménytől.
+      const override = m.dataset.zsakOverride ? parseFloat(m.dataset.zsakOverride) : null;
       if (i.value.trim() !== '') {
-        if (!isNaN(v) && v > 0) { sulyok.push({ suly: v, statusz: s.value }); i.style.borderColor = ''; }
-        else { i.style.borderColor = 'var(--red)'; hiba = true; }
-      } else i.style.borderColor = '';
-    });
-    zm.forEach(m => {
-      const i = m.querySelector('.wzsak'), v = parseFloat(i.value);
-      if (i.value.trim() !== '') {
-        if (!isNaN(v) && v > 0) { zsakSulyok.push(v); i.style.borderColor = ''; }
-        else { i.style.borderColor = 'var(--red)'; hiba = true; }
-      } else i.style.borderColor = '';
+        if (!isNaN(v) && v > 0) {
+          sulyok.push({ suly: v, statusz: s.value });
+          if (s.value === 'teli') zsakSulyok.push(override != null && !isNaN(override) && override > 0 ? override : v);
+          i.style.borderColor = '';
+        } else { i.style.borderColor = 'var(--red)'; hiba = true; }
+      } else {
+        i.style.borderColor = '';
+        if (s.value === 'teli' && override != null && !isNaN(override) && override > 0) zsakSulyok.push(override);
+      }
     });
     if (hiba) { msg('Érvénytelen súlyérték!', 'error'); return; }
     if (sulyok.length > 0 || zsakSulyok.length > 0) {
@@ -255,7 +244,6 @@ export function clearF(sh = true) {
   updateNevSel(E('reszleg').value.trim(), state.isNamePinned ? E('nev').value : '');
   E('megj').value  = '';
   E('sulyC').innerHTML = ''; addSuly();
-  E('zsakC').innerHTML = ''; addZsak();
   loadNapiFor(E('datum').value, E('reszleg').value.trim(), E('ido').value);
   if (sh) msg('Űrlap törölve.', 'info', 2000);
 }
@@ -274,18 +262,32 @@ export async function startEditEntry(entry) {
   state.prevDatum = entry.datum;
 
   E('sulyC').innerHTML = '';
-  if (Array.isArray(entry.sulyok) && entry.sulyok.length > 0) {
-    entry.sulyok.forEach(s => addSuly(s.suly, s.statusz));
-  } else {
-    addSuly();
+  const sulyokArr = Array.isArray(entry.sulyok) ? entry.sulyok : [];
+  const zsakArr   = Array.isArray(entry.zsakSulyok) ? entry.zsakSulyok : [];
+  if (sulyokArr.length > 0) {
+    sulyokArr.forEach(s => addSuly(s.suly, s.statusz));
   }
-
-  E('zsakC').innerHTML = '';
-  if (Array.isArray(entry.zsakSulyok) && entry.zsakSulyok.length > 0) {
-    entry.zsakSulyok.forEach(z => addZsak(z));
-  } else {
-    addZsak();
+  // Ha a mentett teli zsák-súlyok összege eltér a Teli sorok összegétől — pl. a
+  // bejegyzés egy WIP-zsák befejezéséből származik, ahol a fizikai zsáksúly
+  // eltér az itt elszámolt nettó súlytól —, a különbséget egy rejtett
+  // zsakOverride-dal az utolsó Teli sorra tesszük, hogy újramentés után is a
+  // helyes zsáksúly kerüljön a Készletbe, ne a látszó nettó érték.
+  const teliSum = sulyokArr.filter(s => s.statusz === 'teli').reduce((a, s) => a + s.suly, 0);
+  const zsakSum = zsakArr.reduce((a, v) => a + v, 0);
+  if (Math.abs(zsakSum - teliSum) > 0.001) {
+    const teliRows = Array.from(E('sulyC').querySelectorAll('.wrow'))
+      .filter(r => r.querySelector('.wstat')?.value === 'teli');
+    if (teliRows.length > 0) {
+      const last = teliRows[teliRows.length - 1];
+      const ownVal = parseFloat(last.querySelector('.wsuly').value) || 0;
+      last.dataset.zsakOverride = (ownVal + (zsakSum - teliSum)).toFixed(2);
+    } else if (zsakArr.length) {
+      // Nincs egyetlen Teli sor sem — régi, kizárólag zsákként mentett adat:
+      // jelenjen meg Teli sorként, hogy semmi ne vesszen el.
+      zsakArr.forEach(v => addSuly(v, 'teli'));
+    }
   }
+  if (E('sulyC').children.length === 0) addSuly();
 
   E('rogzitBtn').textContent = '✓ Szerkesztés mentése';
   const banner = E('editBanner');

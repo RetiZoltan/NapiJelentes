@@ -81,8 +81,7 @@ const SECTIONS = [
         <li><strong>Részleg</strong> — a 📌 gombbal rögzíthető; rögzítés után minden bejegyzésnél automatikusan kitöltődik. A lista az Admin → Listák → Részleg → Anyag hozzárendelés szerint szűrődik</li>
         <li><strong>Dolgozó neve</strong> — a névlistából választható; ha van hozzárendelve alapértelmezett részleg, az automatikusan kitöltődik</li>
         <li><strong>Anyagtípus</strong> — részlegenként szűrt lista; csoportosítva jelenik meg ha csoportok vannak beállítva</li>
-        <li><strong>Darált súlyok</strong> — minden sor: súly kg-ban + <strong>Teli</strong> / <strong>Megkezdett</strong> állapot. ＋ gombbal új sort adsz hozzá, ✕ törölsz. Ezek az értékek jelennek meg a teljesítmény statisztikákban</li>
-        <li><strong>Teli zsákok</strong> — a véglegesen lezárt, csomagolt anyag súlyai; ezek alapozzák meg a Készlet modult</li>
+        <li><strong>Súlyok</strong> — minden sor: súly kg-ban + <strong>Teli</strong> / <strong>Megkezdett</strong> állapot. ＋ gombbal új sort adsz hozzá, ✕ törölsz. Egy <strong>Teli</strong> sor egyben egy lezárt, teli zsákot is jelent — ez adja a teljesítmény-statisztikákat <em>és</em> automatikusan a Készlet modul alapját is, külön rögzítés nélkül. <strong>Megkezdett</strong> sor a gépen maradó, még nem lezárt zsákot jelöli</li>
         <li><strong>Napi megjegyzés</strong> — az adott naphoz és részleghez kötve; a Jelentésekben megjelenik</li>
       </ul>
 

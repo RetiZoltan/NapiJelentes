@@ -1,7 +1,7 @@
 import { db, doc, getDoc, setDoc, deleteDoc, updateDoc, collection, getDocs, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, esc, msg } from './utils.js';
-import { addSuly, addZsak, updateAnyagSel } from './data-entry.js';
+import { addSuly, updateAnyagSel } from './data-entry.js';
 
 function _wipId(reszleg, anyag) {
   try {
@@ -84,9 +84,10 @@ export async function completeWipBag(id, finalSuly) {
     updateAnyagSel(E('reszleg')?.value || wip.reszleg, wip.anyag);
 
     E('sulyC').innerHTML = '';
-    addSuly(net > 0 ? net : '', 'teli');
-    E('zsakC').innerHTML = '';
-    addZsak(finalSuly);
+    // A soron látszó (nettó, aznapi teljesítményként elszámolt) súly és a
+    // fizikailag lezárt zsák teljes súlya itt eltérhet — a zsakOverride viszi
+    // tovább a Készletbe kerülő valós zsáksúlyt (lásd rogzit() a data-entry.js-ben).
+    addSuly(net > 0 ? net : '', 'teli', finalSuly);
 
     await deleteDoc(ref);
     msg(`Előkészítve: ${net} kg nettó + ${finalSuly} kg fizikai zsák. Ellenőrizd és rögzítsd!`, 'success', 7000);

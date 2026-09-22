@@ -13,7 +13,7 @@ import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
          saveCsoportMap, saveReszlegAnyagMap,
          saveNevMeta, archivNev, visszaNev,
          saveMuszakVezetokMap, getMuszakVezetok, updMuszakVezetoSzuro } from './db.js';
-import { addSuly, addZsak, rogzit, clearF, startEditEntry,
+import { addSuly, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
          syncOfflineQueue, getOfflineCount, updateAnyagSel, updateNevSel } from './data-entry.js';
 import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
@@ -224,7 +224,7 @@ function buildAppUI() {
       if (sv) { E('reszleg').value = sv; _prevReszleg = sv; updateAnyagSel(sv, E('anyag').value); updateNevSel(sv, E('nev').value); }
     }
   });
-  addSuly(); addZsak();
+  addSuly();
   // Login logolás + lastLoginAt mentés
   logAction('auth.login', { email: state.appUser.email, ua: navigator.userAgent.slice(0, 300) });
   updateDoc(doc(db, 'users', state.appUser.uid), { lastLoginAt: serverTimestamp() }).catch(() => {});
@@ -645,7 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
     E(id)?.addEventListener('change', _triggerDraft);
   });
   E('sulyC').addEventListener('input',  _triggerDraft);
-  E('zsakC').addEventListener('input',  _triggerDraft);
   E('napiMegj').addEventListener('input',    () => ag(E('napiMegj')));
 E('megj').addEventListener('focus', e => e.target.select());
   E('napiMegj').addEventListener('focus', e => e.target.select());
@@ -661,10 +660,6 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('sulyC').addEventListener('click', e => {
     if (e.target.classList.contains('aSuly')) addSuly();
     else if (e.target.classList.contains('dSuly') && E('sulyC').querySelectorAll('.wrow').length > 1) e.target.closest('.wrow').remove();
-  });
-  E('zsakC').addEventListener('click', e => {
-    if (e.target.classList.contains('aZsak')) addZsak();
-    else if (e.target.classList.contains('dZsak') && E('zsakC').querySelectorAll('.wrow').length > 1) e.target.closest('.wrow').remove();
   });
 
   // Rögzítés utáni automatikus WIP prompt
