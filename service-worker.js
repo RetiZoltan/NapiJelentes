@@ -1,4 +1,4 @@
-const CACHE    = 'plexiq-v161';
+const CACHE    = 'plexiq-v162';
 const PRECACHE = [
   '/', '/index.html',
   '/css/tokens.css', '/css/components.css', '/css/report.css',
@@ -32,30 +32,21 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // HTML: network-first, cache fallback (mindig friss app verziót kapj)
-  if (e.request.destination === 'document') {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
+  // Minden saját fájl (HTML, JS, CSS, stb.): network-first, cache csak offline
+  // fallbackként. A JS-t korábban stale-while-revalidate szolgálta ki — ez
+  // deploy után a HTML-lel ellentétben egy darabig a RÉGI, gépen cache-elt
+  // kódot futtatta az új felület mellett, ami csendes, hibás mentéseket
+  // okozhatott (pl. eltérő adatszerkezetet váró logika fut az új DOM-on).
+  // Így mindenki azonnal friss kódot kap minden deploy után, amint van net.
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // JS/CSS/fonts: stale-while-revalidate (cache-ből azonnal, háttérben frissít)
-  e.respondWith(
-    caches.open(CACHE).then(cache =>
-      cache.match(e.request).then(cached => {
-        const network = fetch(e.request).then(res => {
-          if (res.ok) cache.put(e.request, res.clone());
-          return res;
-        }).catch(() => null);
-        return cached || network;
+        }
+        return res;
       })
-    )
+      .catch(() => caches.match(e.request))
   );
 });
