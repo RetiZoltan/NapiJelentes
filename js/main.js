@@ -15,7 +15,7 @@ import { loadLists, saveLists, refreshListUI, saveNapiFor, loadNapiFor,
          saveMuszakVezetokMap, getMuszakVezetok, updMuszakVezetoSzuro } from './db.js';
 import { addSuly, addZsak, rogzit, clearF, startEditEntry,
          saveDraft, loadDraft, restoreDraft, clearDraft,
-         syncOfflineQueue, getOfflineCount, updateAnyagSel } from './data-entry.js';
+         syncOfflineQueue, getOfflineCount, updateAnyagSel, updateNevSel } from './data-entry.js';
 import { napiRiport, haviRiport, hetiRiport, evesRiport, egyeniRiport,
          napiKepMent, idoszakosKepMent,
          napiPdfMent, idoszakosPdfMent, idoszakosXlsxMent,
@@ -221,7 +221,7 @@ function buildAppUI() {
     }
     if (state.isReszlegPinned) {
       const sv = localStorage.getItem('pinnedReszleg');
-      if (sv) { E('reszleg').value = sv; _prevReszleg = sv; updateAnyagSel(sv, E('anyag').value); }
+      if (sv) { E('reszleg').value = sv; _prevReszleg = sv; updateAnyagSel(sv, E('anyag').value); updateNevSel(sv, E('nev').value); }
     }
   });
   addSuly(); addZsak();
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.isNamePinned) localStorage.setItem('pinnedNev', E('nev').value);
     if (!state.isReszlegPinned) {
       const defR = state.nevMetadata[E('nev').value]?.reszleg;
-      if (defR) { E('reszleg').value = defR; _prevReszleg = defR; updateAnyagSel(defR, E('anyag').value); }
+      if (defR) { E('reszleg').value = defR; _prevReszleg = defR; updateAnyagSel(defR, E('anyag').value); updateNevSel(defR, E('nev').value); }
     }
   });
   E('pinReszlegBtn').addEventListener('click', () => {
@@ -591,6 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _prevReszleg = newReszleg;
     if (state.isReszlegPinned) localStorage.setItem('pinnedReszleg', E('reszleg').value);
     updateAnyagSel(newReszleg, E('anyag').value);
+    updateNevSel(newReszleg, E('nev').value);
     updateIdoszakBadge();
   });
   E('pinMuszakBtn').addEventListener('click', () => {

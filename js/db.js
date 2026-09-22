@@ -83,11 +83,14 @@ export async function saveLists() {
 export function refreshListUI() {
   const srt = l => [...l].sort((a, b) => a.localeCompare(b, 'hu'));
   E('reszlegDL').innerHTML = srt(state.reszlegek).map(r => `<option value="${esc(r)}"></option>`).join('');
-  const activeNev = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
-  fillSel(E('nev'),    activeNev,        '— Válassz dolgozót —');
-  fillSel(E('reszleg'), state.reszlegek, '— Válassz részleget —');
-  // Reszleg-szűrést figyelembe vesszük, hogy a lista frissülésekor ne tűnjenek el az anyagok
+  // Reszleg-szűrést figyelembe vesszük, hogy a lista frissülésekor ne tűnjenek el a dolgozók/anyagok
   const _curReszleg = E('reszleg')?.value || '';
+  const _curNev     = E('nev')?.value     || '';
+  const activeNev   = state.nevek.filter(n => !state.nevMetadata[n]?.archivalt);
+  const activeSet   = new Set(activeNev);
+  const filteredNev = filterNevForReszleg(_curReszleg, _curNev).filter(n => activeSet.has(n) || n === _curNev);
+  fillSel(E('nev'),    filteredNev,      '— Válassz dolgozót —');
+  fillSel(E('reszleg'), state.reszlegek, '— Válassz részleget —');
   const _curAnyag   = E('anyag')?.value   || '';
   fillSelGrouped(E('anyag'), filterAnyagForReszleg(_curReszleg, _curAnyag), '— Válassz anyagot —');
   if (_curAnyag) { const a = E('anyag'); if (a) a.value = _curAnyag; }
@@ -231,6 +234,20 @@ export function filterAnyagForReszleg(reszleg, forceInclude = '') {
   const mats = assigned?.length ? [...assigned] : [...state.anyagok];
   if (forceInclude && !mats.includes(forceInclude)) mats.push(forceInclude);
   return mats;
+}
+
+// A "Dolgozó → Alapértelmezett részleg" hozzárendelés (Admin → Listák) alapján
+// szűri a névlistát az adott részlegre. Ha még senkinek sincs beállítva
+// alapértelmezett részlege, nem szűrünk (mindenki látszik) — csak azután
+// aktiválódik a szűrés, hogy legalább egy dolgozónál be van állítva.
+export function filterNevForReszleg(reszleg, forceInclude = '') {
+  const meta = state.nevMetadata || {};
+  const hasAnyAssignment = Object.values(meta).some(m => m?.reszleg);
+  let names = (!reszleg || !hasAnyAssignment)
+    ? [...state.nevek]
+    : state.nevek.filter(n => meta[n]?.reszleg === reszleg);
+  if (forceInclude && !names.includes(forceInclude)) names.push(forceInclude);
+  return names;
 }
 
 function renderReszlegAnyagMapUI() {
