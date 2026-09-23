@@ -1,5 +1,5 @@
 import { db, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, collection, query,
-         where, getDocs, orderBy, serverTimestamp, onSnapshot, writeBatch } from './firebase.js';
+         where, getDocs, orderBy, serverTimestamp, onSnapshot, writeBatch, getCountFromServer } from './firebase.js';
 import { state, canSeeAllReports } from './state.js';
 import { E, esc, msg, ag } from './utils.js';
 
@@ -598,9 +598,42 @@ export async function addToList(inp, list) {
   msg(`"${esc(v)}" hozzáadva.`);
 }
 
+// Megnézi, hány entries-bejegyzés hivatkozik még az adott értékekre (nev/anyag/
+// reszleg mező szerint) — csak a darabszám kell, nem a dokumentumok, ezért
+// getCountFromServer (olcsó, nem tölti le a bejegyzéseket).
+async function _usageCounts(names, field) {
+  const results = {};
+  await Promise.all(names.map(async n => {
+    try {
+      const snap = await getCountFromServer(query(collection(db, 'entries'), where(field, '==', n)));
+      const c = snap.data().count;
+      if (c > 0) results[n] = c;
+    } catch { /* jogosultság hiányában vagy hálózati hiba esetén csendben kihagyjuk */ }
+  }));
+  return results;
+}
+
 export async function delFromList(ch, list) {
   if (!ch.length) { msg('Jelölj ki törlendő elemet!', 'error'); return; }
-  if (!confirm(`Törlöd: ${ch.join(', ')}?`)) return;
+
+  const field = list === state.nevek ? 'nev'
+    : list === state.anyagok ? 'anyag'
+    : list === state.reszlegek ? 'reszleg'
+    : null;
+  let warn = '';
+  if (field) {
+    const usage = await _usageCounts(ch, field);
+    const used = Object.entries(usage);
+    if (used.length) {
+      const detail = used.map(([n, c]) => `${n} (${c} bejegyzés)`).join(', ');
+      warn = `\n\n⚠ Ezekre korábbi bejegyzések is hivatkoznak — azok megmaradnak, de a törölt elem eltűnik a legördülőkből:\n${detail}`;
+    }
+  } else if (list === state.anyagCsoportok) {
+    const used = ch.filter(cs => Object.values(state.anyagCsoportMap).includes(cs));
+    if (used.length) warn = `\n\n⚠ Ezekhez a csoportokhoz anyag van rendelve, a hozzárendelés is törlődik: ${used.join(', ')}`;
+  }
+
+  if (!confirm(`Törlöd: ${ch.join(', ')}?${warn}`)) return;
   ch.forEach(v => { const i = list.findIndex(x => x.toLowerCase() === v.toLowerCase()); if (i > -1) list.splice(i, 1); });
   refreshListUI();
   await saveLists();
