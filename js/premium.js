@@ -1,8 +1,10 @@
 import { db, doc, getDoc, setDoc, addDoc, deleteDoc,
          collection, query, getDocs, orderBy, limit, serverTimestamp } from './firebase.js';
-import { state } from './state.js';
+import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg } from './utils.js';
 import { fetchEntries } from './db.js';
+
+function _canManage() { return isMainAdmin() || hasPerm('premiumKezeles'); }
 
 let premiumConfig  = {};
 let lastResults    = null;
@@ -102,6 +104,11 @@ function renderAdminConfig() {
 export async function savePremiumAdminConfig() {
   const allMats = [...new Set([...state.anyagok, ...Object.keys(premiumConfig)])];
   const newCfg  = {};
+  // A % és Ft/kg mezőknek nincs <form>-alapú határérték-ellenőrzésük (az app
+  // sehol nem használ <form> elemet), ezért itt kézzel szűrjük ki az
+  // értelmetlen (0-100%-on kívüli arány, 0 vagy negatív ár) értékeket —
+  // ezek payroll-közeli adatba, a prémium összegébe folynak bele.
+  const skipped = [];
 
   allMats.forEach(mat => {
     const sid     = matSafeId(mat);
@@ -115,6 +122,8 @@ export async function savePremiumAdminConfig() {
     if (modeEl?.value === 'auto') {
       const aranyVal = parseFloat(arEl.value);
       const arany    = !isNaN(aranyVal) ? aranyVal : 100;
+      if (arany < 0 || arany > 100) { skipped.push(`${mat} (arány)`); return; }
+      if (!isNaN(arPerKg) && arPerKg <= 0) { skipped.push(`${mat} (ár)`); return; }
       if (!isNaN(arPerKg) && arPerKg > 0) {
         newCfg[mat] = { mode: 'auto', arany, arPerKg };
       }
@@ -123,6 +132,8 @@ export async function savePremiumAdminConfig() {
 
     const napiAlap = parseFloat(aEl.value);
     const arany    = parseFloat(arEl.value);
+    if (!isNaN(arany) && (arany < 0 || arany > 100)) { skipped.push(`${mat} (arány)`); return; }
+    if (!isNaN(arPerKg) && arPerKg <= 0) { skipped.push(`${mat} (ár)`); return; }
     if (!isNaN(napiAlap) && napiAlap > 0 && !isNaN(arany) && !isNaN(arPerKg)) {
       newCfg[mat] = { mode: 'manual', napiAlap, arany, arPerKg };
     }
@@ -131,7 +142,11 @@ export async function savePremiumAdminConfig() {
   try {
     await setDoc(doc(db, 'config', 'premiumConfig'), { materials: newCfg });
     premiumConfig = newCfg;
-    msg('Prémium konfiguráció mentve!');
+    if (skipped.length) {
+      msg(`Mentve, de kihagyva érvénytelen érték miatt: ${skipped.join(', ')}`, 'info', 8000);
+    } else {
+      msg('Prémium konfiguráció mentve!');
+    }
     try { const { logAction } = await import('./auditlog.js'); logAction('premium.configSave', { count: Object.keys(newCfg).length }); } catch {}
   } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
@@ -159,6 +174,7 @@ export function switchPremiumTab(name) {
 }
 
 export async function savePremiumHistory() {
+  if (!_canManage()) { msg('Nincs jogosultságod prémiumot menteni!', 'error'); return; }
   if (!lastResults?.length) { msg('Nincs menthető eredmény!', 'error'); return; }
   const raw = E('premiumHonapInput').value;
   const [ev, honap] = raw.split('-').map(Number);
@@ -213,7 +229,7 @@ async function _loadAndRenderHistory() {
         </div>
         <div style="font-weight:700;font-size:13px;color:var(--green);white-space:nowrap;">${fmtFt(h.grandTotal || 0)}</div>
         <button class="btn btn-ghost btn-xs prem-hist-load" data-id="${h.id}">Betölt</button>
-        <button class="btn btn-danger btn-xs prem-hist-del" data-id="${h.id}">✕</button>
+        ${_canManage() ? `<button class="btn btn-danger btn-xs prem-hist-del" data-id="${h.id}">✕</button>` : ''}
       </div>`;
     }).join('');
 
@@ -406,7 +422,7 @@ function renderPremiumResults(results, label) {
 
   E('premiumResultDiv').innerHTML = html;
   E('premiumNyomtatBtn').disabled = false;
-  if (E('premiumMentBtn')) E('premiumMentBtn').disabled = false;
+  if (E('premiumMentBtn')) E('premiumMentBtn').disabled = !_canManage();
 
   E('premiumResultDiv').querySelectorAll('.prem-row').forEach(row => {
     row.addEventListener('click', () => {

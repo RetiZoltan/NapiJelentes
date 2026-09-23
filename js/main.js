@@ -132,7 +132,11 @@ function buildAppUI() {
   E('tabBtnCelok').style.display        = (isMainAdmin() || hasPerm('celokMegtekintes') || hasPerm('celokKezeles')) ? '' : 'none';
   E('tabBtnNaptar').style.display      = (isMainAdmin() || hasPerm('naptar'))                                           ? '' : 'none';
   E('tabBtnElemzes').style.display     = (isMainAdmin() || hasPerm('elemzes'))                                          ? '' : 'none';
-  E('tabBtnFeladatok').style.display   = (isMainAdmin() || hasPerm('feladatokKezeles'))                                 ? '' : 'none';
+  // A tasks kollekció firestore.rules szerint bárki bejelentkezett user
+  // számára olvasható, és a tasks.js is mindenkinek engedi a rá kiosztott
+  // saját feladat mozgatását/lezárását — a fül ezért mindig látható, csak
+  // az "Új feladat" létrehozás marad feladatokKezeles jogú felhasználóknak.
+  E('tabBtnFeladatok').style.display   = '';
   E('tabBtnDolgozok').style.display    = (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) ? '' : 'none';
   E('tabBtnPremium').style.display     = (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'))  ? '' : 'none';
   E('tabBtnKeszlet').style.display     = (isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'))  ? '' : 'none';

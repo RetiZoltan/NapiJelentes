@@ -85,12 +85,17 @@ function _renderMachines() {
 export async function saveMachine() {
   const nev = E('gepFormNev')?.value.trim();
   if (!nev) { msg('A név kötelező!', 'error'); return; }
+  const karbRaw = E('gepFormKarb')?.value.trim();
+  const karbNum = parseInt(karbRaw);
+  if (karbRaw && (!Number.isInteger(karbNum) || karbNum <= 0)) {
+    msg('A karbantartási ciklus csak pozitív egész szám (nap) lehet!', 'error'); return;
+  }
   const data = {
     nev,
     tipus:            E('gepFormTipus')?.value.trim()  || '',
     gyarto:           E('gepFormGyarto')?.value.trim() || '',
     gyartasiEv:       parseInt(E('gepFormEv')?.value) || null,
-    karbantartasIdo:  parseInt(E('gepFormKarb')?.value) || null,
+    karbantartasIdo:  karbNum > 0 ? karbNum : null,
     utolsoKarbantartas: E('gepFormUtolso')?.value || null,
     statusz:          E('gepFormStatusz')?.value || 'uzemel',
     megjegyzes:       E('gepFormMegj')?.value.trim() || '',

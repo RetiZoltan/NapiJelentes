@@ -196,7 +196,7 @@ const SECTIONS = [
   {
     id: 'feladatok', icon: '📌', title: 'Feladatok',
     teaser: 'Lista & Kanban nézet, prioritás, felelős, határidő',
-    perm: () => isMainAdmin() || hasPerm('feladatokKezeles'),
+    perm: () => true,
     content: () => `
       <p>A <strong>Feladatok</strong> lapon csapat-szintű teendőket kezelhetsz.</p>
 
@@ -208,7 +208,7 @@ const SECTIONS = [
 
       <p><strong>Szűrők:</strong> Állapot (Nyitott / Folyamatban / Kész / Mind) · Részleg</p>
 
-      <p><strong>Feladat létrehozása</strong> („Új feladat ›" fejlécre kattintva nyílik a form):</p>
+      <p><strong>Feladat létrehozása</strong> („Új feladat ›" fejlécre kattintva nyílik a form) — csak <strong>Feladatok kezelése</strong> jogosultsággal érhető el; enélkül is látod és mozgathatod a rád kiosztott vagy általad létrehozott feladatokat:</p>
       <ul>
         <li><strong>Cím</strong> (kötelező) · <strong>Leírás</strong> · <strong>Prioritás</strong>: 📌 Normal vagy ⚡ Fontos (piros kiemelés a listában)</li>
         <li><strong>Határidő</strong> · <strong>Részleg</strong> · <strong>Felelős</strong> hozzárendelése</li>
