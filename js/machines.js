@@ -220,11 +220,13 @@ function _renderDrawerBody(m, events) {
     </div>`;
   }
 
-  // Műveletek
+  // Műveletek — a gép végleges törlése (nem csak a szerkesztése) csak
+  // főadminnak engedett a Firestore-szabályban, mert a hozzá tartozó
+  // esemény napló árván maradna; a gomb ezért csak neki jelenik meg.
   if (canEdit) {
     body += `<div class="emp-drawer-actions">
       <button class="btn btn-primary btn-sm" id="gepDrawerEditBtn">✎ Szerkeszt</button>
-      <button class="btn btn-danger btn-sm" id="gepDrawerDelBtn" style="margin-left:auto;">🗑 Töröl</button>
+      ${isMainAdmin() ? `<button class="btn btn-danger btn-sm" id="gepDrawerDelBtn" style="margin-left:auto;">🗑 Töröl</button>` : ''}
     </div>`;
   }
 

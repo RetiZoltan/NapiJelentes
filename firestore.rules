@@ -175,7 +175,7 @@ service cloud.firestore {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
-      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('gepekKezeles'));
     }
 
     // â”€â”€ stockLocations (raktĂˇrak, helyszĂ­nek) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -199,7 +199,7 @@ service cloud.firestore {
       allow read:   if isAuth() && (isMainAdmin() || hasPerm('premiumMegtekintes') || hasPerm('premiumKezeles'));
       allow create: if isAuth() && (isMainAdmin() || hasPerm('premiumKezeles'));
       allow delete: if isAuth() && (isMainAdmin() || hasPerm('premiumKezeles'));
-      allow update: if isAuth() && (isMainAdmin() || hasPerm('keszletKezeles'));
+      allow update: if isAuth() && (isMainAdmin() || hasPerm('premiumKezeles'));
     }
 
     // â”€â”€ celok (havi anyagcĂ©lok) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

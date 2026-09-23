@@ -67,6 +67,9 @@ export async function renderLocations() {
       return;
     }
     const canEdit = canManageStock();
+    // A helyszín végleges törlése csak főadminnak engedett a Firestore-szabályban
+    // (a rá hivatkozó korábbi mozgások árván maradnának) — ezért a törlés gomb
+    // csak neki jelenik meg, a szerkesztés viszont marad keszletKezeles jogúaknak is.
     div.innerHTML = all.map(l => `
       <div data-loc-id="${l.id}" style="padding:9px 0;border-bottom:1px solid var(--border);">
         <div class="loc-view" style="display:flex;align-items:center;gap:10px;">
@@ -80,7 +83,7 @@ export async function renderLocations() {
             ${l.leiras ? `<div style="font-size:12px;color:var(--text3);">${esc(l.leiras)}</div>` : ''}
           </div>
           ${canEdit ? `<button class="btn btn-ghost btn-xs loc-edit-btn" data-id="${l.id}">Szerkeszt</button>` : ''}
-          ${canEdit ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
+          ${isMainAdmin() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
         </div>
         <div class="loc-edit-form" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:6px;">
           <input class="loc-edit-nev" type="text" value="${esc(l.nev)}" placeholder="Név" style="flex:1;min-width:120px;">
