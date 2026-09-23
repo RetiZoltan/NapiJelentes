@@ -266,6 +266,18 @@ function renderListakStatus() {
       ? tile(missingMV, 'dolgozónál nincs műszakvezető', true)
       : tile('✓', 'mindenkinél be van állítva a műszakvezető');
   }
+  // Névlista ↔ Dolgozók (HR) törzsadat összhang — csak ha az employees adat
+  // már betöltődött ebben a munkamenetben (lásd employees.js loadEmployees).
+  if (Array.isArray(state.employeeNames)) {
+    const nevSetLower = new Set(state.nevek.map(n => n.toLowerCase()));
+    const hrSetLower  = new Set(state.employeeNames.map(n => n.toLowerCase()));
+    const onlyInList  = state.nevek.filter(n => !hrSetLower.has(n.toLowerCase())).length;
+    const onlyInHR    = state.employeeNames.filter(n => !nevSetLower.has(n.toLowerCase())).length;
+    const mismatch    = onlyInList + onlyInHR;
+    h += mismatch
+      ? tile(mismatch, 'eltérés a Névlista és a Dolgozók törzsadat között', true)
+      : tile('✓', 'Névlista és Dolgozók törzsadat összhangban');
+  }
   row.innerHTML = h;
 }
 

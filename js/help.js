@@ -402,7 +402,7 @@ const SECTIONS = [
       ${isMainAdmin() || hasPerm('felhasznalokKezelese') ? `
       <p><strong>📋 Listák:</strong></p>
       <ul>
-        <li>A tetején egy <strong>Áttekintés</strong> kártya összesíti a dolgozók/anyagok/részlegek számát, és jelzi ha valahol hiányos egy hozzárendelés (pl. hány dolgozónál nincs beállítva a részleg)</li>
+        <li>A tetején egy <strong>Áttekintés</strong> kártya összesíti a dolgozók/anyagok/részlegek számát, jelzi ha valahol hiányos egy hozzárendelés (pl. hány dolgozónál nincs beállítva a részleg), és azt is, ha a Névlista és a Dolgozók fülön kezelt törzsadat nincs összhangban (valaki csak az egyikben szerepel)</li>
         <li>Mind a 4 lista (Névlista, Anyaglista, Részleglista, Anyagcsoportok) egyformán működik: <strong>keresőmező</strong> a lista fölött, jelölőnégyzetek soronként, <strong>✎</strong> gomb a szerkesztéshez, a kijelölt sorok a lenti gombokkal (Kijelöltek törlése, Névlistánál Archiválás/Visszaállítás) kezelhetők</li>
         <li><strong>Névlista archiválás</strong> — eltünteti a dolgozót a legördülőkből, de az adatok megmaradnak; Visszaállítás visszahozza</li>
         <li><strong>Anyagcsoportok</strong> — anyagok csoportosítása; az adatbevitelben csoportosítva jelennek meg a legördülőben</li>

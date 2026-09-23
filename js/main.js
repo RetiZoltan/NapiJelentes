@@ -415,7 +415,14 @@ function switchAdminSubtab(name) {
   document.querySelector(`#adminSubtabs .stab-btn[data-stab="${name}"]`).classList.add('active');
   E('stab-' + name).classList.add('active');
   if (name === 'roles')        loadRoles();
-  if (name === 'lists')        refreshListUI();
+  if (name === 'lists') {
+    refreshListUI();
+    // Dolgozók törzsadat betöltése a Névlista↔HR összhang-csempéhez az Áttekintőn
+    // (csak ha van rá jogosultság, hogy ne fusson feleslegesen jogosultsági hibába)
+    if (isMainAdmin() || hasPerm('dolgozokMegtekintes') || hasPerm('dolgozokKezeles')) {
+      loadEmployees().then(refreshListUI);
+    }
+  }
   if (name === 'kozlemeny')    loadNoticeAdmin();
   if (name === 'premium-cfg')  initPremiumAdmin();
   if (name === 'audit')        loadAuditLogAdmin();

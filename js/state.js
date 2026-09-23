@@ -16,6 +16,7 @@ export const state = {
   isMuszakPinned:    false,
   editingEntryId:    null,
   editingMergeDeleteIds: [],
+  employeeNames:     null,  // null = még nem töltődött be (lásd employees.js loadEmployees)
 };
 
 export function isMainAdmin()        { return state.userData?.isMainAdmin === true; }

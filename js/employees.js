@@ -111,6 +111,8 @@ export async function loadEmployees() {
     ]);
     _employees = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _empLoaded = true;
+    // A Listák admin fül összhang-ellenőrzéséhez (Névlista ↔ Dolgozók törzsadat)
+    state.employeeNames = _employees.map(e => (e.nev || '').trim()).filter(Boolean);
     _updateReszlegSelect('dolgReszlegF');
     _updateReszlegSelect('naptarReszlegF');
     _updateAbsDropdowns();
