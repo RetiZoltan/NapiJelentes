@@ -1,5 +1,5 @@
 import { fetchEntries, fillSel, getWorkerMaterials } from './db.js';
-import { state, isMuszakVezeto } from './state.js';
+import { state, isMuszakVezeto, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent, nyomtatDiv } from './reports.js';
 import { _sparkline, _card } from './dashboard.js';
@@ -709,7 +709,10 @@ function _closePanel() {
 }
 
 function _setBtns(disabled) {
-  ['analitikaKepMentBtn', 'analitikaPdfBtn', 'analitikaNyomtatBtn'].forEach(id => { const el = E(id); if (el) el.disabled = disabled; });
+  const noExport = disabled || !(isMainAdmin() || hasPerm('adatExport'));
+  ['analitikaKepMentBtn', 'analitikaPdfBtn'].forEach(id => { const el = E(id); if (el) el.disabled = noExport; });
+  const nyomtat = E('analitikaNyomtatBtn');
+  if (nyomtat) nyomtat.disabled = disabled;
 }
 
 async function _renderPanelResult() {

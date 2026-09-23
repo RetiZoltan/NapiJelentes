@@ -1161,6 +1161,7 @@ export async function handleTuloraClick(e) {
 }
 
 export function exportCsv() {
+  if (!isMainAdmin() && !hasPerm('adatExport')) { msg('Nincs jogosultságod adatot exportálni!', 'error'); return; }
   if (!_lastStatData) { msg('Először kattints a Mutat gombra!','error'); return; }
   const { ev, sorted } = _lastStatData;
   let csv = 'Dolgozó;Szabadság;Betegszabadság;Fizetés nélküli;Egyéb;Összesen;Keret;Felhasznált;Maradt\n';

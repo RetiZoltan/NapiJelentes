@@ -1,12 +1,15 @@
 import { db, doc, getDoc, deleteDoc, collection, query, where,
          getDocs, orderBy, writeBatch, onSnapshot } from './firebase.js';
 import { logAction } from './auditlog.js';
-import { state, canSeeAllReports, isMainAdmin, isMuszakVezeto } from './state.js';
+import { state, canSeeAllReports, isMainAdmin, isMuszakVezeto, hasPerm } from './state.js';
 import { E, esc, msg, tod, fmtL, fmtS, fmtKg, skelHtml } from './utils.js';
 import { fetchEntries, deleteDailyNoteForReszleg } from './db.js';
 
 let unsubNapi = null;
 let _lastNapiState = null;
+
+// Adat export jogosultság — Kép/PDF/Excel letöltésekhez kell, nyomtatáshoz nem.
+function _canExport() { return isMainAdmin() || hasPerm('adatExport'); }
 
 const HONAP_NEVEK = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 
@@ -323,7 +326,8 @@ function renderNapi(rd, lista, napiNotes, szuro) {
       .forEach(n => { h += dayNoteHtml(n.key, n.note, rd); });
   }
   E('napiRiportDiv').innerHTML = h;
-  E('napiKepMentBtn').disabled = E('napiPdfBtn').disabled = E('napiNyomtatBtn').disabled = false;
+  E('napiKepMentBtn').disabled = E('napiPdfBtn').disabled = !_canExport();
+  E('napiNyomtatBtn').disabled = false;
 }
 
 function dayNoteHtml(key, note, rd, hideIdo = false) {
@@ -411,11 +415,14 @@ function reszlegHtml(lista, rd, napiNotes, muszakF) {
 }
 
 function _setIdoszakBtns(disabled) {
-  ['idoszakosKepMentBtn','idoszakosPdfBtn','idoszakosNyomtatBtn'].forEach(id => {
-    const el = E(id); if (el) el.disabled = disabled;
+  const noExport = disabled || !_canExport();
+  ['idoszakosKepMentBtn','idoszakosPdfBtn'].forEach(id => {
+    const el = E(id); if (el) el.disabled = noExport;
   });
+  const nyomtat = E('idoszakosNyomtatBtn');
+  if (nyomtat) nyomtat.disabled = disabled;
   const xlsx = E('idoszakosXlsxBtn');
-  if (xlsx) xlsx.disabled = disabled;
+  if (xlsx) xlsx.disabled = noExport;
 }
 
 /* ── Havi riport ── */
