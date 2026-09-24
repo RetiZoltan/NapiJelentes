@@ -1256,20 +1256,35 @@ function _computeEgyeniResult() {
 
 /* Kis, dashboard-widget-stílusú érmés rangsor (top 3 kiemelve), a _card()
    "extra" tartalmaként — anyagok/dolgozók top listájához egyaránt jó. */
-function _miniRanking(totals) {
+// opts.pctBase: ha meg van adva (> 0), minden sor alá egy arány-sáv kerül,
+// ami az adott elem részesedését mutatja a TELJES (nem csak a listázott
+// Top-N-re vetített) mennyiséghez képest — pl. "38%" az összes anyaghoz
+// viszonyítva, nem csak a megjelenített 3-hoz.
+function _miniRanking(totals, opts = {}) {
   if (!totals.length) return '<p style="color:var(--text3);font-size:12.5px;margin:6px 0 0;">Nincs adat.</p>';
   const medalGrad = ['linear-gradient(135deg,#FFD700,#E6A000)', 'linear-gradient(135deg,#C8C8C8,#909090)', 'linear-gradient(135deg,#CD853F,#8B4513)'];
   const medal = i => i < 3
     ? `<span style="background:${medalGrad[i]};color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-right:8px;">${i + 1}</span>`
     : `<span style="color:var(--text3);width:22px;text-align:center;display:inline-block;flex-shrink:0;font-size:12px;margin-right:8px;">${i + 1}.</span>`;
+  const pctBase = opts.pctBase || 0;
   // Nem flex `gap`-pel térközölünk a medál/név/érték között, mert az html2canvas
   // (Kép/PDF export) nem veszi figyelembe a gap-et — explicit margin-right marad.
-  const rows = totals.map(([label, kg], i) => `
-    <div style="display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
-      ${medal(i)}
-      <span style="font-size:${i === 0 ? '13.5' : '12.5'}px;font-weight:${i === 0 ? 700 : 600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;">${esc(label)}</span>
-      <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i === 0 ? 600 : 400};">${_fmtUnitPlain(kg, 't')}</span>
-    </div>`).join('');
+  const rows = totals.map(([label, kg], i) => {
+    const pct = pctBase > 0 ? kg / pctBase * 100 : null;
+    const pctBar = pct !== null ? `
+      <div style="height:5px;background:var(--surf2);border-radius:3px;overflow:hidden;margin:5px 0 0 30px;">
+        <div style="height:100%;width:${pct.toFixed(1)}%;background:var(--accent);opacity:${i === 0 ? 1 : .65};border-radius:3px;"></div>
+      </div>` : '';
+    return `
+    <div style="padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;">
+        ${medal(i)}
+        <span style="font-size:${i === 0 ? '13.5' : '12.5'}px;font-weight:${i === 0 ? 700 : 600};color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;">${esc(label)}</span>
+        <span style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:${i === 0 ? 600 : 400};">${_fmtUnitPlain(kg, 't')}${pct !== null ? ` <span style="color:var(--text3);">(${pct.toFixed(0)}%)</span>` : ''}</span>
+      </div>
+      ${pctBar}
+    </div>`;
+  }).join('');
   return `<div style="margin-top:6px;">${rows}</div>`;
 }
 
@@ -1361,7 +1376,8 @@ function _renderAttekinto() {
     sparkData.length >= 2 ? _sparkline(sparkData) : '')) : '';
 
   const topDolgCard = show('dolg') ? cardWrap('dolg', _card('🏅', `Top ${topN} dolgozó`, '', 'Kiválasztott időszak', _miniRanking(dolgTotals.slice(0, topN)))) : '';
-  const topAnyagCard = show('anyag') ? cardWrap('anyag', _card('📦', `Top ${topN} anyag`, '', 'Kiválasztott időszak', _miniRanking(anyagTotals.slice(0, topN)))) : '';
+  const anyagGrandTotal = anyagTotals.reduce((s, [, kg]) => s + kg, 0);
+  const topAnyagCard = show('anyag') ? cardWrap('anyag', _card('📦', `Top ${topN} anyag`, '', 'Kiválasztott időszak', _miniRanking(anyagTotals.slice(0, topN), { pctBase: anyagGrandTotal }))) : '';
 
   const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
   const weekLabel = settings.attWeekMode === 'idoszak' ? 'Heti bontás (időszak utolsó hete)' : 'Heti bontás (aktuális hét)';
