@@ -2,7 +2,7 @@ import { db, doc, getDoc, addDoc, updateDoc, deleteDoc, collection, query,
          where, getDocs, orderBy, limit, onSnapshot, serverTimestamp } from './firebase.js';
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod, fmtKg, emptyHtml } from './utils.js';
-import { fetchEntries } from './db.js';
+import { fetchEntries, fillSel } from './db.js';
 import { logAction } from './auditlog.js';
 
 /* ── Jogosultság ── */
@@ -14,6 +14,25 @@ let _locations        = [];
 let _importCache      = [];
 let _mozgTipus        = 'atadas';
 let _stockUnsubscribe = null;
+let _users             = [];  // { uid, name } cache az előzmény-naplóhoz
+
+const _TIPUS_LABEL = {
+  bevitel:     '⬇️ Bevitel',
+  atadas:      '↔️ Áttárolás',
+  kiszallitas: '📤 Kiszállítás',
+  selejt:      '🗑 Selejt',
+  kivitel:     '📦 Kivitel',
+  korrekcio:   '🧮 Leltári korrekció'
+};
+
+async function _loadUsers() {
+  if (_users.length) return;
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    _users = snap.docs.map(d => ({ uid: d.id, name: d.data().displayName || d.data().email || 'Ismeretlen' }));
+  } catch (e) { console.warn('stock _loadUsers failed:', e.message); }
+}
+function _userName(uid) { return _users.find(u => u.uid === uid)?.name || '—'; }
 
 /* ══════════════════════════════════════
    HELYSZÍNEK
@@ -37,7 +56,7 @@ function _fillLocSelects() {
   const mozgHelyEl = E('mozgKeszletHelyF');
   if (mozgHelyEl) { const p = mozgHelyEl.value; mozgHelyEl.innerHTML = allOpts; if (p) mozgHelyEl.value = p; }
 
-  ['mozgCelHely'].forEach(id => {
+  ['mozgCelHely', 'leltarHely'].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = selOpts; if (prev) el.value = prev;
   });
@@ -171,11 +190,14 @@ async function _calcStock(anyagF = '', helyF = '') {
     };
 
     const t = m.tipus;
-    if (t === 'bevitel') {
+    if (t === 'bevitel' || t === 'korrekcio') {
+      // A 'korrekcio' mennyisége már előjeles (leltári eltérés) — sign=1 elég.
       add(m.anyag, m.forrasHely, 1);
-      const bkey = `${m.anyag}|${m.forrasHely}`;
-      if (!batches[bkey]) batches[bkey] = [];
-      batches[bkey].push({ datum: m.datum || '', zsakSzam: m.zsakSulyok?.length || m.zsakSzam || 0, zsakSulyok: m.zsakSulyok || [], movId: d.id, entryId: null });
+      if (zsak > 0) {
+        const bkey = `${m.anyag}|${m.forrasHely}`;
+        if (!batches[bkey]) batches[bkey] = [];
+        batches[bkey].push({ datum: m.datum || '', zsakSzam: m.zsakSulyok?.length || zsak || 0, zsakSulyok: m.zsakSulyok || [], movId: d.id, entryId: null });
+      }
     }
     if (!m.sourceUpdated) {
       if (t === 'kiszallitas' || t === 'selejt' || t === 'kivitel') add(m.anyag, m.forrasHely, -1);
@@ -677,6 +699,137 @@ function _subscribeToStock() {
 }
 
 /* ══════════════════════════════════════
+   TAB — MOZGÁS-ELŐZMÉNYEK (napló)
+══════════════════════════════════════ */
+export async function loadElozmenyek() {
+  const div = E('elozmenyDiv'); if (!div) return;
+  div.innerHTML = '<div class="empty-st"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    await _loadUsers();
+    const snap = await getDocs(query(collection(db, 'stockMovements'), orderBy('createdAt', 'desc'), limit(500)));
+    let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const anyagF  = (E('elozmenyAnyagF')?.value || '').toLowerCase();
+    const helyF   = E('elozmenyHelyF')?.value  || '';
+    const tipusF  = E('elozmenyTipusF')?.value || '';
+    const datumTol = E('elozmenyDatumTol')?.value || '';
+    const datumIg  = E('elozmenyDatumIg')?.value  || '';
+
+    rows = rows.filter(m =>
+      (!anyagF   || (m.anyag || '').toLowerCase().includes(anyagF)) &&
+      (!helyF    || m.forrasHely === helyF || m.celHely === helyF) &&
+      (!tipusF   || m.tipus === tipusF) &&
+      (!datumTol || (m.datum || '') >= datumTol) &&
+      (!datumIg  || (m.datum || '') <= datumIg)
+    );
+
+    if (!rows.length) {
+      div.innerHTML = emptyHtml('🕘', 'Nincs a szűrésnek megfelelő mozgás', '');
+      return;
+    }
+
+    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
+    const helyTxt = id => id ? _locName(locMap, id) : '—';
+
+    let h = `<div style="overflow-x:auto;"><table class="stock-table">
+      <thead><tr>
+        <th>Dátum</th><th>Típus</th><th>Anyag</th><th>Helyszín</th>
+        <th style="text-align:right;">Zsák</th><th style="text-align:right;">Súly</th>
+        <th>Rögzítette</th><th>Megjegyzés</th>
+      </tr></thead><tbody>`;
+
+    rows.forEach(m => {
+      const isKorr  = m.tipus === 'korrekcio';
+      const zsak    = m.zsakSzam || 0;
+      const zsakTxt = isKorr ? `${zsak > 0 ? '+' : ''}${zsak} db` : `${zsak} db`;
+      const kgTxt   = m.mennyisegKg != null
+        ? (isKorr ? `${m.mennyisegKg > 0 ? '+' : ''}${m.mennyisegKg} kg` : fmtKg(m.mennyisegKg))
+        : '—';
+      const helySor = m.tipus === 'atadas' && m.celHely
+        ? `${helyTxt(m.forrasHely)} → ${helyTxt(m.celHely)}`
+        : helyTxt(m.forrasHely);
+      h += `<tr>
+        <td style="white-space:nowrap;color:var(--text2);">${esc(m.datum || '—')}</td>
+        <td style="white-space:nowrap;font-weight:600;color:var(--text);">${_TIPUS_LABEL[m.tipus] || esc(m.tipus || '—')}</td>
+        <td style="font-weight:600;color:var(--text);">${esc(m.anyag || '—')}</td>
+        <td style="color:var(--text2);">${helySor}</td>
+        <td style="text-align:right;"><span class="stock-badge-zsak">${zsakTxt}</span></td>
+        <td style="text-align:right;color:var(--text2);">${kgTxt}</td>
+        <td style="color:var(--text3);font-size:12px;">${esc(_userName(m.createdBy))}</td>
+        <td style="color:var(--text3);font-size:12px;">${esc(m.megjegyzes || '—')}</td>
+      </tr>`;
+    });
+
+    h += `</tbody></table></div>`;
+    div.innerHTML = h;
+  } catch (e) { msg('Előzmények betöltési hiba: ' + e.message, 'error'); }
+}
+
+/* ══════════════════════════════════════
+   TAB — LELTÁR / KÉSZLETEGYEZTETÉS
+══════════════════════════════════════ */
+export async function onLeltarSelChange() {
+  const anyag = E('leltarAnyag')?.value;
+  const hely  = E('leltarHely')?.value;
+  const box   = E('leltarJelenlegi');
+  if (!box) return;
+  if (!anyag || !hely) { box.style.display = 'none'; return; }
+
+  const stock = await _calcStock(anyag, hely);
+  const exact = stock.find(s => s.anyag === anyag && s.hely === hely);
+  const db_   = exact?.zsakSzam || 0;
+  const kg_   = exact?.kg || 0;
+
+  box.style.display = '';
+  box.innerHTML = `Jelenleg nyilvántartva: <strong>${db_} db</strong>${kg_ > 0 ? ` · <strong>${fmtKg(kg_)}</strong>` : ''}`;
+  if (E('leltarDb')) E('leltarDb').value = db_;
+  if (E('leltarKg')) E('leltarKg').value = kg_ > 0 ? kg_.toFixed(1) : '';
+}
+
+export async function saveLeltarKorrekcio() {
+  const anyag = E('leltarAnyag')?.value;
+  const hely  = E('leltarHely')?.value;
+  if (!anyag || !hely) { msg('Válassz anyagot és helyszínt!', 'error'); return; }
+
+  const ujDbRaw = E('leltarDb')?.value;
+  const ujDb    = parseInt(ujDbRaw);
+  if (ujDbRaw === '' || !Number.isFinite(ujDb) || ujDb < 0) { msg('Add meg a valós zsákszámot!', 'error'); return; }
+  const ujKgRaw = E('leltarKg')?.value;
+  const ujKg    = ujKgRaw !== '' ? parseFloat(ujKgRaw) : null;
+  const megj    = E('leltarMegj')?.value?.trim() || '';
+
+  try {
+    const stock = await _calcStock(anyag, hely);
+    const exact = stock.find(s => s.anyag === anyag && s.hely === hely);
+    const regiDb = exact?.zsakSzam || 0;
+    const regiKg = exact?.kg || 0;
+
+    const deltaDb = ujDb - regiDb;
+    if (deltaDb === 0) { msg('Nincs eltérés a zsákszámban, nincs mit korrigálni.', 'error'); return; }
+    const deltaKg = ujKg !== null ? ujKg - regiKg : null;
+
+    await addDoc(collection(db, 'stockMovements'), {
+      tipus: 'korrekcio', anyag, forrasHely: hely, celHely: null,
+      zsakSzam:    deltaDb,
+      mennyisegKg: deltaKg !== null ? parseFloat(deltaKg.toFixed(2)) : null,
+      zsakSulyok:  [], datum: tod(), megjegyzes: megj,
+      forrás: 'leltár', termelesRef: [],
+      createdBy: state.appUser.uid, createdAt: serverTimestamp()
+    });
+
+    logAction('stock.korrekcio', {
+      anyag, hely: _locations.find(l => l.id === hely)?.nev || hely,
+      regiDb, ujDb, elteres: deltaDb
+    });
+
+    msg(`Korrekció rögzítve (${deltaDb > 0 ? '+' : ''}${deltaDb} db).`);
+    if (E('leltarMegj')) E('leltarMegj').value = '';
+    await onLeltarSelChange();
+    loadKeszlet();
+  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
+}
+
+/* ══════════════════════════════════════
    TAB VÁLTÁS + INIT
 ══════════════════════════════════════ */
 export function switchKeszletTab(name) {
@@ -689,6 +842,8 @@ export function switchKeszletTab(name) {
   if (name === 'sztkeszlet')   loadKeszlet();
   if (name === 'sztmozgas')    loadMozgasTab();
   if (name === 'sztbeallitas') renderLocations();
+  if (name === 'sztelozmeny')  loadElozmenyek();
+  if (name === 'sztleltar')    { fillSel(E('leltarAnyag'), state.anyagok, '— Válassz —'); onLeltarSelChange(); }
 }
 
 export async function initKeszletTab() {

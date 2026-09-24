@@ -287,6 +287,10 @@ const SECTIONS = [
       </ul>
       <p>A kijelölés zsák-csempékkel (chip) történik; az anyag/helyszín szűrőkkel megtalálod a kívánt tételt. Kijelölés után a felbukkanó <strong>⚡ panelen</strong> add meg a célhelyszínt, dátumot, opcionális megjegyzést, majd <strong>✓ Rögzít</strong>. A <strong>🗑 Töröl</strong> gombbal visszavonható egy korábban rögzített mozgás (jogosultságtól függően).</p>
 
+      <p><strong>🕘 Előzmények:</strong> a rögzített mozgások (bevitel, áttárolás, korrekció stb.) szűrhető, időrendi naplója — dátum, típus, anyag, helyszín, zsák/súly és ki rögzítette.</p>
+
+      <p><strong>🧮 Leltár</strong> (szerkesztési joggal): válaszd ki az anyagot és a helyszínt, add meg a fizikailag megszámolt zsákszámot (és ha ismert, a súlyt). Ha eltér a nyilvántartottól, a rendszer egy <strong>korrekciós mozgást</strong> rögzít a különbséggel — ez az Előzményekben és az admin audit naplóban is nyomon követhető.</p>
+
       <p><strong>⚙️ Helyszínek</strong> (szerkesztési joggal): raktárak/területek felvétele, szerkesztése, színkóddal való megkülönböztetése (kattints a színes pöttyre). <strong>A törlés végleges</strong> — nincs archiválás, a törölt helyszínre hivatkozó korábbi mozgások megmaradnak, de a helyszín neve többé nem szerkeszthető.</p>
     `
   },

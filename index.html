@@ -855,6 +855,8 @@
       <div class="subtabs" id="keszletSubtabs">
         <button class="stab-btn active" data-ks-tab="sztkeszlet">📊 Készlet</button>
         <button class="stab-btn" data-ks-tab="sztmozgas">↔️ Mozgás</button>
+        <button class="stab-btn" data-ks-tab="sztelozmeny">🕘 Előzmények</button>
+        <button class="stab-btn" data-ks-tab="sztleltar" id="sztLeltarBtn" style="display:none">🧮 Leltár</button>
         <button class="stab-btn" data-ks-tab="sztbeallitas" id="sztBeallitasBtn" style="display:none">⚙️ Beállítások</button>
       </div>
 
@@ -913,6 +915,63 @@
             <button class="btn btn-primary btn-sm" id="mozgSaveBtn">✓ Rögzít</button>
             <button class="btn btn-danger btn-sm" id="mozgDelBtn">🗑 Töröl</button>
             <button class="btn btn-ghost btn-sm" id="mozgClearSelBtn">Kijelölés törlése</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🕘 Mozgás-előzmények -->
+      <div id="ksTab-sztelozmeny" class="kstab-panel">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div class="field" style="min-width:130px;"><label class="lbl">Dátumtól</label><input type="date" id="elozmenyDatumTol"></div>
+            <div class="field" style="min-width:130px;"><label class="lbl">Dátumig</label><input type="date" id="elozmenyDatumIg"></div>
+            <div class="field" style="min-width:140px;"><label class="lbl">Anyag</label>
+              <input type="text" id="elozmenyAnyagF" placeholder="Keresés…" autocomplete="off">
+            </div>
+            <div class="field" style="min-width:150px;"><label class="lbl">Helyszín</label>
+              <select id="elozmenyHelyF"><option value="">— Mind —</option></select>
+            </div>
+            <div class="field" style="min-width:160px;"><label class="lbl">Típus</label>
+              <select id="elozmenyTipusF">
+                <option value="">— Mind —</option>
+                <option value="bevitel">⬇️ Bevitel</option>
+                <option value="atadas">↔️ Áttárolás</option>
+                <option value="kiszallitas">📤 Kiszállítás</option>
+                <option value="selejt">🗑 Selejt</option>
+                <option value="kivitel">📦 Kivitel</option>
+                <option value="korrekcio">🧮 Leltári korrekció</option>
+              </select>
+            </div>
+            <div style="margin-bottom:13px;">
+              <label class="lbl" style="visibility:hidden;">–</label>
+              <button class="btn btn-primary btn-sm" id="elozmenyFrissitBtn">Frissít</button>
+            </div>
+          </div>
+        </div>
+        <div id="elozmenyDiv"><div class="empty-st"><div class="empty-ic">🕘</div><div class="empty-title">Betöltés…</div></div></div>
+      </div>
+
+      <!-- 🧮 Leltár / készletegyeztetés -->
+      <div id="ksTab-sztleltar" class="kstab-panel">
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">🧮</span>Leltári korrekció</div>
+          <div style="font-size:12.5px;color:var(--text3);margin-bottom:12px;">
+            Válaszd ki az anyagot és a helyszínt, add meg a fizikailag megszámolt zsákszámot (és ha ismert, a súlyt).
+            A rendszer a nyilvántartott és a valós érték közti különbséget egy korrekciós mozgásként rögzíti,
+            ami a Mozgás-előzményekben is megjelenik.
+          </div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Anyag</label><select id="leltarAnyag"><option value="">— Válassz —</option></select></div>
+            <div class="field"><label class="lbl">Helyszín</label><select id="leltarHely"><option value="">— Válassz —</option></select></div>
+          </div>
+          <div id="leltarJelenlegi" style="display:none;margin:6px 0 10px;padding:9px 12px;background:var(--surf2);border-radius:var(--rsm);font-size:13px;color:var(--text2);"></div>
+          <div class="g2">
+            <div class="field"><label class="lbl">Valós zsákszám (db)</label><input type="number" id="leltarDb" min="0" placeholder="pl. 12"></div>
+            <div class="field"><label class="lbl">Valós összsúly (kg, opcionális)</label><input type="number" id="leltarKg" min="0" step="0.1" placeholder="Ha ismert…"></div>
+          </div>
+          <div class="field"><label class="lbl">Megjegyzés (opcionális)</label><input type="text" id="leltarMegj" placeholder="pl. havi leltár, ok…"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" id="leltarSaveBtn">✓ Korrekció rögzítése</button>
           </div>
         </div>
       </div>

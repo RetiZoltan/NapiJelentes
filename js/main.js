@@ -38,7 +38,8 @@ import { loadMachines, saveMachine, openGepForm, closeGepForm,
 import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } from './wip-bags.js';
 import { initKeszletTab, switchKeszletTab, loadKeszlet,
          loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
-         onMozgTipusChange, saveLocation,
+         onMozgTipusChange, saveLocation, loadElozmenyek,
+         onLeltarSelChange, saveLeltarKorrekcio,
          canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
@@ -143,6 +144,7 @@ function buildAppUI() {
   E('tabBtnGepek').style.display       = (isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'))      ? '' : 'none';
   if (E('ujGepWrap')) E('ujGepWrap').style.display = canManageMachines() ? '' : 'none';
   if (E('sztBeallitasBtn')) E('sztBeallitasBtn').style.display = canManageStock() ? '' : 'none';
+  if (E('sztLeltarBtn'))    E('sztLeltarBtn').style.display    = canManageStock() ? '' : 'none';
   E('tabBtnAdmin').style.display       = (isMainAdmin() || canManageUsers() || hasPerm('kozlemenyIras'))                ? '' : 'none';
   E('tabBtnSugo').style.display        = '';
 
@@ -1151,6 +1153,22 @@ E('megj').addEventListener('focus', e => e.target.select());
     _mozgAnyagT = setTimeout(loadMozgasTab, 280);
   });
   E('mozgKeszletHelyF').addEventListener('change', loadMozgasTab);
+
+  // Készlet — Mozgás-előzmények szűrők
+  E('elozmenyFrissitBtn').addEventListener('click', loadElozmenyek);
+  ['elozmenyHelyF', 'elozmenyTipusF', 'elozmenyDatumTol', 'elozmenyDatumIg'].forEach(id => {
+    E(id)?.addEventListener('change', loadElozmenyek);
+  });
+  let _elozmenyAnyagT = null;
+  E('elozmenyAnyagF')?.addEventListener('input', () => {
+    clearTimeout(_elozmenyAnyagT);
+    _elozmenyAnyagT = setTimeout(loadElozmenyek, 280);
+  });
+
+  // Készlet — Leltári korrekció
+  E('leltarAnyag')?.addEventListener('change', onLeltarSelChange);
+  E('leltarHely')?.addEventListener('change', onLeltarSelChange);
+  E('leltarSaveBtn')?.addEventListener('click', saveLeltarKorrekcio);
 
   // Prémium al-fülek
   E('premiumSubtabs').addEventListener('click', e => {
