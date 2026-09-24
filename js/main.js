@@ -39,7 +39,7 @@ import { renderWipSection, saveWipTransfer, rollbackWipBag, completeWipBag } fro
 import { initKeszletTab, switchKeszletTab, loadKeszlet,
          loadMozgasTab, saveMozgas, deleteSelectedBags, clearMozgSel,
          onMozgTipusChange, saveLocation, loadElozmenyek,
-         onLeltarSelChange, saveLeltarKorrekcio,
+         onLeltarSelChange, saveLeltarKorrekcio, saveBevetelezes,
          canViewStock, canManageStock } from './stock.js';
 import { initNaptar } from './calendar.js';
 import { initPremiumTab, initPremiumAdmin, savePremiumAdminConfig,
@@ -1169,6 +1169,7 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('leltarAnyag')?.addEventListener('change', onLeltarSelChange);
   E('leltarHely')?.addEventListener('change', onLeltarSelChange);
   E('leltarSaveBtn')?.addEventListener('click', saveLeltarKorrekcio);
+  E('bevetSaveBtn')?.addEventListener('click', saveBevetelezes);
 
   // Prémium al-fülek
   E('premiumSubtabs').addEventListener('click', e => {

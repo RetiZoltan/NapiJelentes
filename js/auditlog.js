@@ -34,6 +34,7 @@ export const ACTION_LABELS = {
   'stock.korrekcio':     'Leltári korrekció rögzítve',
   'stock.tetel_delete':  'Készletsor törölve',
   'stock.movement_delete':'Mozgásrekord törölve',
+  'stock.bevetelezes':   'Külső anyag bevételezve',
 };
 
 const ACTION_ICONS = {
@@ -128,6 +129,7 @@ function _formatDetail(action, d) {
     if (d.hely)  parts.push(`@ ${_esc(d.hely)}`);
   }
   if (d.zsakSzam !== undefined) parts.push(`${d.zsakSzam} db`);
+  if (d.szallito)   parts.push(`— ${_esc(d.szallito)}`);
   if (d.tipus && action === 'stock.movement_delete') parts.push(`(${_esc(d.tipus)})`);
   if (d.regi !== undefined && d.uj !== undefined) parts.push(`${_esc(d.regi)} → ${_esc(d.uj)}`);
   if (d.count > 1)   parts.push(`${d.count} db`);

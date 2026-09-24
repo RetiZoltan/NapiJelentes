@@ -280,12 +280,13 @@ const SECTIONS = [
         <li>Szűrhető anyag és helyszín szerint; fejléc-kártyák mutatják az összes zsákot, összsúlyt és tételszámot</li>
       </ul>
 
-      <p><strong>↔️ Anyagmozgás — 2 típus:</strong></p>
+      <p><strong>↔️ Anyagmozgás — 3 típus:</strong></p>
       <ul>
         <li><strong>↔️ Áttárolás</strong> — meglévő készlet átvitele egyik helyszínről egy másikra (pl. raktárközi mozgatás). Zsák-csempékkel jelölheted ki melyiket, majd add meg a cél helyszínt</li>
         <li><strong>⬇️ Termelésből</strong> — a még be nem tárolt teli zsákos termelési bejegyzések közül a kijelöltek betárolódnak egy célhelyszínre</li>
+        <li><strong>📥 Bevételezés</strong> — teljesen új, beszállítótól/külső forrásból érkező anyag felvitele egy helyszín készletéhez (anyag, zsákszám, súly, opcionálisan beszállító neve). Ez nem chip-kijelöléssel, hanem egy egyszerű űrlappal működik, hiszen itt még nincs meglévő tétel</li>
       </ul>
-      <p>A kijelölés zsák-csempékkel (chip) történik; az anyag/helyszín szűrőkkel megtalálod a kívánt tételt. Kijelölés után a felbukkanó <strong>⚡ panelen</strong> add meg a célhelyszínt, dátumot, opcionális megjegyzést, majd <strong>✓ Rögzít</strong>. A <strong>🗑 Töröl</strong> gombbal visszavonható egy korábban rögzített mozgás (jogosultságtól függően).</p>
+      <p>Az Áttárolás/Termelésből kijelölés zsák-csempékkel (chip) történik; az anyag/helyszín szűrőkkel megtalálod a kívánt tételt. Kijelölés után a felbukkanó <strong>⚡ panelen</strong> add meg a célhelyszínt, dátumot, opcionális megjegyzést, majd <strong>✓ Rögzít</strong>. A <strong>🗑 Töröl</strong> gombbal visszavonható egy korábban rögzített mozgás (jogosultságtól függően).</p>
 
       <p><strong>🕘 Előzmények:</strong> a rögzített mozgások (bevitel, áttárolás, korrekció stb.) szűrhető, időrendi naplója — dátum, típus, anyag, helyszín, zsák/súly és ki rögzítette.</p>
 

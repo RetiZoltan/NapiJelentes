@@ -24,6 +24,12 @@ const _TIPUS_LABEL = {
   kivitel:     '📦 Kivitel',
   korrekcio:   '🧮 Leltári korrekció'
 };
+const _FORRAS_SUB = {
+  'termelés':    '🏭 termelésből',
+  'áttárolás':   '↔️ áttárolásból',
+  'bevételezés': '📥 külső bevételezés',
+  'leltár':      '🧮 leltárból'
+};
 
 async function _loadUsers() {
   if (_users.length) return;
@@ -56,7 +62,7 @@ function _fillLocSelects() {
   const mozgHelyEl = E('mozgKeszletHelyF');
   if (mozgHelyEl) { const p = mozgHelyEl.value; mozgHelyEl.innerHTML = allOpts; if (p) mozgHelyEl.value = p; }
 
-  ['mozgCelHely', 'leltarHely'].forEach(id => {
+  ['mozgCelHely', 'leltarHely', 'bevetHely'].forEach(id => {
     const el = E(id); if (!el) return;
     const prev = el.value; el.innerHTML = selOpts; if (prev) el.value = prev;
   });
@@ -361,12 +367,63 @@ export function onMozgTipusChange(tipus) {
   document.querySelectorAll('.mozg-tipus-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tipus === tipus)
   );
+
+  const isBevet      = tipus === 'bevetelezes';
+  const browserCard  = E('mozgBrowserCard');
+  const bevetCard    = E('bevetelezesCard');
+  if (browserCard) browserCard.style.display = isBevet ? 'none' : '';
+  if (bevetCard)   bevetCard.style.display   = isBevet ? '' : 'none';
+
+  if (isBevet) {
+    const actionCard = E('mozgActionCard');
+    if (actionCard) actionCard.style.display = 'none';
+    fillSel(E('bevetAnyag'), state.anyagok, '— Válassz —');
+    if (E('bevetDatum') && !E('bevetDatum').value) E('bevetDatum').value = tod();
+    return;
+  }
+
   const celRow = E('mozgCelHelyRow');
   if (celRow) celRow.style.display = (tipus === 'atadas' || tipus === 'betarolas') ? '' : 'none';
   const filters = E('mozgKeszletFilters');
   if (filters) filters.style.display = tipus === 'betarolas' ? 'none' : '';
   clearMozgSel();
   loadMozgasTab();
+}
+
+export async function saveBevetelezes() {
+  const anyag = E('bevetAnyag')?.value;
+  const hely  = E('bevetHely')?.value;
+  if (!anyag || !hely) { msg('Válassz anyagot és célhelyszínt!', 'error'); return; }
+
+  const dbRaw = E('bevetDb')?.value;
+  const db_   = parseInt(dbRaw);
+  if (dbRaw === '' || !Number.isFinite(db_) || db_ <= 0) { msg('Add meg a zsákszámot!', 'error'); return; }
+  const kgRaw = E('bevetKg')?.value;
+  const kg    = kgRaw !== '' ? parseFloat(kgRaw) : null;
+  const datum = E('bevetDatum')?.value || tod();
+  const szallito = E('bevetSzallito')?.value?.trim() || '';
+  const megjIn   = E('bevetMegjegyzes')?.value?.trim() || '';
+  const megj = szallito ? `Beszállító: ${szallito}${megjIn ? ' — ' + megjIn : ''}` : megjIn;
+
+  try {
+    await addDoc(collection(db, 'stockMovements'), {
+      tipus: 'bevitel', anyag, forrasHely: hely, celHely: null,
+      zsakSzam:    db_,
+      mennyisegKg: kg !== null ? parseFloat(kg.toFixed(2)) : null,
+      zsakSulyok:  [], datum, megjegyzes: megj,
+      forrás: 'bevételezés', termelesRef: [],
+      createdBy: state.appUser.uid, createdAt: serverTimestamp()
+    });
+
+    logAction('stock.bevetelezes', {
+      anyag, hely: _locations.find(l => l.id === hely)?.nev || hely,
+      zsakSzam: db_, kg, szallito
+    });
+
+    msg(`Bevételezve: ${db_} db ${anyag}.`);
+    ['bevetDb', 'bevetKg', 'bevetSzallito', 'bevetMegjegyzes'].forEach(id => { if (E(id)) E(id).value = ''; });
+    loadKeszlet();
+  } catch (e) { msg('Mentési hiba: ' + e.message, 'error'); }
 }
 
 export async function loadMozgasTab() {
@@ -786,9 +843,11 @@ export async function loadElozmenyek() {
       const helySor = m.tipus === 'atadas' && m.celHely
         ? `${helyTxt(m.forrasHely)} → ${helyTxt(m.celHely)}`
         : helyTxt(m.forrasHely);
+      const forrasSub = m.tipus === 'bevitel' && _FORRAS_SUB[m.forrás]
+        ? `<br><span style="font-size:10.5px;font-weight:500;color:var(--text3);">${esc(_FORRAS_SUB[m.forrás])}</span>` : '';
       h += `<tr>
         <td style="white-space:nowrap;color:var(--text2);">${esc(m.datum || '—')}</td>
-        <td style="white-space:nowrap;font-weight:600;color:var(--text);">${_TIPUS_LABEL[m.tipus] || esc(m.tipus || '—')}</td>
+        <td style="white-space:nowrap;font-weight:600;color:var(--text);">${_TIPUS_LABEL[m.tipus] || esc(m.tipus || '—')}${forrasSub}</td>
         <td style="font-weight:600;color:var(--text);">${esc(m.anyag || '—')}</td>
         <td style="color:var(--text2);">${helySor}</td>
         <td style="text-align:right;"><span class="stock-badge-zsak">${zsakTxt}</span></td>
