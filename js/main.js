@@ -992,8 +992,12 @@ E('megj').addEventListener('focus', e => e.target.select());
   E('userTableBody').addEventListener('change', async e => {
     if (!e.target.classList.contains('role-select')) return;
     const uid = e.target.dataset.uid, roleId = e.target.value || null;
+    const uNev = e.target.dataset.name || uid;
+    const ujNev = e.target.selectedOptions[0]?.textContent || '— Nincs —';
+    const regiNev = e.target.dataset.prevRole || '— Nincs —';
     try {
       await updateDoc(doc(db, 'users', uid), { roleId });
+      logAction('user.role_change', { nev: uNev, regi: regiNev, uj: ujNev });
       msg('Szerepkör frissítve.'); loadAdminUsers();
     } catch (ex) { msg('Frissítési hiba: ' + ex.message, 'error'); }
   });
@@ -1014,7 +1018,11 @@ E('megj').addEventListener('focus', e => e.target.select());
     const btn = e.target.closest('[data-del-user]'); if (!btn) return;
     const uid = btn.dataset.delUser;
     if (!confirm('Biztosan törlöd ezt a felhasználót?')) return;
-    try { await deleteDoc(doc(db, 'users', uid)); msg('Felhasználó törölve.'); loadAdminUsers(); }
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+      logAction('user.delete', { nev: btn.dataset.name || uid });
+      msg('Felhasználó törölve.'); loadAdminUsers();
+    }
     catch { msg('Törlési hiba', 'error'); }
   });
 

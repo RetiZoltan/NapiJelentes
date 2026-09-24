@@ -2,6 +2,7 @@ import { db, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, collec
          where, getDocs, orderBy, serverTimestamp, onSnapshot, writeBatch, getCountFromServer } from './firebase.js';
 import { state, canSeeAllReports } from './state.js';
 import { E, esc, msg, ag } from './utils.js';
+import { logAction } from './auditlog.js';
 
 let _listsUnsub = null;
 
@@ -546,6 +547,10 @@ export async function renameWorkerEverywhere(oldNev, newNev) {
 
   msg(`"${esc(oldNev)}" → "${esc(newNev)}": ${counts.entries} bejegyzés, ${counts.absences} hiányzás, ${counts.overtimes} túlóra` +
       (counts.employees ? `, ${counts.employees} dolgozói profil` : '') + ' frissítve.', 'success', 7000);
+  logAction('nev.rename', {
+    regi: oldNev, uj: newNev,
+    count: counts.entries + counts.absences + counts.overtimes + counts.employees
+  });
   return counts;
 }
 

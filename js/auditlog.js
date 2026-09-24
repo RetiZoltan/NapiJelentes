@@ -26,6 +26,11 @@ export const ACTION_LABELS = {
   'user.enable':         'Felhasználó aktiválva',
   'dailyNote.delete':    'Napi megjegyzés törölve',
   'admin.backup_restore': 'Teljes adatbázis visszaállítva mentésből',
+  'user.role_change':    'Szerepkör módosítva felhasználónál',
+  'user.delete':         'Felhasználó törölve',
+  'nev.rename':          'Dolgozónév átvezetve mindenhol',
+  'machine.delete':      'Gép törölve',
+  'stockLocation.delete':'Raktárhelyszín törölve',
 };
 
 const ACTION_ICONS = {
@@ -41,6 +46,9 @@ const ACTION_ICONS = {
   user:     '👤',
   dailyNote:'📝',
   admin:    '💾',
+  nev:      '✏️',
+  machine:  '🔧',
+  stockLocation: '📍',
 };
 
 export async function logAction(action, detail = {}) {
@@ -109,6 +117,7 @@ function _formatDetail(action, d) {
   if (d.oraSzam)     parts.push(`${d.oraSzam} óra`);
   if (d.statusz)     parts.push(`→ ${_esc(d.statusz)}`);
   if (d.email)       parts.push(_esc(d.email));
+  if (d.regi !== undefined && d.uj !== undefined) parts.push(`${_esc(d.regi)} → ${_esc(d.uj)}`);
   if (d.count > 1)   parts.push(`${d.count} db`);
   return parts.length ? '— ' + parts.join(', ') : '';
 }

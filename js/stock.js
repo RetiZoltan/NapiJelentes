@@ -3,6 +3,7 @@ import { db, doc, getDoc, addDoc, updateDoc, deleteDoc, collection, query,
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod, fmtKg, emptyHtml } from './utils.js';
 import { fetchEntries } from './db.js';
+import { logAction } from './auditlog.js';
 
 /* ── Jogosultság ── */
 export function canViewStock()   { return isMainAdmin() || hasPerm('keszletMegtekintes') || hasPerm('keszletKezeles'); }
@@ -83,7 +84,7 @@ export async function renderLocations() {
             ${l.leiras ? `<div style="font-size:12px;color:var(--text3);">${esc(l.leiras)}</div>` : ''}
           </div>
           ${canEdit ? `<button class="btn btn-ghost btn-xs loc-edit-btn" data-id="${l.id}">Szerkeszt</button>` : ''}
-          ${isMainAdmin() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}">Töröl</button>` : ''}
+          ${isMainAdmin() ? `<button class="btn btn-danger btn-xs loc-del-btn" data-id="${l.id}" data-nev="${esc(l.nev)}">Töröl</button>` : ''}
         </div>
         <div class="loc-edit-form" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:6px;">
           <input class="loc-edit-nev" type="text" value="${esc(l.nev)}" placeholder="Név" style="flex:1;min-width:120px;">
@@ -128,6 +129,7 @@ export async function renderLocations() {
         if (!confirm('Véglegesen törlöd ezt a helyszínt?')) return;
         try {
           await deleteDoc(doc(db, 'stockLocations', btn.dataset.id));
+          logAction('stockLocation.delete', { nev: btn.dataset.nev || '—' });
           msg('Helyszín törölve.'); loadLocations(); renderLocations();
         } catch (e) { msg('Hiba: ' + e.message, 'error'); }
       });

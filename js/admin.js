@@ -39,9 +39,10 @@ export async function loadAdminUsers() {
       let actions = '';
       if (isMainAdmin() && !u.isMainAdmin) {
         const opts = Object.values(roles).map(r => `<option value="${esc(r.id)}" ${u.roleId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
-        actions += `<select class="role-select" data-uid="${u.id}" style="font-size:12px;padding:4px 24px 4px 7px;margin-right:4px;"><option value="">— Nincs —</option>${opts}</select>`;
-        actions += `<button class="btn btn-xs ${u.isDisabled ? 'btn-ghost' : 'btn-danger'} dis-toggle-btn" data-uid="${u.id}" data-is-disabled="${u.isDisabled ? '1' : '0'}" data-name="${esc(u.displayName||u.email||'')}" ${isMe ? 'disabled' : ''}>${u.isDisabled ? '▶ Aktivál' : '⏸ Letilt'}</button> `;
-        actions += `<button class="btn btn-danger btn-xs" data-del-user="${u.id}" ${isMe ? 'disabled' : ''}>Töröl</button>`;
+        const uName = esc(u.displayName || u.email || '');
+        actions += `<select class="role-select" data-uid="${u.id}" data-name="${uName}" data-prev-role="${esc(roles[u.roleId]?.name || '— Nincs —')}" style="font-size:12px;padding:4px 24px 4px 7px;margin-right:4px;"><option value="">— Nincs —</option>${opts}</select>`;
+        actions += `<button class="btn btn-xs ${u.isDisabled ? 'btn-ghost' : 'btn-danger'} dis-toggle-btn" data-uid="${u.id}" data-is-disabled="${u.isDisabled ? '1' : '0'}" data-name="${uName}" ${isMe ? 'disabled' : ''}>${u.isDisabled ? '▶ Aktivál' : '⏸ Letilt'}</button> `;
+        actions += `<button class="btn btn-danger btn-xs" data-del-user="${u.id}" data-name="${uName}" ${isMe ? 'disabled' : ''}>Töröl</button>`;
       }
       const tr = document.createElement('tr');
       tr.innerHTML = `

@@ -3,6 +3,7 @@ import { db, doc, addDoc, updateDoc, deleteDoc,
 import { state, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, msg, tod } from './utils.js';
 import { reloadDashboard } from './dashboard.js';
+import { logAction } from './auditlog.js';
 
 export function canViewMachines()   { return isMainAdmin() || hasPerm('gepekMegtekintes') || hasPerm('gepekKezeles'); }
 export function canManageMachines() { return isMainAdmin() || hasPerm('gepekKezeles'); }
@@ -244,6 +245,7 @@ function _renderDrawerBody(m, events) {
     if (!confirm(`Véglegesen törlöd „${m.nev}" gépet? Ez visszafordíthatatlan.`)) return;
     try {
       await deleteDoc(doc(db, 'machines', m.id));
+      logAction('machine.delete', { nev: m.nev });
       msg('Gép törölve.');
       closeMachineDrawer();
       loadMachines();
