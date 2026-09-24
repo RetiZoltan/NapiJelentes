@@ -270,6 +270,8 @@ export async function loadKeszlet() {
       <div class="ssc"><div class="ssc-val">${stock.length}</div><div class="ssc-lbl">Tétel</div></div>
     </div>`;
 
+    const mainAdm = isMainAdmin();
+
     h += `<div style="overflow-x:auto;"><table class="stock-table">
       <thead><tr>
         <th>Anyag</th>
@@ -277,24 +279,28 @@ export async function loadKeszlet() {
         <th style="text-align:right;">Zsák (db)</th>
         <th style="text-align:right;">Súly</th>
         <th>Forrás</th>
+        ${mainAdm ? '<th style="width:26px;"></th>' : ''}
         <th style="width:22px;"></th>
       </tr></thead><tbody>`;
 
+    const colCount = 6 + (mainAdm ? 1 : 0);
     stock.forEach((s, idx) => {
       const detId  = `kdet_${idx}`;
       const hasDet = s.batches.length > 0;
+      const canDel = mainAdm && s.hely !== '_termelés_';
       h += `<tr class="${hasDet ? 'stock-row-clickable' : ''}" data-det="${hasDet ? detId : ''}">
         <td style="font-weight:600;color:var(--text);">${esc(s.anyag)}</td>
         <td style="color:var(--text2);">${_locName(locMap, s.hely)}</td>
         <td style="text-align:right;"><span class="stock-badge-zsak">${s.zsakSzam} db</span></td>
         <td style="text-align:right;">${s.kg > 0 ? fmtKg(s.kg) : '—'}</td>
         <td><span style="font-size:11px;font-weight:600;color:${s.belso ? 'var(--green)' : 'var(--text3)'};">${s.belso ? '🏭 belső' : '📥 külső'}</span></td>
+        ${mainAdm ? `<td style="width:26px;text-align:center;">${canDel ? `<button class="btn btn-ghost btn-xs stock-tetel-del-btn" data-anyag="${esc(s.anyag)}" data-hely="${esc(s.hely)}" title="Készletsor törlése" style="color:var(--red);padding:2px 6px;">🗑</button>` : ''}</td>` : ''}
         <td style="width:22px;text-align:center;color:var(--text3);font-size:12px;">${hasDet ? '<span class="stock-det-arrow">▶</span>' : ''}</td>
       </tr>`;
       if (hasDet) {
         const allWeights = s.batches.flatMap(b => b.zsakSulyok);
         h += `<tr id="${detId}" class="stock-det-row" style="display:none;">
-          <td colspan="6" style="padding:10px 14px;background:var(--surf2);">
+          <td colspan="${colCount}" style="padding:10px 14px;background:var(--surf2);">
             <div class="stock-zsak-chips">${allWeights.map(w => `<span class="stock-zsak-chip">${w.toFixed(0)} kg</span>`).join('')}</div>
           </td>
         </tr>`;
@@ -314,7 +320,37 @@ export async function loadKeszlet() {
         if (arrow) arrow.textContent = open ? '▶' : '▼';
       });
     });
+    div.querySelectorAll('.stock-tetel-del-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteKeszletTetel(btn.dataset.anyag, btn.dataset.hely);
+      });
+    });
   } catch (e) { msg('Készlet betöltési hiba: ' + e.message, 'error'); }
+}
+
+export async function deleteKeszletTetel(anyag, hely) {
+  if (!isMainAdmin()) return;
+  if (hely === '_termelés_') { msg('A termelésből még be nem tárolt zsákok a Bejegyzéseknél törölhetők.', 'error'); return; }
+  if (!confirm(`Véglegesen törlöd a(z) "${anyag}" készletsort ezen a helyszínen? Az összes hozzá tartozó bevitel/korrekció rekord törlődik, nem vonható vissza.`)) return;
+
+  try {
+    const stock = await _calcStock(anyag, hely);
+    const exact = stock.find(s => s.anyag === anyag && s.hely === hely);
+    if (!exact || !exact.batches.length) { msg('Nincs törölhető rekord ehhez a tételhez.', 'error'); return; }
+
+    for (const b of exact.batches) {
+      if (b.movId) await deleteDoc(doc(db, 'stockMovements', b.movId));
+    }
+
+    logAction('stock.tetel_delete', {
+      anyag, hely: _locations.find(l => l.id === hely)?.nev || hely,
+      zsakSzam: exact.zsakSzam, kg: exact.kg
+    });
+
+    msg('Készletsor törölve.');
+    loadKeszlet();
+  } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
 }
 
 /* ══════════════════════════════════════
@@ -728,14 +764,16 @@ export async function loadElozmenyek() {
       return;
     }
 
-    const locMap = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
+    const locMap  = Object.fromEntries(_locations.map(l => [l.id, l.nev]));
     const helyTxt = id => id ? _locName(locMap, id) : '—';
+    const mainAdm = isMainAdmin();
 
     let h = `<div style="overflow-x:auto;"><table class="stock-table">
       <thead><tr>
         <th>Dátum</th><th>Típus</th><th>Anyag</th><th>Helyszín</th>
         <th style="text-align:right;">Zsák</th><th style="text-align:right;">Súly</th>
         <th>Rögzítette</th><th>Megjegyzés</th>
+        ${mainAdm ? '<th style="width:26px;"></th>' : ''}
       </tr></thead><tbody>`;
 
     rows.forEach(m => {
@@ -757,12 +795,32 @@ export async function loadElozmenyek() {
         <td style="text-align:right;color:var(--text2);">${kgTxt}</td>
         <td style="color:var(--text3);font-size:12px;">${esc(_userName(m.createdBy))}</td>
         <td style="color:var(--text3);font-size:12px;">${esc(m.megjegyzes || '—')}</td>
+        ${mainAdm ? `<td style="width:26px;text-align:center;"><button class="btn btn-ghost btn-xs elozmeny-del-btn" data-id="${m.id}" title="Mozgás törlése" style="color:var(--red);padding:2px 6px;">🗑</button></td>` : ''}
       </tr>`;
     });
 
     h += `</tbody></table></div>`;
     div.innerHTML = h;
+
+    div.querySelectorAll('.elozmeny-del-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteElozmenyTetel(btn.dataset.id));
+    });
   } catch (e) { msg('Előzmények betöltési hiba: ' + e.message, 'error'); }
+}
+
+export async function deleteElozmenyTetel(movId) {
+  if (!isMainAdmin() || !movId) return;
+  if (!confirm('Véglegesen törlöd ezt a mozgásrekordot? Ez csak a naplóbejegyzést törli, a készletszámítást nem korrigálja vissza automatikusan — ha a mennyiséget is helyre kell állítani, használd a Leltár fület.')) return;
+  try {
+    const ref  = doc(db, 'stockMovements', movId);
+    const snap = await getDoc(ref);
+    const d    = snap.exists() ? snap.data() : {};
+    await deleteDoc(ref);
+    logAction('stock.movement_delete', { anyag: d.anyag || '—', tipus: d.tipus || '—', datum: d.datum || '—' });
+    msg('Mozgás törölve.');
+    await loadElozmenyek();
+    loadKeszlet();
+  } catch (e) { msg('Törlési hiba: ' + e.message, 'error'); }
 }
 
 /* ══════════════════════════════════════

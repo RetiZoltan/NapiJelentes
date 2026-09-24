@@ -32,6 +32,8 @@ export const ACTION_LABELS = {
   'machine.delete':      'Gép törölve',
   'stockLocation.delete':'Raktárhelyszín törölve',
   'stock.korrekcio':     'Leltári korrekció rögzítve',
+  'stock.tetel_delete':  'Készletsor törölve',
+  'stock.movement_delete':'Mozgásrekord törölve',
 };
 
 const ACTION_ICONS = {
@@ -121,7 +123,12 @@ function _formatDetail(action, d) {
   if (d.email)       parts.push(_esc(d.email));
   if (d.regiDb !== undefined && d.ujDb !== undefined) {
     parts.push(`${_esc(d.anyag || '')} @ ${_esc(d.hely || '')}: ${d.regiDb} → ${d.ujDb} db (${d.elteres > 0 ? '+' : ''}${d.elteres})`);
+  } else {
+    if (d.anyag) parts.push(`<strong>${_esc(d.anyag)}</strong>`);
+    if (d.hely)  parts.push(`@ ${_esc(d.hely)}`);
   }
+  if (d.zsakSzam !== undefined) parts.push(`${d.zsakSzam} db`);
+  if (d.tipus && action === 'stock.movement_delete') parts.push(`(${_esc(d.tipus)})`);
   if (d.regi !== undefined && d.uj !== undefined) parts.push(`${_esc(d.regi)} → ${_esc(d.uj)}`);
   if (d.count > 1)   parts.push(`${d.count} db`);
   return parts.length ? '— ' + parts.join(', ') : '';
