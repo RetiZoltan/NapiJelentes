@@ -174,8 +174,6 @@ const SECTIONS = [
 
       <p><strong>🕐 Műszakok összehasonlítása:</strong> Délelőtt vs. Délután, összesen vagy napi átlag nézetben; bekapcsolható a dolgozónkénti bontás, ami megmutatja, ki melyik műszakban termel jobban.</p>
 
-      <p><strong>🧩 Anyag-specializáció mátrix:</strong> Dolgozó × anyag táblázat, a cellák az adott dolgozó termelésén belüli arányt mutatják — kiderül, ki mire "specializálódott".</p>
-
       <p><strong>🔍 Anyag kereső:</strong> Élő (gépelés közbeni) rész-szó keresés az anyagnév mezőn, listázza az egyező bejegyzéseket és az összsúlyt.</p>
 
       <p><strong>📅 Dátum szerinti elemzés:</strong> Naptár hőtérkép, heti bontás és a hét napjai szerinti átlagok, legjobb/leggyengébb nap.</p>
