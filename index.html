@@ -881,13 +881,14 @@
 
       <!-- ↔️ Anyagmozgás -->
       <div id="ksTab-sztmozgas" class="kstab-panel">
+        <!-- Mozgás-típus váltó — mindig látható -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
+          <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="betarolas">⬇️ Termelésből</button>
+          <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="bevetelezes">📥 Bevételezés</button>
+        </div>
         <!-- Készlet böngésző -->
         <div class="card" id="mozgBrowserCard">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn active" data-tipus="atadas">↔️ Áttárolás</button>
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="betarolas">⬇️ Termelésből</button>
-            <button class="btn btn-ghost btn-sm mozg-tipus-btn" data-tipus="bevetelezes">📥 Bevételezés</button>
-          </div>
           <div id="mozgKeszletFilters" class="g2" style="margin-bottom:10px;">
             <div class="field"><label class="lbl">Anyag</label>
               <input type="text" id="mozgKeszletAnyagF" autocomplete="off" placeholder="Keresés…">
