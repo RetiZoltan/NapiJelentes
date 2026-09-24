@@ -99,6 +99,7 @@ const _SET_DEFAULTS = {
   searchShowDatum: true, searchShowDolgozo: true, searchShowReszleg: true,
   amViewMode: 'mindket', amSortBy: 'nev', amUnit: 'kg',            // csak átlag/medián
   amFilterOutliers: true, amShowRawVsFiltered: false, amShowMinMax: true, amShowTrend: true,
+  attTopN: '3', attWeekMode: 'aktualis', attHiddenCards: [],       // csak Gyors áttekintő
 };
 function _getSettings() {
   try { return { ..._SET_DEFAULTS, ...JSON.parse(localStorage.getItem(_SET_KEY) || '{}') }; }
@@ -561,10 +562,45 @@ function _settingsBlockHtml(meta) {
         <label class="rs-lbl"><input type="checkbox" id="anaSetAmTrend"${s.amShowTrend ? ' checked' : ''}> Trend-jelzés</label>
       </div>`;
   } else if (meta.kind === 'attekinto') {
+    const cardDefs = [
+      ['summary',   '📊 Összesítő'],
+      ['week',      '📉 Heti bontás'],
+      ['dolg',      '🏅 Top dolgozó'],
+      ['anyag',     '📦 Top anyag'],
+      ['bestworst', '🏆 Legjobb/Leggyengébb nap'],
+      ['muszak',    '🕐 Műszak-megoszlás'],
+    ];
+    if (Object.keys(state.muszakVezetokMap).length > 0) cardDefs.push(['csapat', '👥 Top csapatok']);
+    const hiddenCards = new Set(s.attHiddenCards || []);
+    const cardToggles = cardDefs.map(([k, l]) =>
+      `<label class="rs-lbl"><input type="checkbox" class="anaSetAttCard" data-attcard="${k}"${hiddenCards.has(k) ? '' : ' checked'}> ${l}</label>`
+    ).join('');
     extra = `
       <div class="field">
         <label class="lbl">Részleg szerint</label>
         <select id="anaSetReszleg">${reszlegOpts}</select>
+      </div>
+      <div class="field">
+        <label class="lbl">Mértékegység</label>
+        <select id="anaSetAttUnit">
+          ${opt('t', s.unit, 'Tonna')}${opt('kg', s.unit, 'Kilogramm')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Top lista mérete</label>
+        <select id="anaSetAttTopN">
+          ${opt('3', s.attTopN, 'Top 3')}${opt('5', s.attTopN, 'Top 5')}${opt('10', s.attTopN, 'Top 10')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Heti bontás alapja</label>
+        <select id="anaSetAttWeekMode">
+          ${opt('aktualis', s.attWeekMode, 'Mindig a folyó hét')}${opt('idoszak', s.attWeekMode, 'A kiválasztott időszak utolsó hete')}
+        </select>
+      </div>
+      <div style="flex-basis:100%;display:flex;flex-direction:column;gap:5px;margin-top:6px;">
+        <label class="lbl" style="margin-bottom:2px;">Megjelenő kártyák</label>
+        ${cardToggles}
       </div>`;
   }
 
@@ -1282,9 +1318,12 @@ async function _computeAttekintoResult() {
   const anyagTotals  = _totals(entries, e => (e.anyag || '').trim());
   const csapatTotals = Object.keys(state.muszakVezetokMap).length > 0 ? _totals(entries, _csapatKeyFn) : [];
 
-  const todayStr  = tod();
-  const dow       = new Date(todayStr + 'T12:00:00').getDay() || 7;
-  const weekStart = addD(todayStr, -(dow - 1));
+  // "Mindig a folyó hét" (alapértelmezett) vagy "a kiválasztott időszak utolsó
+  // hete" — utóbbinál pl. egy múlt havi riportnál is releváns hetet mutat,
+  // nem a mait.
+  const anchorStr = settings.attWeekMode === 'idoszak' ? _lastHeader.to : tod();
+  const dow       = new Date(anchorStr + 'T12:00:00').getDay() || 7;
+  const weekStart = addD(anchorStr, -(dow - 1));
   const weekEntriesAll = await fetchEntries({ datumFrom: weekStart, datumTo: addD(weekStart, 6) }).catch(() => []);
   const weekEntries = settings.reszlegSzuro ? weekEntriesAll.filter(e => (e.reszleg || '').trim() === settings.reszlegSzuro) : weekEntriesAll;
   const weekByDay = {};
@@ -1312,24 +1351,28 @@ function _renderAttekinto() {
   const sparkData = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).map(([datum, kg]) => ({ datum, kg }));
 
   const cardWrap = (key, html) => `<div data-card="${key}" class="dash-widget-clickable" title="Kattints a részletekért">${html}</div>`;
+  const topN = Math.max(1, parseInt(settings.attTopN) || 3);
+  const hiddenCards = new Set(settings.attHiddenCards || []);
+  const show = key => !hiddenCards.has(key);
 
-  const summaryCard = cardWrap('summary', _card('📊', 'Összesítő (kiválasztott időszak)',
+  const summaryCard = show('summary') ? cardWrap('summary', _card('📊', 'Összesítő (kiválasztott időszak)',
     totalKg > 0 ? _fmtUnitHtml(totalKg, settings.unit) : '<span style="color:var(--text3);font-size:20px;">—</span>',
     activeDays > 0 ? `${activeDays} aktív nap · átlag ${_fmtUnitPlain(totalKg / activeDays, settings.unit)}/nap` : 'Nincs adat',
-    sparkData.length >= 2 ? _sparkline(sparkData) : ''));
+    sparkData.length >= 2 ? _sparkline(sparkData) : '')) : '';
 
-  const topDolgCard = cardWrap('dolg', _card('🏅', 'Top 3 dolgozó', '', 'Kiválasztott időszak', _miniRanking(dolgTotals.slice(0, 3))));
-  const topAnyagCard = cardWrap('anyag', _card('📦', 'Top 3 anyag', '', 'Kiválasztott időszak', _miniRanking(anyagTotals.slice(0, 3))));
+  const topDolgCard = show('dolg') ? cardWrap('dolg', _card('🏅', `Top ${topN} dolgozó`, '', 'Kiválasztott időszak', _miniRanking(dolgTotals.slice(0, topN)))) : '';
+  const topAnyagCard = show('anyag') ? cardWrap('anyag', _card('📦', `Top ${topN} anyag`, '', 'Kiválasztott időszak', _miniRanking(anyagTotals.slice(0, topN)))) : '';
 
   const weekTotal = Object.values(weekByDay).reduce((a, b) => a + b, 0);
-  const weekCard = cardWrap('week', _card('📉', 'Heti bontás (aktuális hét)', '',
+  const weekLabel = settings.attWeekMode === 'idoszak' ? 'Heti bontás (időszak utolsó hete)' : 'Heti bontás (aktuális hét)';
+  const weekCard = show('week') ? cardWrap('week', _card('📉', weekLabel, '',
     weekTotal > 0 ? `${_fmtUnitPlain(weekTotal, 't')} ezen a héten` : 'Még nincs adat ezen a héten',
-    _weekBarSvg(weekStart, weekByDay)));
+    _weekBarSvg(weekStart, weekByDay))) : '';
 
   const bestWorstHtml = _bestWorstDay(byDay);
-  const bestWorstCard = cardWrap('bestworst', bestWorstHtml
+  const bestWorstCard = show('bestworst') ? cardWrap('bestworst', bestWorstHtml
     ? _card('🏆', 'Legjobb / Leggyengébb nap', '', '', bestWorstHtml)
-    : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', ''));
+    : _card('🏆', 'Legjobb / Leggyengébb nap', '', 'Nincs adat', '')) : '';
 
   const muszakTotal = deKg + duKg;
   const dePct = muszakTotal > 0 ? deKg / muszakTotal * 100 : 0;
@@ -1345,19 +1388,22 @@ function _renderAttekinto() {
       <span style="flex:1;">☀️ Délelőtt ${dePct.toFixed(0)}%</span>
       <span style="flex:1;text-align:right;">🌙 Délután ${duPct.toFixed(0)}%</span>
     </div>` : '';
-  const muszakCard = cardWrap('muszak', _card('🕐', 'Műszak-megoszlás', '',
-    muszakTotal > 0 ? `${_fmtUnitPlain(muszakTotal, 't')} összesen` : 'Nincs adat', muszakExtra));
+  const muszakCard = show('muszak') ? cardWrap('muszak', _card('🕐', 'Műszak-megoszlás', '',
+    muszakTotal > 0 ? `${_fmtUnitPlain(muszakTotal, 't')} összesen` : 'Nincs adat', muszakExtra)) : '';
 
-  const csapatCard = csapatTotals.length ? cardWrap('csapat', _card('👥', 'Top csapatok', '', 'Kiválasztott időszak', _miniRanking(csapatTotals.slice(0, 3)))) : '';
+  const csapatCard = (csapatTotals.length && show('csapat')) ? cardWrap('csapat', _card('👥', `Top ${topN} csapat`, '', 'Kiválasztott időszak', _miniRanking(csapatTotals.slice(0, topN)))) : '';
 
   const reszlegInfo = settings.reszlegSzuro
     ? `<p style="color:var(--text3);font-size:12px;margin:-6px 0 12px;">Szűrve: <strong style="color:var(--text);">${esc(settings.reszlegSzuro)}</strong> részleg (a heti bontás is erre a részlegre vonatkozik)</p>` : '';
 
   const detailHtml = _attekintoExpanded ? _attekintoDetailHtml(_attekintoExpanded, _attekintoCache, settings.unit) : '';
+  const cardsHtml = [summaryCard, weekCard, topDolgCard, topAnyagCard, bestWorstCard, muszakCard, csapatCard].join('');
 
   out.innerHTML = `<div class="r-head" style="font-size:16px;">${esc(_lastHeader.title)} · ${esc(_lastHeader.from)} – ${esc(_lastHeader.to)}</div>
     ${reszlegInfo}
-    <div class="dash-grid" style="margin-top:4px;">${summaryCard}${weekCard}${topDolgCard}${topAnyagCard}${bestWorstCard}${muszakCard}${csapatCard}</div>
+    ${cardsHtml
+      ? `<div class="dash-grid" style="margin-top:4px;">${cardsHtml}</div>`
+      : `<div class="empty-st"><div class="empty-ic">⚙️</div>Minden kártya elrejtve — kapcsolj be legalább egyet a ⚙ Beállításokban</div>`}
     ${detailHtml}`;
 }
 
@@ -1649,6 +1695,17 @@ export function analitikaPanelClick(e) {
 /* ── Beállítás-mezők (select/checkbox) change eseménye — mentés + azonnali
    újraszámolás a már lekérdezett adatokból, hálózati hívás nélkül. ── */
 export function analitikaPanelChange(e) {
+  if (e.target.classList.contains('anaSetAttCard')) {
+    const hidden = new Set(_getSettings().attHiddenCards || []);
+    const k = e.target.dataset.attcard;
+    if (e.target.checked) hidden.delete(k); else hidden.add(k);
+    _saveSettings({ attHiddenCards: [...hidden] });
+    _renderAttekinto();
+    return;
+  }
+  if (e.target.id === 'anaSetAttUnit')     { _saveSettings({ unit: e.target.value });         _renderAttekinto();     return; }
+  if (e.target.id === 'anaSetAttTopN')     { _saveSettings({ attTopN: e.target.value });      _renderAttekinto();     return; }
+  if (e.target.id === 'anaSetAttWeekMode') { _saveSettings({ attWeekMode: e.target.value });  _computeAttekintoResult(); return; }
   if (e.target.id === 'anaSetTopN')        { _saveSettings({ topN: e.target.value });        _computeCompareResult(); return; }
   if (e.target.id === 'anaSetSort')        { _saveSettings({ sortBy: e.target.value });       _computeCompareResult(); return; }
   if (e.target.id === 'anaSetUnit')        { _saveSettings({ unit: e.target.value });         _renderResultBody();      return; }
