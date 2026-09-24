@@ -1,4 +1,4 @@
-import { fetchEntries, fillSel, getWorkerMaterials } from './db.js';
+import { fetchEntries, fillSel, getWorkerMaterials, renderChecklist, filterChecklist, checklistChecked } from './db.js';
 import { state, isMuszakVezeto, isMainAdmin, hasPerm } from './state.js';
 import { E, esc, fmtKg, fmtS, skelHtml, tod, addD } from './utils.js';
 import { analitikaKepMent, analitikaPdfMent, nyomtatDiv } from './reports.js';
@@ -408,15 +408,6 @@ function _tile(w) {
   </div>`;
 }
 
-/* fillSel (db.js) mindig ábécérendbe rendez — a hét napjainál a kronológiai
-   sorrend (Hétfő…Vasárnap) számít, azt nem szabad összekeverni. */
-function _fillMultiSel(sel, list, noSort) {
-  if (!sel) return;
-  if (!noSort) { fillSel(sel, list); return; }
-  const prev = Array.from(sel.selectedOptions).map(o => o.value);
-  sel.innerHTML = list.map(item => `<option value="${esc(item)}"${prev.includes(item) ? ' selected' : ''}>${esc(item)}</option>`).join('');
-}
-
 /* ── Beállítás-blokk: közös mezők + csempénkénti extra mezők ── */
 function _settingsBlockHtml(meta) {
   const s = _getSettings();
@@ -674,8 +665,9 @@ export async function analitikaShowPanel(kind) {
     ${!_hasPicker(meta) ? '' : `
     <div class="lbox" style="margin-bottom:12px;">
       <div class="lbox-t">${esc(meta.title)}</div>
-      <p class="lhint">Ctrl+klik = több · üresen hagyva = top ${meta.max}</p>
-      <select id="anaDrSel" multiple size="5" style="width:100%;"></select>
+      <p class="lhint">Üresen hagyva: Top ${meta.max}</p>
+      <input type="text" class="lsearch" id="anaDrSelSearch" placeholder="Keresés…">
+      <div class="lchecklist" id="anaDrSelBox"></div>
     </div>`}
     ${meta.kind === 'search' ? `
     <div class="field" style="margin-bottom:14px;">
@@ -707,7 +699,7 @@ export async function analitikaShowPanel(kind) {
       <button class="btn btn-ghost" id="analitikaPdfBtn" disabled>⬇ PDF</button>
       <button class="btn btn-ghost" id="analitikaNyomtatBtn" disabled>🖨 Nyomtat</button>
     </div>`;
-  if (_hasPicker(meta)) _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  if (_hasPicker(meta)) renderChecklist('anaDrSelBox', meta.listSrc(), { showEdit: false });
   if (meta.kind === 'csapatreszletes') {
     fillSel(E('anaCsapatVezetoSel'), Object.keys(state.muszakVezetokMap), '— Válassz csapatvezetőt —');
   }
@@ -1463,7 +1455,7 @@ function _computeCompareResult() {
   if (meta.id === 'csapatok' && settings.sajatCsapat && isMuszakVezeto()) {
     keys = [`${state.userData?.displayName || ''} csapata`];
   } else {
-    const sel = Array.from(E('anaDrSel')?.selectedOptions || []).map(o => o.value).filter(Boolean);
+    const sel = checklistChecked('anaDrSelBox');
     keys = sel.length ? sel.slice(0, topN) : _topKeys(entries, meta.keyFn, topN);
   }
   _lastSeries = _perDaySeries(entries, meta.keyFn, keys);
@@ -1507,7 +1499,7 @@ async function _loadPrevComparison(meta, settings) {
    újraszámolás nem elég, mert a jelölőnégyzet-opciók is mások lesznek. */
 function _rebuildSelectAndRecompute() {
   const meta = _wdMeta(_panelKind); if (!meta) return;
-  _fillMultiSel(E('anaDrSel'), meta.listSrc(), meta.noSort);
+  renderChecklist('anaDrSelBox', meta.listSrc(), { showEdit: false, preserveChecked: true });
   _computeCompareResult();
 }
 
@@ -1678,6 +1670,10 @@ export function analitikaPanelChange(e) {
 /* ── Élő (gépelés közbeni) szűrés az Anyag kereső mezőn — 280ms debounce,
    ugyanaz a minta, mint a készlet keresőmezőinél (js/main.js). ── */
 export function analitikaPanelInput(e) {
+  if (e.target.id === 'anaDrSelSearch') {
+    filterChecklist('anaDrSelBox', e.target.value);
+    return;
+  }
   if (e.target.id === 'anaSearchInput') {
     clearTimeout(_searchDebounceT);
     _searchDebounceT = setTimeout(_computeSearchResult, 280);

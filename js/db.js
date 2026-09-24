@@ -205,16 +205,24 @@ export function fillSelGrouped(sel, anyagok, emptyLabel = '') {
 /* ── Generikus jelölőnégyzetes lista (Névlista, Anyaglista, Részleglista, Anyagcsoportok) ──
    A natív <select multiple> helyett: soronként checkbox + ✎ szerkesztés gomb,
    Ctrl+klik és dupla klik helyett egyértelmű, felfedezhető felület. ── */
-function renderChecklist(containerId, items, { archivedSet = null } = {}) {
+// preserveChecked: a Listáknál nem kell (egy akció — pl. törlés — után szándékosan
+// üresen induljon a következő renderelés), de más felhasználásoknál (pl. Elemzés
+// entitás-választója, ahol a pipálás maga a kiválasztás) a beállítás-vezérelt
+// újraépítés nem törölheti a felhasználó választását — ott true-val hívjuk.
+// showEdit: az Elemzés-választónál nincs értelme szerkesztés gombnak (nem
+// listakezelés, csak kiválasztás), ott false-szal hívjuk.
+export function renderChecklist(containerId, items, { archivedSet = null, preserveChecked = false, showEdit = true } = {}) {
   const box = E(containerId); if (!box) return;
+  const prevChecked = preserveChecked ? new Set(checklistChecked(containerId)) : null;
   const sorted = [...items].sort((a, b) => a.localeCompare(b, 'hu'));
   if (!sorted.length) { box.innerHTML = `<p class="lempty">Még nincs elem.</p>`; return; }
   box.innerHTML = sorted.map(v => {
     const arch = archivedSet?.has(v);
+    const checked = prevChecked?.has(v) ? ' checked' : '';
     return `<label class="lrow${arch ? ' lrow-arch' : ''}">
-      <input type="checkbox" class="lrow-cb" value="${esc(v)}">
+      <input type="checkbox" class="lrow-cb" value="${esc(v)}"${checked}>
       <span class="lrow-txt">${esc(v)}${arch ? ' <em>(archivált)</em>' : ''}</span>
-      <button type="button" class="lrow-btn lrow-edit" title="Szerkesztés">✎</button>
+      ${showEdit ? `<button type="button" class="lrow-btn lrow-edit" title="Szerkesztés">✎</button>` : ''}
     </label>`;
   }).join('');
 }
