@@ -13,46 +13,38 @@ export async function loadAllWipBags() {
 /**
  * Egy adott részleg+anyag kombóból EGYSZERRE több, egymástól független
  * megkezdett zsák is létezhet (pl. két dolgozó/gép ugyanazt az anyagot
- * daráló, de külön zsákba). Ezért nem lehet a részleg+anyag alapján
- * automatikusan eldönteni, hogy egy új átadás egy MEGLÉVŐ zsák folytatása,
- * vagy egy ÚJ, önálló zsák — ha van találat, a hívó (main.js) megkérdezi
- * a felhasználót (lásd a visszaadott { ambiguous, candidates } jelzést).
+ * daráló, de külön zsákba) — ezek sosem íródhatnak egymásra. Folytatásnak
+ * csak azt tekintjük, ha UGYANAZ a dolgozó adja hozzá megint a saját,
+ * még nyitott zsákjához (pl. ugyanazon műszakon belül javít/pontosít);
+ * ha más a dolgozó, az mindig egy új, önálló zsákot jelent — nincs
+ * rákérdezés, a döntés automatikus.
  */
-export async function saveWipTransfer({ reszleg, anyag, nev, datum, muszak, suly, targetId = null, forceNew = false }) {
+export async function saveWipTransfer({ reszleg, anyag, nev, datum, muszak, suly }) {
   if (!reszleg || !anyag || !nev || !suly || suly <= 0) {
     msg('Töltsd ki az összes mezőt!', 'error'); return;
   }
   try {
     const entry = { datum, muszak, nev, hozzaadott: suly };
 
-    if (targetId) {
-      const ref  = doc(db, 'megkezdettZsakok', targetId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) { msg('A kiválasztott zsák már nem létezik.', 'error'); return; }
-      const d    = snap.data();
-      const prev = d.jelenlegiSuly || 0;
-      await updateDoc(ref, {
+    const all = await loadAllWipBags();
+    const existing = all.find(b => b.reszleg === reszleg && b.anyag === anyag &&
+      b.tortenelem?.length && b.tortenelem[b.tortenelem.length - 1].nev === nev);
+
+    if (existing) {
+      const prev = existing.jelenlegiSuly || 0;
+      await updateDoc(doc(db, 'megkezdettZsakok', existing.id), {
         jelenlegiSuly: suly,
-        tortenelem: [...(d.tortenelem || []), { ...entry, hozzaadott: Math.max(0, suly - prev) }]
+        tortenelem: [...(existing.tortenelem || []), { ...entry, hozzaadott: Math.max(0, suly - prev) }]
       });
-      msg('Zsák átadva a következő műszaknak!', 'success');
-      await renderWipSection();
-      return;
+    } else {
+      await addDoc(collection(db, 'megkezdettZsakok'), {
+        anyag, reszleg,
+        jelenlegiSuly: suly,
+        tortenelem: [entry],
+        letrehozva: serverTimestamp(),
+        letrehozta: state.appUser?.uid || ''
+      });
     }
-
-    if (!forceNew) {
-      const all = await loadAllWipBags();
-      const candidates = all.filter(b => b.reszleg === reszleg && b.anyag === anyag);
-      if (candidates.length) return { ambiguous: true, candidates };
-    }
-
-    await addDoc(collection(db, 'megkezdettZsakok'), {
-      anyag, reszleg,
-      jelenlegiSuly: suly,
-      tortenelem: [entry],
-      letrehozva: serverTimestamp(),
-      letrehozta: state.appUser?.uid || ''
-    });
     msg('Zsák átadva a következő műszaknak!', 'success');
     await renderWipSection();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
