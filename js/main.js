@@ -678,16 +678,44 @@ E('megj').addEventListener('focus', e => e.target.select());
 
   // Rögzítés utáni automatikus WIP prompt
   let _wipPending = null;
+  function _resetWipPrompt() {
+    E('wipPromptSub').textContent = 'Átadod a következő műszaknak?';
+    E('wipPromptIgen').style.display = '';
+    const box = E('wipPromptChoices');
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
   document.addEventListener('entry-megkezdett', e => {
     _wipPending = e.detail;
     E('wipPromptAnyag').textContent = e.detail.anyag;
     E('wipPromptSuly').textContent  = e.detail.suly;
+    _resetWipPrompt();
     E('wipPromptBanner').style.display = 'flex';
     E('wipPromptBanner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
   E('wipPromptIgen').addEventListener('click', async () => {
-    if (_wipPending) {
-      await saveWipTransfer(_wipPending);
+    if (!_wipPending) return;
+    const result = await saveWipTransfer(_wipPending);
+    if (result?.ambiguous) {
+      // Már van nyitott megkezdett zsák ebből az anyag+részleg kombóból —
+      // nem dönthetjük el automatikusan, hogy ez annak folytatása, vagy
+      // egy másik dolgozó/gép önálló, külön zsákja (lásd wip-bags.js).
+      E('wipPromptSub').textContent    = 'Már van nyitott zsák ebből — melyikhez tartozik?';
+      E('wipPromptIgen').style.display = 'none';
+      const box = E('wipPromptChoices');
+      box.style.display = 'flex';
+      box.innerHTML = result.candidates.map(c =>
+        `<button class="btn btn-ghost btn-xs wip-choice-btn" data-wid="${c.id}">Folytatom (${c.jelenlegiSuly} kg)</button>`
+      ).join('') + `<button class="btn btn-primary btn-xs wip-choice-btn" data-wid="">➕ Új, önálló zsák</button>`;
+      box.querySelectorAll('.wip-choice-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!_wipPending) return;
+          await saveWipTransfer({ ..._wipPending, targetId: btn.dataset.wid || null, forceNew: !btn.dataset.wid });
+          _wipPending = null;
+          E('wipPromptBanner').style.display = 'none';
+        });
+      });
+    } else {
       _wipPending = null;
       E('wipPromptBanner').style.display = 'none';
     }

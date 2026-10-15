@@ -1,15 +1,7 @@
-import { db, doc, getDoc, setDoc, deleteDoc, updateDoc, collection, getDocs, serverTimestamp } from './firebase.js';
+import { db, doc, getDoc, addDoc, deleteDoc, updateDoc, collection, getDocs, serverTimestamp } from './firebase.js';
 import { state } from './state.js';
 import { E, esc, msg } from './utils.js';
 import { addSuly, updateAnyagSel } from './data-entry.js';
-
-function _wipId(reszleg, anyag) {
-  try {
-    return btoa(unescape(encodeURIComponent(`${reszleg.trim()}||${anyag.trim()}`))).replace(/[/+=]/g, '_');
-  } catch {
-    return encodeURIComponent(`${reszleg.trim()}||${anyag.trim()}`).replace(/%/g, '_').slice(0, 100);
-  }
-}
 
 export async function loadAllWipBags() {
   try {
@@ -18,31 +10,49 @@ export async function loadAllWipBags() {
   } catch { return []; }
 }
 
-export async function saveWipTransfer({ reszleg, anyag, nev, datum, muszak, suly }) {
+/**
+ * Egy adott részleg+anyag kombóból EGYSZERRE több, egymástól független
+ * megkezdett zsák is létezhet (pl. két dolgozó/gép ugyanazt az anyagot
+ * daráló, de külön zsákba). Ezért nem lehet a részleg+anyag alapján
+ * automatikusan eldönteni, hogy egy új átadás egy MEGLÉVŐ zsák folytatása,
+ * vagy egy ÚJ, önálló zsák — ha van találat, a hívó (main.js) megkérdezi
+ * a felhasználót (lásd a visszaadott { ambiguous, candidates } jelzést).
+ */
+export async function saveWipTransfer({ reszleg, anyag, nev, datum, muszak, suly, targetId = null, forceNew = false }) {
   if (!reszleg || !anyag || !nev || !suly || suly <= 0) {
     msg('Töltsd ki az összes mezőt!', 'error'); return;
   }
   try {
-    const id  = _wipId(reszleg, anyag);
-    const ref = doc(db, 'megkezdettZsakok', id);
-    const snap = await getDoc(ref);
     const entry = { datum, muszak, nev, hozzaadott: suly };
-    if (snap.exists()) {
-      const d = snap.data();
+
+    if (targetId) {
+      const ref  = doc(db, 'megkezdettZsakok', targetId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) { msg('A kiválasztott zsák már nem létezik.', 'error'); return; }
+      const d    = snap.data();
       const prev = d.jelenlegiSuly || 0;
       await updateDoc(ref, {
         jelenlegiSuly: suly,
         tortenelem: [...(d.tortenelem || []), { ...entry, hozzaadott: Math.max(0, suly - prev) }]
       });
-    } else {
-      await setDoc(ref, {
-        anyag, reszleg,
-        jelenlegiSuly: suly,
-        tortenelem: [entry],
-        letrehozva: serverTimestamp(),
-        letrehozta: state.appUser?.uid || ''
-      });
+      msg('Zsák átadva a következő műszaknak!', 'success');
+      await renderWipSection();
+      return;
     }
+
+    if (!forceNew) {
+      const all = await loadAllWipBags();
+      const candidates = all.filter(b => b.reszleg === reszleg && b.anyag === anyag);
+      if (candidates.length) return { ambiguous: true, candidates };
+    }
+
+    await addDoc(collection(db, 'megkezdettZsakok'), {
+      anyag, reszleg,
+      jelenlegiSuly: suly,
+      tortenelem: [entry],
+      letrehozva: serverTimestamp(),
+      letrehozta: state.appUser?.uid || ''
+    });
     msg('Zsák átadva a következő műszaknak!', 'success');
     await renderWipSection();
   } catch (e) { msg('Hiba: ' + e.message, 'error'); }
